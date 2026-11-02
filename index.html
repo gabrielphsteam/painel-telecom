@@ -1336,7 +1336,7 @@ function matrixHtml(cp, date, color) {
 function renderControle() {
   const T = S.tel, el = $('#v-controle'), colors = { TIM: TCOL.navy, NIO: '#2f5d27' };
   let h = `<div class="card p-4 mb-4"><div class="flex flex-wrap items-end gap-3">
-    <div class="mr-auto max-w-xl"><div class="font-semibold">Controle de reparos por horário</div><div class="text-xs text-slate-500 dark:text-slate-400 mt-1">Carregue a extração, escolha o horário e clique em <b>Registrar snapshot</b>: o app guarda a contagem de BAs de reparo abertas por setor e operadora. A coluna F compara com o snapshot anterior: <span class="inline-block w-2.5 h-2.5 rounded-full align-middle" style="background:#d9482b"></span> subiu · <span class="inline-block w-2.5 h-2.5 rounded-full align-middle" style="background:#3f9b7a"></span> caiu · <span class="inline-block w-2.5 h-2.5 rounded-full align-middle" style="background:#f2c879"></span> igual. O "Ontem 21hs" é preenchido sozinho se você registrou 21:00 no dia anterior.</div></div>
+    <div class="mr-auto max-w-xl"><div class="font-semibold">Controle de reparos por horário</div><div class="text-xs text-slate-500 dark:text-slate-400 mt-1">Carregue a extração, escolha o horário e clique em <b>Registrar snapshot</b>: o app guarda a contagem de BAs de reparo abertas por setor e operadora. A coluna F compara com o snapshot anterior: <span class="inline-block w-2.5 h-2.5 rounded-full align-middle" style="background:#d9482b"></span> subiu · <span class="inline-block w-2.5 h-2.5 rounded-full align-middle" style="background:#3f9b7a"></span> caiu · <span class="inline-block w-2.5 h-2.5 rounded-full align-middle" style="background:#f2c879"></span> igual. No painel publicado o registro é <b>automático</b>: a primeira planilha enviada em cada hora (07h às 21h) preenche a coluna daquela hora; as demais da mesma hora só atualizam o painel. O "Ontem 21hs" vem do 21:00 do dia anterior.</div></div>
     <div><label class="lbl">Data</label><input type="date" class="inp" value="${T.snapDate}" onchange="S.tel.snapDate=this.value;renderActive()"></div>
     <div><label class="lbl">Horário</label><select class="inp" onchange="S.tel.snapSlot=this.value">${SLOTS.map(s => `<option value="${s}" ${s === T.snapSlot ? 'selected' : ''}>${s === 'ontem' ? 'ONTEM 21hs' : s}</option>`).join('')}</select></div>
     <button class="btn btn-primary" onclick="registerSnap()">Registrar snapshot</button>
@@ -1396,6 +1396,26 @@ async function loadFromUrl(url, mode) {
     return 'updated';
   } catch (e) { console.warn('Dados publicados indisponíveis:', e.message); return 'err'; }
 }
+/* snapshots do "Controle por hora" publicados (snapshots.json), gerados automaticamente a cada envio de planilha */
+async function loadSnaps() {
+  try {
+    const r = await fetch('snapshots.json?t=' + Date.now(), { cache: 'no-store' });
+    if (!r.ok) return false;
+    const txt = await r.text(); if (S.snapSig === txt) return false; S.snapSig = txt;
+    const o = JSON.parse(txt), st = snapStore();
+    for (const d in o) { st[d] = st[d] || {}; for (const cp in o[d]) st[d][cp] = Object.assign(st[d][cp] || {}, o[d][cp]); }
+    return true;
+  } catch (e) { return false; }
+}
+async function syncSnaps(first) {
+  if (location.protocol === 'file:') return;
+  const ch = await loadSnaps(); if (!ch) return;
+  if (S.tel) {
+    const st = snapStore();
+    if (first && !st[S.tel.snapDate]) { const ds = Object.keys(st).sort(); if (ds.length) S.tel.snapDate = ds[ds.length - 1]; }
+    if (S.tab === 'controle') renderActive();
+  }
+}
 async function bootSource() {
   const q = new URLSearchParams(location.search);
   let url = q.get('dados') || DATA_URL;
@@ -1405,8 +1425,10 @@ async function bootSource() {
   const r = await loadFromUrl(url, 'boot');
   if (r === 'err') { const n = $('#srcNote'); n.textContent = 'Ainda não há arquivo publicado em ' + url + '. Carregue um arquivo manualmente.'; n.classList.remove('hidden'); return; }
   $('#btnRefresh').classList.remove('hidden');
-  setInterval(() => loadFromUrl(url, 'auto'), REFRESH_MIN * 60000);
-  document.addEventListener('visibilitychange', () => { if (!document.hidden) loadFromUrl(url, 'auto'); });
+  syncSnaps(true);
+  const tick = async () => { await loadFromUrl(url, 'auto'); syncSnaps(false); };
+  setInterval(tick, REFRESH_MIN * 60000);
+  document.addEventListener('visibilitychange', () => { if (!document.hidden) tick(); });
 }
 function openPublish() {
   const cs = S.cols.filter(c => c.kind !== 'empty'), n = cs.filter(c => SENS.test(c.name)).length;
@@ -1456,7 +1478,7 @@ function downloadPublic() {
   document.addEventListener('keydown', e => { if (e.key === 'Escape') { closeModal(); closePub(); } });
   $('#pubModal').addEventListener('click', e => { if (e.target.id === 'pubModal') closePub(); });
   $('#btnPub').addEventListener('click', openPublish); $('#pubDl').addEventListener('click', downloadPublic);
-  $('#btnRefresh').addEventListener('click', async () => { const r = await loadFromUrl(S.srcUrl, 'manual'); toast(r === 'same' ? 'Já está com os dados mais recentes.' : r === 'updated' ? 'Dados atualizados!' : 'Não consegui buscar o arquivo publicado.', r === 'err'); });
+  $('#btnRefresh').addEventListener('click', async () => { const r = await loadFromUrl(S.srcUrl, 'manual'); await syncSnaps(false); toast(r === 'same' ? 'Já está com os dados mais recentes.' : r === 'updated' ? 'Dados atualizados!' : 'Não consegui buscar o arquivo publicado.', r === 'err'); });
   const dz = $('#dropzone');
   ['dragenter', 'dragover'].forEach(ev => document.addEventListener(ev, e => { e.preventDefault(); dz.classList.add('border-indigo-500', 'bg-indigo-50/50'); }));
   ['dragleave', 'drop'].forEach(ev => document.addEventListener(ev, e => { e.preventDefault(); dz.classList.remove('border-indigo-500', 'bg-indigo-50/50'); }));
