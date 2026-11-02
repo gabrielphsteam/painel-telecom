@@ -1,0 +1,1469 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>DataLens BI - Painel Telecom e Dashboard automático</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<script>tailwind.config = { darkMode: 'class' };</script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
+<style type="text/tailwindcss">
+  @layer components {
+    .card { @apply bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-sm; }
+    .btn { @apply inline-flex items-center justify-center gap-2 px-3 py-2 rounded-xl text-sm font-medium border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700 transition whitespace-nowrap; }
+    .btn-primary { @apply bg-indigo-600 text-white border-indigo-600 hover:bg-indigo-500 dark:bg-indigo-600 dark:hover:bg-indigo-500 dark:border-indigo-600; }
+    .inp { @apply px-3 py-2 rounded-xl text-sm border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-500/50 min-w-0; }
+    .tabbtn { @apply px-4 py-2 text-sm font-medium rounded-xl whitespace-nowrap text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition; }
+    .tabbtn.active { @apply bg-indigo-600 text-white hover:bg-indigo-600 dark:hover:bg-indigo-600; }
+    .badge { @apply inline-block px-2 py-0.5 rounded-full text-xs font-medium; }
+    .lbl { @apply text-xs font-medium text-slate-500 dark:text-slate-400 mb-1 block; }
+  }
+  th.sortable { cursor: pointer; user-select: none; }
+  ::-webkit-scrollbar { height: 8px; width: 8px; }
+  ::-webkit-scrollbar-thumb { background: #94a3b855; border-radius: 8px; }
+  @media print { header, #filters, nav { display: none !important; } }
+</style>
+</head>
+<body class="bg-slate-50 text-slate-800 dark:bg-slate-950 dark:text-slate-200 min-h-screen antialiased" style="font-family: Inter, ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif">
+
+<header class="sticky top-0 z-40 backdrop-blur bg-white/85 dark:bg-slate-900/85 border-b border-slate-200 dark:border-slate-800">
+  <div class="max-w-[1600px] mx-auto px-4 py-3 flex items-center gap-3 flex-wrap">
+    <div class="flex items-center gap-3 min-w-0">
+      <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-indigo-500 to-violet-600 flex items-center justify-center text-white shadow">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><path d="M7 15l4-4 3 3 5-6"/></svg>
+      </div>
+      <div class="min-w-0">
+        <div class="font-bold leading-tight">DataLens BI</div>
+        <div id="fileName" class="text-xs text-slate-500 dark:text-slate-400 truncate max-w-[220px] sm:max-w-sm">Nenhum arquivo carregado</div>
+      </div>
+    </div>
+    <div class="ml-auto flex items-center gap-2 flex-wrap">
+      <label class="btn btn-primary cursor-pointer">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="M17 8l-5-5-5 5"/><path d="M12 3v12"/></svg>
+        <span>Carregar arquivo</span>
+        <input id="fileInput" type="file" accept=".xlsx,.xls,.csv,.tsv,.txt" class="hidden">
+      </label>
+      <button id="btnPub" class="btn hidden-until-data" title="Gerar o arquivo de dados para publicar online, sem dados pessoais de clientes">⬆ Publicar</button>
+      <button id="btnXlsx" class="btn hidden-until-data" title="Exportar dados filtrados para Excel">Excel</button>
+      <button id="btnPdf" class="btn hidden-until-data" title="Exportar relatório em PDF">PDF</button>
+      <button id="btnRefresh" class="btn hidden" title="Recarregar os dados publicados">🔄 Atualizar</button>
+      <button id="btnMode" class="btn hidden" title="Alternar entre o painel Telecom e a análise genérica">📡 Modo Telecom</button>
+      <button id="btnTheme" class="btn" title="Alternar modo escuro">🌙</button>
+    </div>
+  </div>
+</header>
+
+<main class="max-w-[1600px] mx-auto px-4 py-5">
+
+  <!-- Estado vazio / Upload -->
+  <section id="empty" class="max-w-3xl mx-auto mt-6 sm:mt-14">
+    <div id="dropzone" class="card p-8 sm:p-14 text-center border-2 border-dashed transition">
+      <div class="mx-auto w-16 h-16 rounded-2xl bg-indigo-50 dark:bg-indigo-950 text-indigo-600 dark:text-indigo-300 flex items-center justify-center mb-4">
+        <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="M17 8l-5-5-5 5"/><path d="M12 3v12"/></svg>
+      </div>
+      <h1 class="text-2xl font-bold">Arraste sua planilha aqui</h1>
+      <p class="mt-2 text-slate-500 dark:text-slate-400">Aceita <b>.xlsx</b>, <b>.xls</b> e <b>.csv</b> (separador ; , tab ou |). O dashboard é montado automaticamente a partir da estrutura dos dados e, se a planilha for de atividades/BAs de telecom (cd_setor, status_naf, olt, cdo...), o <b>Painel Telecom</b> é ligado sozinho. Tudo roda localmente no seu navegador, nenhum dado é enviado.</p>
+      <div id="srcNote" class="hidden mt-4 text-sm text-amber-600 dark:text-amber-400"></div>
+      <div class="mt-6 flex items-center justify-center gap-3 flex-wrap">
+        <label class="btn btn-primary cursor-pointer px-5 py-3">Selecionar arquivo<input id="fileInput2" type="file" accept=".xlsx,.xls,.csv,.tsv,.txt" class="hidden"></label>
+        <button id="btnSample" class="btn px-5 py-3">Ver com dados de exemplo</button>
+      </div>
+    </div>
+    <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 mt-4 text-sm">
+      <div class="card p-4"><b>Análise automática</b><div class="text-slate-500 dark:text-slate-400 mt-1">Detecta datas, métricas, categorias, identificadores e relações entre colunas.</div></div>
+      <div class="card p-4"><b>Dashboard executivo</b><div class="text-slate-500 dark:text-slate-400 mt-1">KPIs, gráficos, comparativos por período, rankings e tabela dinâmica.</div></div>
+      <div class="card p-4"><b>Exportação</b><div class="text-slate-500 dark:text-slate-400 mt-1">Dados filtrados em Excel e relatório com gráficos em PDF.</div></div>
+    </div>
+  </section>
+
+  <!-- Aplicação -->
+  <section id="app" class="hidden">
+
+    <!-- Filtros -->
+    <div id="filters" class="card p-4 mb-4">
+      <div class="flex items-center gap-2 flex-wrap">
+        <div class="relative flex-1 min-w-[200px]">
+          <svg class="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.3-4.3"/></svg>
+          <input id="search" class="inp w-full pl-9" placeholder="Busca rápida em todas as colunas...">
+        </div>
+        <div id="counter" class="text-sm font-medium px-2"></div>
+        <button id="btnToggleFilters" class="btn">Filtros avançados</button>
+        <button id="btnClear" class="btn">Limpar</button>
+      </div>
+      <div id="telBar" class="hidden mt-4 pt-4 border-t border-slate-200 dark:border-slate-800"></div>
+      <div id="advFilters" class="hidden mt-4 pt-4 border-t border-slate-200 dark:border-slate-800">
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
+          <div>
+            <div class="lbl">Período</div>
+            <div class="flex gap-2 flex-wrap">
+              <select id="dateCol" class="inp flex-1 min-w-[160px]"></select>
+              <input id="dateFrom" type="date" class="inp">
+              <input id="dateTo" type="date" class="inp">
+            </div>
+          </div>
+          <div>
+            <div class="lbl">Adicionar filtro</div>
+            <div class="flex gap-2 flex-wrap">
+              <select id="fCol" class="inp flex-1 min-w-[140px]"></select>
+              <select id="fOp" class="inp">
+                <option value="contains">contém</option><option value="eq">igual a</option><option value="neq">diferente de</option>
+                <option value="gt">maior que</option><option value="gte">maior ou igual</option><option value="lt">menor que</option><option value="lte">menor ou igual</option>
+                <option value="empty">está vazio</option><option value="notempty">está preenchido</option>
+              </select>
+              <input id="fVal" class="inp flex-1 min-w-[100px]" placeholder="valor">
+              <button id="fAdd" class="btn btn-primary">Adicionar</button>
+            </div>
+          </div>
+        </div>
+        <div class="mt-4"><div class="lbl">Filtros rápidos por categoria</div><div id="quick" class="grid grid-cols-2 md:grid-cols-4 xl:grid-cols-6 gap-2"></div></div>
+      </div>
+      <div id="chips" class="flex flex-wrap gap-2 mt-3 empty:hidden"></div>
+    </div>
+
+    <!-- Abas -->
+    <nav id="tabs" class="flex gap-1 overflow-x-auto pb-2 mb-4"></nav>
+
+    <div id="v-painel" class="hidden"></div>
+    <div id="v-ofensores" class="hidden"></div>
+    <div id="v-reinc" class="hidden"></div>
+    <div id="v-controle" class="hidden"></div>
+    <div id="v-dashboard"></div>
+    <div id="v-tabela" class="hidden"></div>
+    <div id="v-pivot" class="hidden"></div>
+    <div id="v-comparativo" class="hidden"></div>
+    <div id="v-ranking" class="hidden"></div>
+    <div id="v-estrutura" class="hidden"></div>
+  </section>
+</main>
+
+<!-- Modal de registro -->
+<div id="modal" class="hidden fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4">
+  <div class="card w-full max-w-3xl max-h-[85vh] overflow-hidden flex flex-col">
+    <div class="flex items-center justify-between p-4 border-b border-slate-200 dark:border-slate-800">
+      <div class="font-semibold">Detalhes do registro</div>
+      <button class="btn" onclick="closeModal()">Fechar</button>
+    </div>
+    <div id="modalBody" class="p-4 overflow-auto grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-3 text-sm"></div>
+  </div>
+</div>
+
+<!-- Modal: gerar arquivo para publicar -->
+<div id="pubModal" class="hidden fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4">
+  <div class="card w-full max-w-2xl max-h-[88vh] overflow-hidden flex flex-col">
+    <div class="flex items-center justify-between p-4 border-b border-slate-200 dark:border-slate-800">
+      <div class="font-semibold">Gerar arquivo para publicar online</div>
+      <button class="btn" onclick="closePub()">Fechar</button>
+    </div>
+    <div class="p-4 text-sm text-slate-600 dark:text-slate-300 border-b border-slate-200 dark:border-slate-800">
+      Marque as colunas que serão <b>removidas</b> do arquivo. As marcadas em vermelho parecem conter dados pessoais (nome, técnico, endereço exato, telefone...). Confirme também se o que sobrar (setores, OLT, CDO, ruas) pode ficar visível para quem tiver o link.
+    </div>
+    <div id="pubList" class="p-4 overflow-auto grid grid-cols-1 sm:grid-cols-2 gap-x-4 flex-1 min-h-0 content-start"></div>
+    <div class="p-4 border-t border-slate-200 dark:border-slate-800 flex items-center justify-between gap-2 flex-wrap">
+      <div id="pubInfo" class="text-xs text-slate-500"></div>
+      <button id="pubDl" class="btn btn-primary">Baixar atividades.csv</button>
+    </div>
+  </div>
+</div>
+
+<div id="toast" class="hidden fixed bottom-4 left-1/2 -translate-x-1/2 z-50 px-4 py-2 rounded-xl text-sm text-white bg-slate-900 shadow-lg"></div>
+
+<script>
+'use strict';
+/* ============================================================
+   NÚCLEO (funções puras: parsing e perfilamento)
+   ============================================================ */
+/*PURE_START*/
+function parseDate(s) {
+  if (typeof s !== 'string' || s.length < 8) return null;
+  let m = s.match(/^(\d{4})-(\d{2})-(\d{2})(?:[T\s]+(\d{2}):(\d{2})(?::(\d{2}))?)?/);
+  let y, mo, d, h = 0, mi = 0, se = 0;
+  if (m) { y = +m[1]; mo = +m[2]; d = +m[3]; h = +(m[4] || 0); mi = +(m[5] || 0); se = +(m[6] || 0); }
+  else {
+    m = s.match(/^(\d{2})\/(\d{2})\/(\d{4})(?:[\s,]+(\d{2}):(\d{2})(?::(\d{2}))?)?/);
+    if (!m) return null;
+    d = +m[1]; mo = +m[2]; y = +m[3]; h = +(m[4] || 0); mi = +(m[5] || 0); se = +(m[6] || 0);
+  }
+  if (mo < 1 || mo > 12 || d < 1 || d > 31 || y < 1900 || y > 2200) return null;
+  return Date.UTC(y, mo - 1, d, h, mi, se);
+}
+function parseNum(s) {
+  if (s == null) return NaN;
+  s = String(s).trim();
+  if (s === '') return NaN;
+  if (/^-?\d+$/.test(s)) return parseInt(s, 10);
+  if (/^-?\d*\.\d+$/.test(s)) return parseFloat(s);
+  if (/^-?\d{1,3}(\.\d{3})+(,\d+)?$/.test(s)) return parseFloat(s.replace(/\./g, '').replace(',', '.'));
+  if (/^-?\d+,\d+$/.test(s)) return parseFloat(s.replace(',', '.'));
+  return NaN;
+}
+function decodeBuf(buf) {
+  try { return new TextDecoder('utf-8', { fatal: true }).decode(buf); }
+  catch (e) { return new TextDecoder('windows-1252').decode(buf); }
+}
+function detectDelim(t) {
+  const first = t.slice(0, 5000).split(/\r?\n/).slice(0, 3).join('\n');
+  const c = { ';': 0, ',': 0, '\t': 0, '|': 0 };
+  let q = false;
+  for (const ch of first) { if (ch === '"') q = !q; else if (!q && ch in c) c[ch]++; }
+  return Object.keys(c).sort((a, b) => c[b] - c[a])[0];
+}
+function parseCSV(t, d) {
+  if (t.charCodeAt(0) === 0xFEFF) t = t.slice(1);
+  const rows = []; let row = [], f = '', q = false;
+  for (let i = 0; i < t.length; i++) {
+    const c = t[i];
+    if (q) {
+      if (c === '"') { if (t[i + 1] === '"') { f += '"'; i++; } else q = false; }
+      else f += c;
+    }
+    else if (c === '"' && f === '') q = true;
+    else if (c === d) { row.push(f); f = ''; }
+    else if (c === '\n') { row.push(f); rows.push(row); row = []; f = ''; }
+    else if (c === '\r') { /* ignora */ }
+    else f += c;
+  }
+  if (f !== '' || row.length) { row.push(f); rows.push(row); }
+  return rows;
+}
+const ID_NAME = /(^|_)(id|cd|nr|nrba|cpf|cnpj|matricula)(_|$)|cep|matric|numero|latitude|longitude|^lat$|^lon$|^lng$|fone|documento|codigo|código/i;
+
+function buildDataset(aoa) {
+  aoa = aoa.filter(r => r.some(c => String(c == null ? '' : c).trim() !== ''));
+  if (aoa.length < 2) throw new Error('O arquivo não tem dados suficientes (precisa de cabeçalho e ao menos 1 linha).');
+  const used = new Set();
+  const headers = aoa[0].map((h, i) => {
+    let n = String(h == null ? '' : h).trim() || ('Coluna ' + (i + 1)); const b = n; let k = 2;
+    while (used.has(n)) n = b + ' (' + (k++) + ')';
+    used.add(n); return n;
+  });
+  const W = headers.length;
+  const rows = aoa.slice(1).map((r, i) => {
+    const o = { __i: i };
+    for (let j = 0; j < W; j++) {
+      let v = r[j]; v = v == null ? '' : String(v).trim();
+      if (/^(null|nan|n\/a|undefined)$/i.test(v)) v = '';
+      o[headers[j]] = v;
+    }
+    return o;
+  });
+  const n = rows.length;
+  const cols = headers.map(name => {
+    const c = { name, kind: 'text', fill: 0, uniq: 0, counts: new Map(), H: 0, metric: false, dim: false, example: '' };
+    let filled = 0, dateHits = 0, numHits = 0, sampled = 0;
+    for (const r of rows) {
+      const v = r[name]; if (v === '') continue;
+      filled++; c.counts.set(v, (c.counts.get(v) || 0) + 1);
+      if (!c.example) c.example = v;
+      if (sampled < 400) { sampled++; if (parseDate(v) != null) dateHits++; if (!isNaN(parseNum(v))) numHits++; }
+    }
+    c.filled = filled; c.fill = filled / n; c.uniq = c.counts.size;
+    if (c.fill < 0.02) c.kind = 'empty';
+    else if (dateHits / sampled >= 0.9) c.kind = 'date';
+    else if (numHits / sampled >= 0.95) c.kind = 'number';
+    else if (c.uniq <= Math.max(30, n * 0.25) && c.uniq < filled * 0.9) c.kind = 'category';
+    else if (c.uniq >= filled * 0.9) c.kind = 'id';
+    else c.kind = 'text';
+    let H = 0; for (const x of c.counts.values()) { const p = x / filled; H -= p * Math.log2(p); } c.H = H;
+    return c;
+  });
+  // pré-cálculos por linha
+  const numCols = cols.filter(c => c.kind === 'number'), dateCols = cols.filter(c => c.kind === 'date');
+  for (const c of numCols) { c.min = Infinity; c.max = -Infinity; c.sum = 0; c.cnt = 0; c.allInt = true; c.maxLen = 0; }
+  for (const c of dateCols) { c.dmin = Infinity; c.dmax = -Infinity; }
+  for (const r of rows) {
+    r.__n = {}; r.__d = {};
+    for (const c of numCols) {
+      const raw = r[c.name]; const x = parseNum(raw);
+      if (isNaN(x)) { r.__n[c.name] = null; continue; }
+      r.__n[c.name] = x; c.min = Math.min(c.min, x); c.max = Math.max(c.max, x); c.sum += x; c.cnt++;
+      if (!Number.isInteger(x)) c.allInt = false; c.maxLen = Math.max(c.maxLen, raw.length);
+    }
+    for (const c of dateCols) {
+      const t = parseDate(r[c.name]); r.__d[c.name] = t;
+      if (t != null) { c.dmin = Math.min(c.dmin, t); c.dmax = Math.max(c.dmax, t); }
+    }
+    r.__s = headers.map(h => r[h]).join(' ').toLowerCase();
+  }
+  for (const c of numCols) {
+    c.avg = c.cnt ? c.sum / c.cnt : 0;
+    const idLike = ID_NAME.test(c.name) || (c.allInt && c.maxLen >= 7 && c.uniq > c.filled * 0.5);
+    c.metric = !idLike && c.uniq > 1;
+  }
+  for (const c of cols) {
+    c.dim = (c.kind === 'category' && c.uniq >= 2) || (c.kind === 'number' && c.uniq >= 2 && c.uniq <= 15);
+    c.anyDim = c.kind !== 'empty' && c.kind !== 'date' && c.uniq >= 2 && (c.uniq <= c.filled * 0.9 || c.filled < 10);
+  }
+  return { headers, rows, cols };
+}
+/*PURE_END*/
+
+/* ============================================================
+   ESTADO E UTILITÁRIOS
+   ============================================================ */
+const $ = s => document.querySelector(s);
+const PAL = ['#6366f1', '#22d3ee', '#f59e0b', '#10b981', '#f43f5e', '#8b5cf6', '#06b6d4', '#84cc16', '#ec4899', '#f97316', '#14b8a6', '#a855f7'];
+const S = {
+  rows: [], cols: [], filtered: [], filters: [], search: '', file: '', tab: 'dashboard',
+  dateCol: null, dateFrom: null, dateTo: null, sort: { col: null, dir: 1 }, page: 1, pageSize: 25, visible: [],
+  charts: {}, titles: {}, dark: false, noAnim: false, exporting: false, gran: 'auto',
+  ex: { dim: '', measure: '__count', agg: 'sum', type: 'bar', n: 10 },
+  cp: { measure: '__count', agg: 'sum', win: 7, dim: '' },
+  pv: { row: '', col: '', measure: '__count', agg: 'sum' },
+  rk: { dim: '', measure: '__count', agg: 'sum', n: 10, order: 'desc' }
+};
+const GEN_TABS = [['dashboard', 'Dashboard'], ['tabela', 'Dados'], ['pivot', 'Tabela dinâmica'], ['comparativo', 'Comparativo'], ['ranking', 'Rankings'], ['estrutura', 'Estrutura']];
+const TEL_TABS = [['painel', '📡 Painel operacional'], ['ofensores', 'Ofensores'], ['reinc', 'Reincidência'], ['controle', 'Controle por hora']];
+const ALL_IDS = ['painel', 'ofensores', 'reinc', 'controle', 'dashboard', 'tabela', 'pivot', 'comparativo', 'ranking', 'estrutura'];
+const telOn = () => !!(S.tel && S.tel.on);
+const tabsList = () => telOn() ? TEL_TABS.concat(GEN_TABS) : GEN_TABS;
+const OPLBL = { eq: '=', neq: '≠', contains: 'contém', gt: '>', gte: '≥', lt: '<', lte: '≤', empty: 'vazio', notempty: 'preenchido' };
+const MESES = ['jan', 'fev', 'mar', 'abr', 'mai', 'jun', 'jul', 'ago', 'set', 'out', 'nov', 'dez'];
+const DIAS = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
+
+const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const nf = new Intl.NumberFormat('pt-BR', { maximumFractionDigits: 2 });
+const nfc = new Intl.NumberFormat('pt-BR', { notation: 'compact', maximumFractionDigits: 1 });
+const fmt = n => (n == null || isNaN(n)) ? '-' : (Math.abs(n) >= 1e6 ? nfc.format(n) : nf.format(n));
+const pct = (a, b) => b ? a / b * 100 : 0;
+const p2 = x => String(x).padStart(2, '0');
+const fmtDate = ms => { const d = new Date(ms); return p2(d.getUTCDate()) + '/' + p2(d.getUTCMonth() + 1) + '/' + d.getUTCFullYear(); };
+const col = name => S.cols.find(c => c.name === name);
+const metrics = () => S.cols.filter(c => c.metric);
+const numOf = (r, c) => { if (r.__n && c in r.__n) return r.__n[c]; const x = parseNum(r[c]); return isNaN(x) ? null : x; };
+const trunc = (s, n) => { s = String(s); return s.length > n ? s.slice(0, n - 1) + '…' : s; };
+const opts = (list, cur) => list.map(o => { const v = Array.isArray(o) ? o[0] : o, l = Array.isArray(o) ? o[1] : o; return `<option value="${esc(v)}" ${String(v) === String(cur) ? 'selected' : ''}>${esc(l)}</option>`; }).join('');
+const sel = (path, list, cur, cls = '') => `<select class="inp ${cls}" onchange="setS('${path}',this.value)">${opts(list, cur)}</select>`;
+const measureList = () => [['__count', 'Contagem de registros'], ...metrics().map(c => [c.name, c.name])];
+const aggList = [['sum', 'Soma'], ['avg', 'Média'], ['max', 'Máximo'], ['min', 'Mínimo']];
+
+function toast(msg, err) {
+  const t = $('#toast'); t.textContent = msg; t.className = 'fixed bottom-4 left-1/2 -translate-x-1/2 z-50 px-4 py-2 rounded-xl text-sm text-white shadow-lg ' + (err ? 'bg-rose-600' : 'bg-slate-900');
+  clearTimeout(toast._t); toast._t = setTimeout(() => t.classList.add('hidden'), 3500);
+}
+function setS(path, v) {
+  const p = path.split('.'); let o = S; for (let i = 0; i < p.length - 1; i++) o = o[p[i]];
+  const k = p[p.length - 1]; o[k] = (typeof o[k] === 'number') ? Number(v) : v;
+  renderActive();
+}
+
+/* ============================================================
+   AGREGAÇÕES
+   ============================================================ */
+const newAcc = () => ({ n: 0, s: 0, c: 0, mx: -Infinity, mn: Infinity });
+function addAcc(a, r, measure) {
+  a.n++;
+  if (measure !== '__count') { const v = numOf(r, measure); if (v != null) { a.s += v; a.c++; if (v > a.mx) a.mx = v; if (v < a.mn) a.mn = v; } }
+}
+function accVal(a, agg, measure) {
+  if (measure === '__count' || agg === 'count') return a.n;
+  if (agg === 'sum') return a.s;
+  if (agg === 'avg') return a.c ? a.s / a.c : 0;
+  if (agg === 'max') return isFinite(a.mx) ? a.mx : 0;
+  return isFinite(a.mn) ? a.mn : 0;
+}
+function groupBy(rows, dim, measure, agg) {
+  const m = new Map();
+  for (const r of rows) {
+    let k = r[dim]; if (k === '') k = '(vazio)';
+    let a = m.get(k); if (!a) { a = newAcc(); m.set(k, a); }
+    addAcc(a, r, measure);
+  }
+  return [...m.entries()].map(([k, a]) => ({ k, n: a.n, v: accVal(a, agg, measure) }));
+}
+function topWithOthers(arr, n, agg, measure) {
+  arr = arr.slice().sort((a, b) => b.v - a.v);
+  if (arr.length <= n) return arr;
+  const top = arr.slice(0, n), rest = arr.slice(n);
+  if (measure === '__count' || agg === 'sum' || agg === 'count') top.push({ k: 'Outros', n: rest.reduce((s, x) => s + x.n, 0), v: rest.reduce((s, x) => s + x.v, 0) });
+  return top;
+}
+function startOfDay(ms) { return Math.floor(ms / 864e5) * 864e5; }
+function bucketKey(ms, g) {
+  const d = new Date(ms);
+  if (g === 'month') return Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), 1);
+  if (g === 'week') { const day = startOfDay(ms); const dow = (new Date(day).getUTCDay() + 6) % 7; return day - dow * 864e5; }
+  return startOfDay(ms);
+}
+function nextKey(k, g) {
+  if (g === 'month') { const d = new Date(k); return Date.UTC(d.getUTCFullYear(), d.getUTCMonth() + 1, 1); }
+  return k + (g === 'week' ? 7 : 1) * 864e5;
+}
+function bucketLabel(k, g, long) {
+  const d = new Date(k);
+  if (g === 'month') return MESES[d.getUTCMonth()] + '/' + String(d.getUTCFullYear()).slice(2);
+  return p2(d.getUTCDate()) + '/' + p2(d.getUTCMonth() + 1) + (long ? '/' + d.getUTCFullYear() : '');
+}
+function autoGran(min, max) { const days = (max - min) / 864e5; return days <= 62 ? 'day' : days <= 400 ? 'week' : 'month'; }
+function dateRange(rows) {
+  let mn = Infinity, mx = -Infinity;
+  if (!S.dateCol) return null;
+  for (const r of rows) { const t = r.__d[S.dateCol]; if (t != null) { if (t < mn) mn = t; if (t > mx) mx = t; } }
+  return isFinite(mn) ? { mn, mx } : null;
+}
+function seriesData(rows, g, measure, agg) {
+  const rg = dateRange(rows); if (!rg) return [];
+  const m = new Map();
+  for (const r of rows) { const t = r.__d[S.dateCol]; if (t == null) continue; const k = bucketKey(t, g); let a = m.get(k); if (!a) { a = newAcc(); m.set(k, a); } addAcc(a, r, measure); }
+  const out = []; let k = bucketKey(rg.mn, g), guard = 0;
+  const end = bucketKey(rg.mx, g);
+  while (k <= end && guard++ < 3000) { const a = m.get(k) || newAcc(); out.push({ k, label: bucketLabel(k, g, true), short: bucketLabel(k, g, false), n: a.n, v: accVal(a, agg, measure) }); k = nextKey(k, g); }
+  return out;
+}
+const granName = g => ({ day: 'dia', week: 'semana', month: 'mês' }[g]);
+const currentGran = () => { if (S.gran !== 'auto') return S.gran; const r = dateRange(S.filtered); return r ? autoGran(r.mn, r.mx) : 'day'; };
+const mLabel = (measure, agg) => measure === '__count' ? 'Registros' : ({ sum: 'Soma', avg: 'Média', max: 'Máx.', min: 'Mín.' }[agg] + ' de ' + measure);
+
+/* ============================================================
+   CARGA DE ARQUIVO
+   ============================================================ */
+function bufToAoa(buf, name) {
+  const ext = name.split('?')[0].split('.').pop().toLowerCase();
+  if (['csv', 'tsv', 'txt'].includes(ext)) { const text = decodeBuf(buf); return parseCSV(text, detectDelim(text)); }
+  const wb = XLSX.read(buf, { type: 'array', cellDates: true });
+  let best = null, bestN = -1;
+  for (const sn of wb.SheetNames) { const a = XLSX.utils.sheet_to_json(wb.Sheets[sn], { header: 1, raw: true, defval: '' }); if (a.length > bestN) { best = a; bestN = a.length; } }
+  return best.map(r => r.map(v => v instanceof Date ? v.toISOString().slice(0, 19).replace('T', ' ') : v));
+}
+async function handleFile(file) {
+  if (!file) return;
+  try { toast('Lendo ' + file.name + '...'); const buf = await file.arrayBuffer(); S.src = null; loadData(bufToAoa(buf, file.name), file.name); }
+  catch (e) { console.error(e); toast('Erro ao ler o arquivo: ' + e.message, true); }
+}
+function loadData(aoa, name, quiet) {
+  const ds = buildDataset(aoa);
+  S.rows = ds.rows; S.cols = ds.cols; S.file = name;
+  S.filters = []; S.search = ''; S.dateFrom = S.dateTo = null; S.page = 1; S.sort = { col: null, dir: 1 }; S.gran = 'auto';
+  $('#search').value = '';
+  // coluna de data principal
+  let best = null, bs = -1;
+  for (const c of S.cols.filter(c => c.kind === 'date')) { const sc = c.fill * Math.min(Math.round((c.dmax - c.dmin) / 864e5) + 1, 30) / 30 + (c.uniq > 2 ? 0.01 : 0); if (sc > bs) { bs = sc; best = c; } }
+  S.dateCol = best ? best.name : null;
+  // dimensões ranqueadas (para gráficos automáticos)
+  S.dimsRank = S.cols.filter(c => c.dim && c.uniq <= 40).sort((a, b) => b.H * b.fill - a.H * a.fill);
+  S.anyDims = S.cols.filter(c => c.anyDim);
+  const d0 = (S.dimsRank[0] || S.anyDims[0] || {}).name || '';
+  const d1 = (S.dimsRank[1] || S.dimsRank[0] || S.anyDims[0] || {}).name || '';
+  S.ex = { dim: d0, measure: '__count', agg: 'sum', type: 'bar', n: 10 };
+  S.cp = { measure: '__count', agg: 'sum', win: 7, dim: d0 };
+  S.pv = { row: d0, col: d1 !== d0 ? d1 : '', measure: '__count', agg: 'sum' };
+  S.rk = { dim: d0, measure: '__count', agg: 'sum', n: 10, order: 'desc' };
+  S.visible = S.cols.filter(c => c.kind !== 'empty').slice(0, 12).map(c => c.name);
+  $('#fileName').textContent = name + ' · ' + S.rows.length.toLocaleString('pt-BR') + ' linhas · ' + S.cols.length + ' colunas' + (S.src ? ' · atualizado em ' + (S.src.lm || new Date()).toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' }) : '');
+  $('#empty').classList.add('hidden'); $('#app').classList.remove('hidden');
+  document.querySelectorAll('.hidden-until-data').forEach(b => b.classList.remove('hidden'));
+  setupFilterUI(); initTelecom(); buildTabs(); refresh();
+  if (!quiet) toast('Dados carregados com sucesso!');
+}
+function sampleData() {
+  const pick = a => a[Math.floor(Math.random() * a.length)];
+  const reg = ['Sudeste', 'Sul', 'Nordeste', 'Centro-Oeste', 'Norte'], prod = ['Notebook', 'Smartphone', 'Monitor', 'Teclado', 'Headset', 'Tablet'];
+  const price = [4200, 2800, 1500, 250, 350, 1900], can = ['Loja', 'E-commerce', 'Marketplace'], vend = ['Ana', 'Bruno', 'Carla', 'Diego', 'Elisa', 'Fábio'];
+  const aoa = [['Data', 'Região', 'Produto', 'Canal', 'Vendedor', 'Quantidade', 'Valor', 'Desconto (%)']];
+  const base = Date.UTC(2026, 4, 1);
+  for (let i = 0; i < 900; i++) {
+    const day = Math.floor(Math.pow(Math.random(), 0.8) * 180);
+    const d = new Date(base + day * 864e5 + (8 + Math.floor(Math.random() * 12)) * 36e5);
+    const q = 1 + Math.floor(Math.random() * 5), p = Math.floor(Math.random() * prod.length);
+    aoa.push([d.toISOString().slice(0, 19).replace('T', ' '), pick(reg), prod[p], pick(can), pick(vend), q, (price[p] * q * (0.9 + Math.random() * 0.2)).toFixed(2), Math.floor(Math.random() * 15)]);
+  }
+  return aoa;
+}
+
+/* ============================================================
+   FILTROS
+   ============================================================ */
+function setupFilterUI() {
+  const dcs = S.cols.filter(c => c.kind === 'date');
+  $('#dateCol').innerHTML = dcs.length ? opts(dcs.map(c => c.name), S.dateCol) : '<option value="">(sem datas)</option>';
+  $('#dateCol').disabled = $('#dateFrom').disabled = $('#dateTo').disabled = !dcs.length;
+  $('#dateFrom').value = $('#dateTo').value = '';
+  $('#fCol').innerHTML = opts(S.cols.filter(c => c.kind !== 'empty').map(c => c.name), '');
+  const qc = S.dimsRank.slice(0, 12);
+  $('#quick').innerHTML = qc.map(c => {
+    const top = [...c.counts.entries()].sort((a, b) => b[1] - a[1]).slice(0, 60);
+    return `<div><label class="lbl truncate" title="${esc(c.name)}">${esc(c.name)}</label><select class="inp w-full qsel" data-c="${esc(c.name)}" onchange="quickFilter(this)"><option value="">Todos</option>${top.map(([v, n]) => `<option value="${esc(v)}">${esc(trunc(v, 32))} (${n})</option>`).join('')}</select></div>`;
+  }).join('');
+}
+function quickFilter(el) {
+  const c = el.dataset.c;
+  S.filters = S.filters.filter(f => !(f.col === c && f.op === 'eq'));
+  if (el.value) S.filters.push({ col: c, op: 'eq', val: el.value });
+  S.page = 1; refresh(true);
+}
+function addFilter(f, fromChart) {
+  if (f.op === 'eq') S.filters = S.filters.filter(x => !(x.col === f.col && x.op === 'eq'));
+  if (!S.filters.some(x => x.col === f.col && x.op === f.op && x.val === f.val)) S.filters.push(f);
+  S.page = 1; refresh();
+}
+function rmFilter(i) { S.filters.splice(i, 1); S.page = 1; refresh(); }
+function testF(r, f) {
+  const raw = r[f.col], v = f.val;
+  switch (f.op) {
+    case 'eq': return raw === v || (v === '(vazio)' && raw === '');
+    case 'neq': return raw !== v;
+    case 'contains': return raw.toLowerCase().includes(String(v).toLowerCase());
+    case 'empty': return raw === '';
+    case 'notempty': return raw !== '';
+    default: {
+      const c = col(f.col); let a, b;
+      if (c && c.kind === 'date') { a = r.__d[f.col]; b = parseDate(String(v)); }
+      else { a = numOf(r, f.col); b = parseNum(String(v)); }
+      if (a == null || b == null || isNaN(b)) return false;
+      return f.op === 'gt' ? a > b : f.op === 'lt' ? a < b : f.op === 'gte' ? a >= b : a <= b;
+    }
+  }
+}
+function applyFilters() {
+  const q = S.search, dc = S.dateCol, from = S.dateFrom, to = S.dateTo, tel = telOn();
+  const base = S.rows.filter(r => {
+    if (q && !r.__s.includes(q)) return false;
+    if (dc && (from != null || to != null)) { const t = r.__d[dc]; if (t == null) return false; if (from != null && t < from) return false; if (to != null && t > to) return false; }
+    if (tel && S.tel.openOnly && !isOpen(r)) return false;
+    for (const f of S.filters) if (!testF(r, f)) return false;
+    return true;
+  });
+  S.filteredNoNaf = base;
+  const nv = tel ? S.tel.naf : '';
+  S.filtered = nv ? base.filter(r => nv === 'risco' ? isRisco(r) : nafClass(r) === nv) : base;
+}
+function renderChips() {
+  $('#chips').innerHTML = scopeBadges() + S.filters.map((f, i) => `<span class="badge bg-indigo-100 text-indigo-700 dark:bg-indigo-950 dark:text-indigo-300 flex items-center gap-1 !py-1"><b>${esc(trunc(f.col, 28))}</b> ${OPLBL[f.op]} ${f.op === 'empty' || f.op === 'notempty' ? '' : esc(trunc(f.val, 30))}<button class="ml-1 font-bold hover:text-rose-500" onclick="rmFilter(${i})">×</button></span>`).join('');
+  $('#counter').innerHTML = `<span class="text-indigo-600 dark:text-indigo-400 font-bold">${S.filtered.length.toLocaleString('pt-BR')}</span> <span class="text-slate-500">de ${S.rows.length.toLocaleString('pt-BR')} registros</span>`;
+}
+function refresh(keepQuick) {
+  applyFilters(); renderChips();
+  if (!keepQuick) syncQuick();
+  renderActive();
+}
+function syncQuick() {
+  document.querySelectorAll('select.qsel').forEach(s => { const f = S.filters.find(x => x.col === s.dataset.c && x.op === 'eq'); s.value = f ? f.val : ''; });
+}
+
+/* ============================================================
+   TEMA E ABAS
+   ============================================================ */
+function applyChartTheme(dark) {
+  Chart.defaults.color = dark ? '#94a3b8' : '#64748b';
+  Chart.defaults.borderColor = dark ? 'rgba(148,163,184,.15)' : '#e2e8f0';
+  Chart.defaults.font.family = "Inter, ui-sans-serif, system-ui, sans-serif";
+}
+function setTheme(dark) {
+  S.dark = dark; document.documentElement.classList.toggle('dark', dark);
+  $('#btnTheme').textContent = dark ? '☀️' : '🌙';
+  try { localStorage.setItem('datalens-theme', dark ? 'dark' : 'light'); } catch (e) { }
+  applyChartTheme(dark); if (S.rows.length) renderActive();
+}
+function buildTabs() {
+  $('#tabs').innerHTML = tabsList().map(([id, l]) => `<button class="tabbtn ${S.tab === id ? 'active' : ''}" data-t="${id}" onclick="showTab('${id}')">${l}</button>`).join('');
+}
+function showTab(t) { S.tab = t; buildTabs(); renderActive(); }
+function killCharts() { Object.values(S.charts).forEach(c => { try { c.destroy(); } catch (e) { } }); S.charts = {}; S.titles = {}; }
+function renderActive() {
+  killCharts();
+  if (!tabsList().some(t => t[0] === S.tab)) { S.tab = telOn() ? 'painel' : 'dashboard'; buildTabs(); }
+  ALL_IDS.forEach(id => $('#v-' + id).classList.toggle('hidden', id !== S.tab));
+  const F = S.filtered;
+  if (!F.length && !['estrutura', 'controle'].includes(S.tab)) { $('#v-' + S.tab).innerHTML = `<div class="card p-10 text-center text-slate-500">Nenhum registro encontrado com os filtros atuais. <button class="btn mt-3" onclick="clearAll()">Limpar filtros</button></div>`; return; }
+  ({ dashboard: renderDashboard, tabela: renderTable, pivot: renderPivot, comparativo: renderComp, ranking: renderRanking, estrutura: renderEstrutura, painel: renderPainel, ofensores: renderOfensores, reinc: renderReinc, controle: renderControle })[S.tab]();
+}
+function clearAll() {
+  S.filters = []; S.search = ''; S.dateFrom = S.dateTo = null; $('#search').value = ''; $('#dateFrom').value = ''; $('#dateTo').value = ''; S.page = 1; refresh();
+}
+
+/* ============================================================
+   GRÁFICOS
+   ============================================================ */
+const surface = () => (S.exporting || !S.dark) ? '#ffffff' : '#0f172a';
+function mk(id, cfg, title) {
+  const el = document.getElementById(id); if (!el) return;
+  cfg.options = Object.assign({ responsive: true, maintainAspectRatio: false, animation: S.noAnim ? false : { duration: 450 } }, cfg.options || {});
+  S.charts[id] = new Chart(el, cfg); S.titles[id] = title || id; return S.charts[id];
+}
+const dimClick = c => (e, els, ch) => {
+  if (!els.length) return; const lab = ch.data.labels[els[0].index]; if (lab === 'Outros') return;
+  addFilter({ col: c, op: lab === '(vazio)' ? 'empty' : 'eq', val: lab });
+};
+const hover = on => (e, els) => { if (e.native && e.native.target) e.native.target.style.cursor = on && els.length ? 'pointer' : 'default'; };
+const shortTick = { callback(v) { const l = this.getLabelForValue(v); return trunc(l, 24); } };
+function barCfg(labels, data, o = {}) {
+  return {
+    type: 'bar',
+    data: { labels, datasets: [{ label: o.label || 'Registros', data, backgroundColor: labels.map((_, i) => PAL[o.single ? (o.ci || 0) : i % PAL.length] + 'cc'), borderRadius: 6, maxBarThickness: 44 }] },
+    options: {
+      indexAxis: o.h ? 'y' : 'x', plugins: { legend: { display: false } },
+      scales: o.h ? { x: { beginAtZero: true }, y: { grid: { display: false }, ticks: shortTick } } : { x: { grid: { display: false }, ticks: shortTick }, y: { beginAtZero: true } },
+      onClick: o.click, onHover: hover(!!o.click)
+    }
+  };
+}
+function pieCfg(labels, data, o = {}) {
+  return {
+    type: o.type || 'doughnut',
+    data: { labels, datasets: [{ data, backgroundColor: labels.map((_, i) => PAL[i % PAL.length]), borderColor: surface(), borderWidth: 2 }] },
+    options: { plugins: { legend: { position: 'right', labels: { boxWidth: 10, usePointStyle: true, generateLabels: ch => ch.data.labels.map((l, i) => ({ text: trunc(l, 22), fillStyle: ch.data.datasets[0].backgroundColor[i], strokeStyle: 'transparent', index: i })) } } }, cutout: o.type === 'pie' ? 0 : '62%', onClick: o.click, onHover: hover(!!o.click) }
+  };
+}
+function lineCfg(labels, data, label) {
+  return {
+    type: 'line',
+    data: { labels, datasets: [{ label, data, borderColor: PAL[0], backgroundColor: 'rgba(99,102,241,.15)', fill: true, tension: .35, pointRadius: data.length > 60 ? 0 : 3, borderWidth: 2 }] },
+    options: { plugins: { legend: { display: false } }, interaction: { mode: 'index', intersect: false }, scales: { x: { grid: { display: false }, ticks: { maxTicksLimit: 12 } }, y: { beginAtZero: true } } }
+  };
+}
+function cfgFor(type, labels, data, label, click) {
+  if (type === 'barh') return barCfg(labels, data, { h: true, label, single: true, click });
+  if (type === 'line') return lineCfg(labels, data, label);
+  if (type === 'pie' || type === 'doughnut') return pieCfg(labels, data, { type, click });
+  if (type === 'radar') return { type: 'radar', data: { labels, datasets: [{ label, data, borderColor: PAL[0], backgroundColor: 'rgba(99,102,241,.2)' }] }, options: { plugins: { legend: { display: false } } } };
+  return barCfg(labels, data, { label, click });
+}
+const chartCard = (id, title, span, sub, extra = '', hcls = '') => `<div class="card p-4 ${span || ''}"><div class="flex items-start justify-between gap-2 mb-2"><div><div class="font-semibold text-sm">${esc(title)}</div>${sub ? `<div class="text-xs text-slate-500 dark:text-slate-400">${esc(sub)}</div>` : ''}</div>${extra}</div><div class="relative ${hcls || 'h-64 sm:h-72'}"><canvas id="${id}"></canvas></div></div>`;
+
+/* ============================================================
+   DASHBOARD
+   ============================================================ */
+function computeKPIs() {
+  const F = S.filtered, T = S.rows.length, k = [];
+  k.push({ label: 'Registros', value: fmt(F.length), sub: pct(F.length, T).toFixed(1).replace('.', ',') + '% de ' + fmt(T) + ' no total', color: PAL[0] });
+  const rg = dateRange(F);
+  if (rg) {
+    const days = Math.round((rg.mx - rg.mn) / 864e5) + 1;
+    k.push({ label: 'Período', value: days + (days > 1 ? ' dias' : ' dia'), sub: fmtDate(rg.mn) + ' a ' + fmtDate(rg.mx), color: PAL[1] });
+    k.push({ label: 'Média diária', value: fmt(F.length / days), sub: 'registros por dia (' + S.dateCol + ')', color: PAL[2] });
+  }
+  const idc = S.cols.filter(c => c.kind === 'id').sort((a, b) => b.fill - a.fill)[0];
+  if (idc) { const u = new Set(); F.forEach(r => { if (r[idc.name]) u.add(r[idc.name]); }); k.push({ label: 'Únicos · ' + idc.name, value: fmt(u.size), sub: 'identificadores distintos', color: PAL[3] }); }
+  for (const m of metrics().sort((a, b) => b.fill - a.fill).slice(0, 2)) {
+    let s = 0, c = 0, mx = -Infinity; for (const r of F) { const v = numOf(r, m.name); if (v != null) { s += v; c++; if (v > mx) mx = v; } }
+    k.push({ label: 'Soma · ' + m.name, value: fmt(s), sub: 'média ' + fmt(c ? s / c : 0) + ' · máx ' + fmt(isFinite(mx) ? mx : 0), color: PAL[4 + k.length % 4] });
+  }
+  const d = S.dimsRank[0];
+  if (d) {
+    const g = groupBy(F, d.name, '__count', 'count').sort((a, b) => b.v - a.v)[0];
+    if (g) k.push({ label: 'Top · ' + d.name, value: trunc(g.k, 18), sub: fmt(g.n) + ' registros (' + pct(g.n, F.length).toFixed(1).replace('.', ',') + '%)', color: PAL[5] });
+  }
+  const ne = S.cols.filter(c => c.kind !== 'empty'); let fl = 0;
+  for (const r of F) for (const c of ne) if (r[c.name] !== '') fl++;
+  k.push({ label: 'Completude', value: pct(fl, F.length * ne.length).toFixed(1).replace('.', ',') + '%', sub: ne.length + ' colunas com dados', color: PAL[6] });
+  return k.slice(0, 8);
+}
+function computeInsights() {
+  const F = S.filtered, out = [];
+  const gran = 'day', ser = S.dateCol ? seriesData(F, gran, '__count', 'count') : [];
+  if (ser.length > 1) {
+    const pk = ser.reduce((a, b) => b.n > a.n ? b : a);
+    out.push(`Pico de registros em <b>${pk.label}</b> com <b>${fmt(pk.n)}</b>.`);
+    const h = Math.floor(ser.length / 2), a = ser.slice(0, h).reduce((s, x) => s + x.n, 0), b = ser.slice(h).reduce((s, x) => s + x.n, 0);
+    if (a > 0) { const d = (b - a) / a * 100; out.push(`A segunda metade do período tem <b>${d >= 0 ? '+' : ''}${d.toFixed(1).replace('.', ',')}%</b> de volume vs. a primeira.`); }
+  }
+  for (const d of S.dimsRank.slice(0, 2)) {
+    const g = groupBy(F, d.name, '__count', 'count').sort((a, b) => b.v - a.v)[0];
+    if (g) out.push(`<b>${esc(trunc(g.k, 30))}</b> concentra ${pct(g.n, F.length).toFixed(1).replace('.', ',')}% de <i>${esc(d.name)}</i>.`);
+  }
+  const low = S.cols.filter(c => c.kind !== 'empty' && c.fill < 0.5).sort((a, b) => a.fill - b.fill)[0];
+  if (low) out.push(`Coluna <b>${esc(low.name)}</b> está preenchida em apenas ${(low.fill * 100).toFixed(0)}% das linhas.`);
+  return out.slice(0, 5);
+}
+function renderDashboard() {
+  const el = $('#v-dashboard'), F = S.filtered;
+  const kp = computeKPIs(), ins = computeInsights(), plan = [];
+  const g = currentGran();
+  let h = `<div class="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">${kp.map(k => `<div class="card p-4 relative overflow-hidden"><div class="absolute -right-6 -top-6 w-20 h-20 rounded-full opacity-10" style="background:${k.color}"></div><div class="text-[11px] font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400 truncate" title="${esc(k.label)}">${esc(k.label)}</div><div class="mt-1 text-xl sm:text-2xl font-bold truncate" title="${esc(k.value)}">${esc(k.value)}</div><div class="text-xs mt-1 text-slate-500 dark:text-slate-400 truncate" title="${esc(k.sub)}">${esc(k.sub)}</div></div>`).join('')}</div>`;
+  if (ins.length) h += `<div class="card p-4 mb-4 bg-gradient-to-r from-indigo-50 to-violet-50 dark:from-indigo-950/40 dark:to-violet-950/40"><div class="font-semibold text-sm mb-2">💡 Insights automáticos</div><ul class="text-sm grid grid-cols-1 lg:grid-cols-2 gap-x-6 gap-y-1 list-disc pl-5">${ins.map(i => `<li>${i}</li>`).join('')}</ul></div>`;
+  h += `<div class="grid grid-cols-1 lg:grid-cols-3 gap-4">`;
+  // série temporal
+  if (S.dateCol) {
+    h += chartCard('d_time', 'Evolução de registros', 'lg:col-span-2', `Por ${granName(g)} · ${S.dateCol}`, `<select class="inp !py-1 text-xs" onchange="S.gran=this.value;renderActive()">${opts([['auto', 'Auto'], ['day', 'Dia'], ['week', 'Semana'], ['month', 'Mês']], S.gran)}</select>`);
+    plan.push(() => { const s = seriesData(F, g, '__count', 'count'); mk('d_time', lineCfg(s.map(x => x.short), s.map(x => x.n), 'Registros'), 'Evolução de registros'); });
+  }
+  // rosca
+  const dn = S.dimsRank.find(c => c.uniq >= 2 && c.uniq <= 8);
+  const used = new Set();
+  if (dn) {
+    used.add(dn.name);
+    h += chartCard('d_donut', 'Distribuição · ' + dn.name, '', 'Clique numa fatia para filtrar');
+    plan.push(() => { const a = topWithOthers(groupBy(F, dn.name, '__count', 'count'), 8, 'count', '__count'); mk('d_donut', pieCfg(a.map(x => x.k), a.map(x => x.v), { click: dimClick(dn.name) }), 'Distribuição · ' + dn.name); });
+  }
+  // barras por categoria
+  let ci = 0;
+  for (const c of S.dimsRank.filter(c => !used.has(c.name)).slice(0, 3)) {
+    used.add(c.name); const id = 'd_cat' + ci++;
+    h += chartCard(id, 'Top 10 · ' + c.name, '', 'Clique numa barra para filtrar');
+    plan.push(() => { const a = topWithOthers(groupBy(F, c.name, '__count', 'count'), 10, 'count', '__count'); mk(id, barCfg(a.map(x => x.k), a.map(x => x.v), { h: true, single: true, ci: ci, click: dimClick(c.name) }), 'Top 10 · ' + c.name); });
+  }
+  // métrica por categoria
+  const mt = metrics().sort((a, b) => b.fill - a.fill)[0], dm = S.dimsRank[0];
+  if (mt && dm) {
+    h += chartCard('d_metric', `Média de ${mt.name} por ${dm.name}`, '', '');
+    plan.push(() => { const a = groupBy(F, dm.name, mt.name, 'avg').sort((x, y) => y.v - x.v).slice(0, 10); mk('d_metric', barCfg(a.map(x => x.k), a.map(x => +x.v.toFixed(2)), { label: 'Média', single: true, ci: 3, click: dimClick(dm.name) }), `Média de ${mt.name} por ${dm.name}`); });
+  }
+  // dia da semana e hora
+  if (S.dateCol) {
+    h += chartCard('d_dow', 'Registros por dia da semana', '', S.dateCol);
+    plan.push(() => { const c = [0, 0, 0, 0, 0, 0, 0]; F.forEach(r => { const t = r.__d[S.dateCol]; if (t != null) c[new Date(t).getUTCDay()]++; }); mk('d_dow', barCfg(DIAS, c, { single: true, ci: 1 }), 'Registros por dia da semana'); });
+    let withTime = 0; F.forEach(r => { const t = r.__d[S.dateCol]; if (t != null && t % 864e5 !== 0) withTime++; });
+    if (withTime > F.length * 0.15) {
+      h += chartCard('d_hour', 'Registros por hora do dia', '', S.dateCol + ' (UTC)');
+      plan.push(() => { const c = new Array(24).fill(0); F.forEach(r => { const t = r.__d[S.dateCol]; if (t != null) c[new Date(t).getUTCHours()]++; }); mk('d_hour', barCfg(c.map((_, i) => p2(i) + 'h'), c, { single: true, ci: 2 }), 'Registros por hora do dia'); });
+    }
+  }
+  h += `</div>`;
+  // explorador
+  if (S.anyDims.length) {
+    const X = S.ex;
+    h += `<div class="card p-4 mt-4"><div class="flex flex-wrap items-end gap-3 mb-3"><div class="font-semibold mr-auto">🔎 Explorador de gráficos</div>
+      <div><label class="lbl">Dimensão</label>${sel('ex.dim', S.anyDims.map(c => c.name), X.dim, 'max-w-[200px]')}</div>
+      <div><label class="lbl">Medida</label>${sel('ex.measure', measureList(), X.measure, 'max-w-[200px]')}</div>
+      ${X.measure !== '__count' ? `<div><label class="lbl">Agregação</label>${sel('ex.agg', aggList, X.agg)}</div>` : ''}
+      <div><label class="lbl">Tipo</label>${sel('ex.type', [['bar', 'Barras'], ['barh', 'Barras horiz.'], ['line', 'Linha'], ['doughnut', 'Rosca'], ['pie', 'Pizza'], ['radar', 'Radar']], X.type)}</div>
+      <div><label class="lbl">Top</label>${sel('ex.n', [5, 8, 10, 15, 20, 30], X.n)}</div></div>
+      <div class="relative h-72 sm:h-80"><canvas id="d_explorer"></canvas></div></div>`;
+    plan.push(() => {
+      const a = topWithOthers(groupBy(F, X.dim, X.measure, X.agg), X.n, X.agg, X.measure);
+      mk('d_explorer', cfgFor(X.type, a.map(x => x.k), a.map(x => +x.v.toFixed(2)), mLabel(X.measure, X.agg), dimClick(X.dim)), `${mLabel(X.measure, X.agg)} por ${X.dim}`);
+    });
+  }
+  el.innerHTML = h;
+  plan.forEach(f => f());
+}
+
+/* ============================================================
+   TABELA DE DADOS
+   ============================================================ */
+function sortedRows() {
+  const F = S.filtered, s = S.sort; if (!s.col) return F;
+  const c = col(s.col), d = s.dir;
+  const key = c.kind === 'date' ? r => r.__d[c.name] : c.kind === 'number' ? r => r.__n[c.name] : r => r[c.name].toLowerCase();
+  return F.slice().sort((a, b) => {
+    const x = key(a), y = key(b);
+    if (x == null || x === '') return y == null || y === '' ? 0 : 1;
+    if (y == null || y === '') return -1;
+    return (typeof x === 'number' ? x - y : String(x).localeCompare(String(y), 'pt-BR', { numeric: true })) * d;
+  });
+}
+function sortBy(c) { S.sort = { col: c, dir: S.sort.col === c ? -S.sort.dir : 1 }; renderTable(); }
+function toggleCol(c, on) { S.visible = S.cols.map(x => x.name).filter(n => n === c ? on : S.visible.includes(n)); renderTable(); }
+function goPage(p) { S.page = p; renderTable(); $('#v-tabela').scrollIntoView({ behavior: 'smooth', block: 'start' }); }
+function renderTable() {
+  const rows = sortedRows(), tot = rows.length, ps = S.pageSize, pages = Math.max(1, Math.ceil(tot / ps));
+  if (S.page > pages) S.page = pages;
+  const start = (S.page - 1) * ps, slice = rows.slice(start, start + ps);
+  const vc = S.cols.filter(c => S.visible.includes(c.name));
+  let h = `<div class="card p-4"><div class="flex flex-wrap items-center gap-2 mb-3"><div class="font-semibold mr-auto">Tabela de dados <span class="text-sm font-normal text-slate-500">(${tot.toLocaleString('pt-BR')} linhas · clique no cabeçalho para ordenar · clique na linha para ver detalhes)</span></div>
+    <details class="relative"><summary class="btn cursor-pointer list-none">Colunas (${vc.length}/${S.cols.filter(c => c.kind !== 'empty').length})</summary>
+    <div class="absolute right-0 z-30 mt-2 w-72 max-h-80 overflow-auto card p-3 shadow-xl">${S.cols.filter(c => c.kind !== 'empty').map(c => `<label class="flex items-center gap-2 py-1 text-sm cursor-pointer"><input type="checkbox" data-c="${esc(c.name)}" ${S.visible.includes(c.name) ? 'checked' : ''} onchange="toggleCol(this.dataset.c,this.checked)"> <span class="truncate">${esc(c.name)}</span></label>`).join('')}</div></details>
+    <select class="inp" onchange="S.pageSize=+this.value;S.page=1;renderTable()">${[10, 25, 50, 100, 200].map(n => `<option value="${n}" ${n === ps ? 'selected' : ''}>${n} / página</option>`).join('')}</select></div>
+    <div class="overflow-auto rounded-xl border border-slate-200 dark:border-slate-800 max-h-[70vh]"><table class="w-full text-sm"><thead class="sticky top-0 bg-slate-100 dark:bg-slate-800 z-10"><tr>${vc.map(c => `<th class="sortable text-left font-semibold px-3 py-2 whitespace-nowrap" data-c="${esc(c.name)}" onclick="sortBy(this.dataset.c)">${esc(c.name)} <span class="text-indigo-500">${S.sort.col === c.name ? (S.sort.dir > 0 ? '▲' : '▼') : ''}</span></th>`).join('')}</tr></thead><tbody>`;
+  h += slice.map(r => `<tr class="border-t border-slate-100 dark:border-slate-800 hover:bg-indigo-50/60 dark:hover:bg-slate-800/60 cursor-pointer" onclick="showRow(${r.__i})">${vc.map(c => `<td class="px-3 py-2 max-w-[260px] truncate ${c.kind === 'number' ? 'text-right tabular-nums' : ''}" title="${esc(r[c.name])}">${esc(r[c.name]) || '<span class="text-slate-300 dark:text-slate-600">-</span>'}</td>`).join('')}</tr>`).join('');
+  h += `</tbody></table></div>
+    <div class="flex flex-wrap items-center justify-between gap-2 mt-3 text-sm"><div class="text-slate-500">Mostrando ${tot ? (start + 1).toLocaleString('pt-BR') : 0}–${Math.min(start + ps, tot).toLocaleString('pt-BR')} de ${tot.toLocaleString('pt-BR')}</div>
+    <div class="flex items-center gap-1"><button class="btn !px-3" ${S.page <= 1 ? 'disabled' : ''} onclick="goPage(1)">«</button><button class="btn !px-3" ${S.page <= 1 ? 'disabled' : ''} onclick="goPage(${S.page - 1})">‹</button><span class="px-3">Página <b>${S.page}</b> de ${pages}</span><button class="btn !px-3" ${S.page >= pages ? 'disabled' : ''} onclick="goPage(${S.page + 1})">›</button><button class="btn !px-3" ${S.page >= pages ? 'disabled' : ''} onclick="goPage(${pages})">»</button></div></div></div>`;
+  $('#v-tabela').innerHTML = h;
+}
+function showRow(i) {
+  const r = S.rows[i]; if (!r) return;
+  $('#modalBody').innerHTML = S.cols.filter(c => r[c.name] !== '').map(c => `<div><div class="lbl">${esc(c.name)}</div><div class="break-words">${esc(r[c.name])}</div></div>`).join('');
+  $('#modal').classList.remove('hidden');
+}
+function closeModal() { $('#modal').classList.add('hidden'); }
+
+/* ============================================================
+   TABELA DINÂMICA
+   ============================================================ */
+function renderPivot() {
+  const P = S.pv, F = S.filtered;
+  const dimNames = S.anyDims.map(c => c.name);
+  let h = `<div class="card p-4"><div class="flex flex-wrap items-end gap-3 mb-4"><div class="font-semibold mr-auto">Tabela dinâmica</div>
+    <div><label class="lbl">Linhas</label>${sel('pv.row', dimNames, P.row, 'max-w-[200px]')}</div>
+    <div><label class="lbl">Colunas</label>${sel('pv.col', [['', '(nenhuma)'], ...dimNames], P.col, 'max-w-[200px]')}</div>
+    <div><label class="lbl">Valor</label>${sel('pv.measure', measureList(), P.measure, 'max-w-[200px]')}</div>
+    ${P.measure !== '__count' ? `<div><label class="lbl">Agregação</label>${sel('pv.agg', aggList, P.agg)}</div>` : ''}</div>`;
+  if (!P.row) { $('#v-pivot').innerHTML = h + '<div class="text-slate-500">Nenhuma coluna categórica disponível.</div></div>'; return; }
+  const rowsM = new Map(), colTot = new Map();
+  for (const r of F) {
+    const rk = r[P.row] || '(vazio)', ck = P.col ? (r[P.col] || '(vazio)') : 'Valor';
+    let ro = rowsM.get(rk); if (!ro) { ro = { cells: new Map(), tot: newAcc() }; rowsM.set(rk, ro); }
+    let ce = ro.cells.get(ck); if (!ce) { ce = newAcc(); ro.cells.set(ck, ce); }
+    addAcc(ce, r, P.measure); addAcc(ro.tot, r, P.measure);
+    let ct = colTot.get(ck); if (!ct) { ct = newAcc(); colTot.set(ck, ct); } addAcc(ct, r, P.measure);
+  }
+  const V = a => a ? accVal(a, P.agg, P.measure) : null;
+  const colKeys = [...colTot.entries()].sort((a, b) => V(b[1]) - V(a[1])).slice(0, 12).map(x => x[0]);
+  const rowKeys = [...rowsM.entries()].sort((a, b) => V(b[1].tot) - V(a[1].tot));
+  const shown = rowKeys.slice(0, 50);
+  let max = 0; shown.forEach(([k, ro]) => colKeys.forEach(ck => { const v = V(ro.cells.get(ck)); if (v > max) max = v; }));
+  const grand = newAcc(); F.forEach(r => addAcc(grand, r, P.measure));
+  h += `<div class="overflow-auto rounded-xl border border-slate-200 dark:border-slate-800 max-h-[70vh]"><table class="w-full text-sm"><thead class="sticky top-0 bg-slate-100 dark:bg-slate-800 z-10"><tr><th class="text-left px-3 py-2 font-semibold">${esc(P.row)}${P.col ? ' \\ ' + esc(P.col) : ''}</th>${P.col ? colKeys.map(k => `<th class="text-right px-3 py-2 font-semibold whitespace-nowrap">${esc(trunc(k, 22))}</th>`).join('') : ''}<th class="text-right px-3 py-2 font-semibold">Total</th></tr></thead><tbody>`;
+  h += shown.map(([k, ro]) => `<tr class="border-t border-slate-100 dark:border-slate-800"><td class="px-3 py-2 font-medium whitespace-nowrap">${esc(trunc(k, 36))}</td>${P.col ? colKeys.map(ck => { const v = V(ro.cells.get(ck)); return `<td class="text-right px-3 py-2 tabular-nums" style="${v ? `background:rgba(99,102,241,${(0.08 + 0.4 * v / (max || 1)).toFixed(2)})` : ''}">${v == null ? '<span class="text-slate-300 dark:text-slate-600">-</span>' : fmt(v)}</td>`; }).join('') : ''}<td class="text-right px-3 py-2 font-bold tabular-nums">${fmt(V(ro.tot))}</td></tr>`).join('');
+  h += `<tr class="border-t-2 border-slate-300 dark:border-slate-600 bg-slate-50 dark:bg-slate-800/60 font-bold"><td class="px-3 py-2">Total geral</td>${P.col ? colKeys.map(ck => `<td class="text-right px-3 py-2 tabular-nums">${fmt(V(colTot.get(ck)))}</td>`).join('') : ''}<td class="text-right px-3 py-2 tabular-nums">${fmt(V(grand))}</td></tr></tbody></table></div>`;
+  h += `<div class="text-xs text-slate-500 mt-2">${rowKeys.length > 50 ? 'Exibindo as 50 maiores linhas de ' + rowKeys.length + '. ' : ''}${colTot.size > 12 && P.col ? 'Exibindo as 12 maiores colunas de ' + colTot.size + '. ' : ''}${S.pv.agg === 'avg' && P.measure !== '__count' ? 'O total geral é a média geral.' : ''}</div></div>`;
+  $('#v-pivot').innerHTML = h;
+}
+
+/* ============================================================
+   COMPARATIVO POR PERÍODO
+   ============================================================ */
+function renderComp() {
+  const el = $('#v-comparativo'), F = S.filtered, C = S.cp;
+  if (!S.dateCol) { el.innerHTML = `<div class="card p-10 text-center text-slate-500">Nenhuma coluna de data foi detectada neste arquivo, portanto não há comparativo por período.</div>`; return; }
+  const rg = dateRange(F); if (!rg) { el.innerHTML = `<div class="card p-10 text-center text-slate-500">Sem datas válidas nos registros filtrados.</div>`; return; }
+  const g = currentGran(), W = C.win * 864e5, endAnchor = startOfDay(rg.mx) + 864e5;
+  const inWin = (t, a, b) => t != null && t >= a && t < b;
+  const cur = F.filter(r => inWin(r.__d[S.dateCol], endAnchor - W, endAnchor)), prev = F.filter(r => inWin(r.__d[S.dateCol], endAnchor - 2 * W, endAnchor - W));
+  const aggv = (rows, measure, agg) => { const a = newAcc(); rows.forEach(r => addAcc(a, r, measure)); return accVal(a, agg, measure); };
+  const delta = (a, b) => b ? (a - b) / b * 100 : (a ? 100 : 0);
+  const dCard = (label, a, b, sub) => { const d = delta(a, b); const up = d >= 0; return `<div class="card p-4"><div class="text-[11px] font-semibold uppercase tracking-wide text-slate-500 truncate">${esc(label)}</div><div class="flex items-baseline gap-2 mt-1"><div class="text-2xl font-bold">${fmt(a)}</div><span class="badge ${up ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300' : 'bg-rose-100 text-rose-700 dark:bg-rose-950 dark:text-rose-300'}">${up ? '▲' : '▼'} ${Math.abs(d).toFixed(1).replace('.', ',')}%</span></div><div class="text-xs text-slate-500 mt-1">anterior: ${fmt(b)} · ${esc(sub)}</div></div>`; };
+  const sub = `últimos ${C.win} dias vs. ${C.win} anteriores`;
+  let h = `<div class="card p-4 mb-4"><div class="flex flex-wrap items-end gap-3"><div class="font-semibold mr-auto">Comparativo por período <span class="text-sm font-normal text-slate-500">· base: ${esc(S.dateCol)} (até ${fmtDate(rg.mx)})</span></div>
+    <div><label class="lbl">Janela</label>${sel('cp.win', [[7, '7 dias'], [14, '14 dias'], [30, '30 dias'], [60, '60 dias'], [90, '90 dias']], C.win)}</div>
+    <div><label class="lbl">Granularidade</label><select class="inp" onchange="S.gran=this.value;renderActive()">${opts([['auto', 'Auto'], ['day', 'Dia'], ['week', 'Semana'], ['month', 'Mês']], S.gran)}</select></div>
+    <div><label class="lbl">Medida</label>${sel('cp.measure', measureList(), C.measure, 'max-w-[200px]')}</div>
+    ${C.measure !== '__count' ? `<div><label class="lbl">Agregação</label>${sel('cp.agg', aggList, C.agg)}</div>` : ''}</div></div>`;
+  h += `<div class="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-4">${dCard('Registros', cur.length, prev.length, sub)}${C.measure !== '__count' ? dCard(mLabel(C.measure, C.agg), aggv(cur, C.measure, C.agg), aggv(prev, C.measure, C.agg), sub) : dCard('Média diária', cur.length / C.win, prev.length / C.win, sub)}${(() => { const ms = metrics().filter(m => m.name !== C.measure).sort((a, b) => b.fill - a.fill)[0]; return ms ? dCard('Soma · ' + ms.name, aggv(cur, ms.name, 'sum'), aggv(prev, ms.name, 'sum'), sub) : dCard('Dias com registros', new Set(cur.map(r => startOfDay(r.__d[S.dateCol]))).size, new Set(prev.map(r => startOfDay(r.__d[S.dateCol]))).size, sub); })()}</div>`;
+  const ser = seriesData(F, g, C.measure, C.agg);
+  h += `<div class="grid grid-cols-1 xl:grid-cols-3 gap-4"><div class="xl:col-span-2">${chartCard('c_series', mLabel(C.measure, C.agg) + ' por ' + granName(g), '', 'Barras = valor · linha = variação % vs. período anterior')}</div>`;
+  h += `<div class="card p-4"><div class="font-semibold text-sm mb-2">Períodos (mais recentes primeiro)</div><div class="overflow-auto max-h-72 text-sm"><table class="w-full"><thead class="sticky top-0 bg-slate-100 dark:bg-slate-800"><tr><th class="text-left px-2 py-1">Período</th><th class="text-right px-2 py-1">Valor</th><th class="text-right px-2 py-1">Δ%</th></tr></thead><tbody>${ser.slice().reverse().slice(0, 80).map(s => { const i = ser.indexOf(s), p = i > 0 ? ser[i - 1].v : null, d = p == null ? null : delta(s.v, p); return `<tr class="border-t border-slate-100 dark:border-slate-800"><td class="px-2 py-1">${s.label}</td><td class="px-2 py-1 text-right tabular-nums">${fmt(s.v)}</td><td class="px-2 py-1 text-right tabular-nums ${d == null ? '' : d >= 0 ? 'text-emerald-600' : 'text-rose-500'}">${d == null ? '-' : (d >= 0 ? '+' : '') + d.toFixed(1).replace('.', ',') + '%'}</td></tr>`; }).join('')}</tbody></table></div></div></div>`;
+  // movers
+  if (S.anyDims.length) {
+    const dn = C.dim || S.anyDims[0].name;
+    const gc = new Map(groupBy(cur, dn, C.measure, C.agg).map(x => [x.k, x.v])), gp = new Map(groupBy(prev, dn, C.measure, C.agg).map(x => [x.k, x.v]));
+    const keys = new Set([...gc.keys(), ...gp.keys()]);
+    const mv = [...keys].map(k => ({ k, a: gc.get(k) || 0, b: gp.get(k) || 0 })).map(x => ({ ...x, d: x.a - x.b })).sort((x, y) => Math.abs(y.d) - Math.abs(x.d)).slice(0, 12);
+    h += `<div class="card p-4 mt-4"><div class="flex flex-wrap items-end gap-3 mb-3"><div class="font-semibold mr-auto">Maiores variações por categoria <span class="text-sm font-normal text-slate-500">(${esc(sub)})</span></div><div><label class="lbl">Dimensão</label>${sel('cp.dim', S.anyDims.map(c => c.name), dn, 'max-w-[220px]')}</div></div>
+    <div class="overflow-auto"><table class="w-full text-sm"><thead class="bg-slate-100 dark:bg-slate-800"><tr><th class="text-left px-3 py-2">${esc(dn)}</th><th class="text-right px-3 py-2">Atual</th><th class="text-right px-3 py-2">Anterior</th><th class="text-right px-3 py-2">Variação</th><th class="text-right px-3 py-2">Δ%</th></tr></thead><tbody>${mv.map(x => `<tr class="border-t border-slate-100 dark:border-slate-800"><td class="px-3 py-2">${esc(trunc(x.k, 40))}</td><td class="px-3 py-2 text-right tabular-nums">${fmt(x.a)}</td><td class="px-3 py-2 text-right tabular-nums">${fmt(x.b)}</td><td class="px-3 py-2 text-right tabular-nums ${x.d >= 0 ? 'text-emerald-600' : 'text-rose-500'}">${x.d >= 0 ? '▲ +' : '▼ '}${fmt(x.d)}</td><td class="px-3 py-2 text-right tabular-nums">${x.b ? ((x.d / x.b * 100).toFixed(1).replace('.', ',') + '%') : 'novo'}</td></tr>`).join('')}</tbody></table></div></div>`;
+  }
+  el.innerHTML = h;
+  const vars = ser.map((s, i) => i ? +delta(s.v, ser[i - 1].v).toFixed(1) : null);
+  mk('c_series', {
+    type: 'bar',
+    data: { labels: ser.map(s => s.short), datasets: [{ type: 'bar', label: mLabel(C.measure, C.agg), data: ser.map(s => +s.v.toFixed(2)), backgroundColor: PAL[0] + 'cc', borderRadius: 5, yAxisID: 'y', order: 2 }, { type: 'line', label: 'Variação %', data: vars, borderColor: PAL[2], backgroundColor: PAL[2], tension: .3, pointRadius: ser.length > 60 ? 0 : 3, yAxisID: 'y1', order: 1 }] },
+    options: { interaction: { mode: 'index', intersect: false }, scales: { x: { grid: { display: false }, ticks: { maxTicksLimit: 14 } }, y: { beginAtZero: true }, y1: { position: 'right', grid: { drawOnChartArea: false }, ticks: { callback: v => v + '%' } } }, plugins: { legend: { position: 'bottom', labels: { boxWidth: 10, usePointStyle: true } } } }
+  }, 'Comparativo por período');
+}
+
+/* ============================================================
+   RANKINGS
+   ============================================================ */
+function rankCard(title, items, total, sub, dimCol, big) {
+  const max = Math.max(...items.map(x => x.v), 1);
+  return `<div class="card p-4 ${big ? 'lg:col-span-2' : ''}"><div class="font-semibold text-sm">${esc(title)}</div>${sub ? `<div class="text-xs text-slate-500 mb-2">${esc(sub)}</div>` : '<div class="mb-2"></div>'}<div class="space-y-2">${items.map((x, i) => `<div class="cursor-pointer group" data-c="${esc(dimCol)}" data-v="${esc(x.k)}" onclick="addFilter({col:this.dataset.c,op:this.dataset.v==='(vazio)'?'empty':'eq',val:this.dataset.v})" title="Clique para filtrar"><div class="flex items-center justify-between gap-2 text-sm"><div class="flex items-center gap-2 min-w-0"><span class="w-6 h-6 shrink-0 rounded-full text-[11px] font-bold flex items-center justify-center ${i === 0 ? 'bg-amber-400 text-white' : i === 1 ? 'bg-slate-400 text-white' : i === 2 ? 'bg-orange-400 text-white' : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300'}">${i + 1}</span><span class="truncate group-hover:text-indigo-600">${esc(trunc(x.k, 42))}</span></div><div class="tabular-nums font-semibold shrink-0">${fmt(x.v)}${total ? ` <span class="text-xs font-normal text-slate-500">${pct(x.v, total).toFixed(1).replace('.', ',')}%</span>` : ''}</div></div><div class="h-1.5 mt-1 rounded-full bg-slate-100 dark:bg-slate-800 overflow-hidden"><div class="h-full rounded-full" style="width:${Math.max(2, x.v / max * 100)}%;background:${PAL[i % PAL.length]}"></div></div></div>`).join('')}</div></div>`;
+}
+function renderRanking() {
+  const R = S.rk, F = S.filtered;
+  if (!S.anyDims.length) { $('#v-ranking').innerHTML = '<div class="card p-10 text-center text-slate-500">Nenhuma coluna categórica para ranquear.</div>'; return; }
+  const items = groupBy(F, R.dim, R.measure, R.agg).sort((a, b) => R.order === 'desc' ? b.v - a.v : a.v - b.v).slice(0, R.n);
+  const total = (R.measure === '__count' || R.agg === 'sum') ? F.reduce((s, r) => s + (R.measure === '__count' ? 1 : (numOf(r, R.measure) || 0)), 0) : 0;
+  let h = `<div class="card p-4 mb-4"><div class="flex flex-wrap items-end gap-3"><div class="font-semibold mr-auto">Rankings</div>
+    <div><label class="lbl">Dimensão</label>${sel('rk.dim', S.anyDims.map(c => c.name), R.dim, 'max-w-[220px]')}</div>
+    <div><label class="lbl">Medida</label>${sel('rk.measure', measureList(), R.measure, 'max-w-[200px]')}</div>
+    ${R.measure !== '__count' ? `<div><label class="lbl">Agregação</label>${sel('rk.agg', aggList, R.agg)}</div>` : ''}
+    <div><label class="lbl">Ordem</label>${sel('rk.order', [['desc', 'Maiores'], ['asc', 'Menores']], R.order)}</div>
+    <div><label class="lbl">Top</label>${sel('rk.n', [5, 10, 15, 20, 30], R.n)}</div></div></div>`;
+  h += `<div class="grid grid-cols-1 lg:grid-cols-3 gap-4">${rankCard(`${R.order === 'desc' ? 'Top' : 'Menores'} ${R.n} · ${R.dim}`, items, total, mLabel(R.measure, R.agg), R.dim, true)}`;
+  // gráfico lateral
+  h += chartCard('r_chart', 'Visão gráfica', '', 'Mesma seleção');
+  h += `</div><div class="text-sm font-semibold mt-6 mb-3">Rankings automáticos (por contagem)</div><div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">`;
+  for (const c of S.dimsRank.filter(c => c.name !== R.dim).slice(0, 6)) {
+    const it = groupBy(F, c.name, '__count', 'count').sort((a, b) => b.v - a.v).slice(0, 5);
+    h += rankCard('Top 5 · ' + c.name, it, F.length, '', c.name, false);
+  }
+  const mt = metrics().sort((a, b) => b.fill - a.fill)[0];
+  if (mt && S.dimsRank[0]) { const it = groupBy(F, S.dimsRank[0].name, mt.name, 'sum').sort((a, b) => b.v - a.v).slice(0, 5); h += rankCard(`Soma de ${mt.name} por ${S.dimsRank[0].name}`, it, it.reduce((s, x) => s + x.v, 0) && F.reduce((s, r) => s + (numOf(r, mt.name) || 0), 0), '', S.dimsRank[0].name, false); }
+  h += `</div>`;
+  $('#v-ranking').innerHTML = h;
+  mk('r_chart', barCfg(items.map(x => x.k), items.map(x => +x.v.toFixed(2)), { h: true, single: true, ci: 5, label: mLabel(R.measure, R.agg), click: dimClick(R.dim) }), 'Ranking · ' + R.dim);
+}
+
+/* ============================================================
+   ESTRUTURA DOS DADOS
+   ============================================================ */
+function pearson(a, b) {
+  let n = 0, sx = 0, sy = 0, sxx = 0, syy = 0, sxy = 0;
+  for (const r of S.rows) { const x = r.__n[a], y = r.__n[b]; if (x == null || y == null) continue; n++; sx += x; sy += y; sxx += x * x; syy += y * y; sxy += x * y; }
+  if (n < 5) return null; const d = Math.sqrt((n * sxx - sx * sx) * (n * syy - sy * sy)); return d ? (n * sxy - sx * sy) / d : null;
+}
+function findHierarchies() {
+  const ds = S.cols.filter(c => c.dim || (c.kind === 'category' && c.uniq >= 2)).sort((a, b) => b.fill - a.fill).slice(0, 18), res = [];
+  const sample = S.rows.length > 20000 ? S.rows.filter((_, i) => i % Math.ceil(S.rows.length / 20000) === 0) : S.rows;
+  for (const a of ds) for (const b of ds) {
+    if (a === b || a.uniq <= b.uniq || b.uniq < 2) continue;
+    const m = new Map(); let bad = 0, tot = 0;
+    for (const r of sample) { const x = r[a.name], y = r[b.name]; if (!x || !y) continue; tot++; const p = m.get(x); if (p === undefined) m.set(x, y); else if (p !== y) bad++; }
+    if (tot > 20 && bad / tot <= 0.01) res.push({ a: a.name, b: b.name, ua: a.uniq, ub: b.uniq });
+  }
+  return res.sort((x, y) => y.ua - x.ua).slice(0, 10);
+}
+function renderEstrutura() {
+  const KIND = { date: ['Data', 'bg-sky-100 text-sky-700 dark:bg-sky-950 dark:text-sky-300'], number: ['Número', 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300'], category: ['Categoria', 'bg-violet-100 text-violet-700 dark:bg-violet-950 dark:text-violet-300'], id: ['Identificador', 'bg-amber-100 text-amber-700 dark:bg-amber-950 dark:text-amber-300'], text: ['Texto', 'bg-slate-200 text-slate-700 dark:bg-slate-700 dark:text-slate-200'], empty: ['Vazia', 'bg-rose-100 text-rose-700 dark:bg-rose-950 dark:text-rose-300'] };
+  const cnt = k => S.cols.filter(c => c.kind === k).length, ms = metrics();
+  let h = `<div class="grid grid-cols-2 md:grid-cols-6 gap-3 mb-4">${['date', 'number', 'category', 'id', 'text', 'empty'].map(k => `<div class="card p-3 text-center"><div class="text-2xl font-bold">${cnt(k)}</div><span class="badge ${KIND[k][1]}">${KIND[k][0]}</span></div>`).join('')}</div>`;
+  const corr = []; for (let i = 0; i < ms.length && i < 10; i++) for (let j = i + 1; j < ms.length && j < 10; j++) { const r = pearson(ms[i].name, ms[j].name); if (r != null && Math.abs(r) >= 0.5) corr.push({ a: ms[i].name, b: ms[j].name, r }); }
+  corr.sort((a, b) => Math.abs(b.r) - Math.abs(a.r));
+  const hier = findHierarchies();
+  h += `<div class="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-4"><div class="card p-4"><div class="font-semibold mb-2">🔗 Relacionamentos detectados</div>
+    ${hier.length ? `<div class="text-xs text-slate-500 mb-1">Hierarquias (cada valor da primeira coluna pertence a um único valor da segunda)</div><ul class="text-sm space-y-1 mb-3">${hier.map(x => `<li><b>${esc(x.a)}</b> <span class="text-slate-400">(${x.ua})</span> → <b>${esc(x.b)}</b> <span class="text-slate-400">(${x.ub})</span></li>`).join('')}</ul>` : ''}
+    ${corr.length ? `<div class="text-xs text-slate-500 mb-1">Correlações entre métricas (|r| ≥ 0,5)</div><ul class="text-sm space-y-1">${corr.slice(0, 6).map(x => `<li><b>${esc(x.a)}</b> × <b>${esc(x.b)}</b>: <span class="${x.r > 0 ? 'text-emerald-600' : 'text-rose-500'} font-semibold">${x.r.toFixed(2).replace('.', ',')}</span></li>`).join('')}</ul>` : ''}
+    ${!hier.length && !corr.length ? '<div class="text-sm text-slate-500">Nenhum relacionamento forte encontrado.</div>' : ''}</div>
+    <div class="card p-4"><div class="font-semibold mb-2">🧭 Leitura automática</div><ul class="text-sm list-disc pl-5 space-y-1">
+    <li><b>${S.rows.length.toLocaleString('pt-BR')}</b> linhas e <b>${S.cols.length}</b> colunas (${S.cols.filter(c => c.kind !== 'empty').length} com dados).</li>
+    ${S.dateCol ? `<li>Coluna de data principal: <b>${esc(S.dateCol)}</b> (${fmtDate(col(S.dateCol).dmin)} a ${fmtDate(col(S.dateCol).dmax)}).</li>` : '<li>Nenhuma coluna de data detectada.</li>'}
+    <li>Métricas numéricas utilizáveis: ${ms.length ? ms.slice(0, 8).map(m => `<b>${esc(m.name)}</b>`).join(', ') : 'nenhuma'}.</li>
+    <li>Dimensões para agrupamento: ${S.dimsRank.slice(0, 8).map(m => `<b>${esc(m.name)}</b>`).join(', ') || 'nenhuma'}.</li>
+    <li>Colunas sem variação (valor único): ${S.cols.filter(c => c.kind !== 'empty' && c.uniq === 1).length}.</li></ul></div></div>`;
+  h += `<div class="card p-4"><div class="font-semibold mb-3">Dicionário de colunas</div><div class="overflow-auto max-h-[65vh] rounded-xl border border-slate-200 dark:border-slate-800"><table class="w-full text-sm"><thead class="sticky top-0 bg-slate-100 dark:bg-slate-800"><tr><th class="text-left px-3 py-2">Coluna</th><th class="text-left px-3 py-2">Tipo</th><th class="text-right px-3 py-2">Preench.</th><th class="text-right px-3 py-2">Únicos</th><th class="text-left px-3 py-2">Resumo</th></tr></thead><tbody>${S.cols.map(c => {
+    let sm = '';
+    if (c.kind === 'number') sm = `min ${fmt(c.min)} · máx ${fmt(c.max)} · média ${fmt(c.avg)}${c.metric ? ' · <b>métrica</b>' : ' · código'}`;
+    else if (c.kind === 'date') sm = `${fmtDate(c.dmin)} a ${fmtDate(c.dmax)}`;
+    else if (c.kind !== 'empty') { const t = [...c.counts.entries()].sort((a, b) => b[1] - a[1]).slice(0, 3); sm = t.map(([v, n]) => `${esc(trunc(v, 22))} (${n})`).join(' · '); }
+    return `<tr class="border-t border-slate-100 dark:border-slate-800"><td class="px-3 py-2 font-medium">${esc(c.name)}</td><td class="px-3 py-2"><span class="badge ${KIND[c.kind][1]}">${KIND[c.kind][0]}</span></td><td class="px-3 py-2 text-right"><div class="inline-flex items-center gap-2"><div class="w-16 h-1.5 rounded-full bg-slate-200 dark:bg-slate-700 overflow-hidden"><div class="h-full bg-indigo-500" style="width:${(c.fill * 100).toFixed(0)}%"></div></div><span class="tabular-nums w-10 text-right">${(c.fill * 100).toFixed(0)}%</span></div></td><td class="px-3 py-2 text-right tabular-nums">${fmt(c.uniq)}</td><td class="px-3 py-2 text-slate-600 dark:text-slate-400 text-xs">${sm}</td></tr>`;
+  }).join('')}</tbody></table></div></div>`;
+  $('#v-estrutura').innerHTML = h;
+}
+
+/* ============================================================
+   EXPORTAÇÃO
+   ============================================================ */
+function exportXLSX() {
+  if (!S.filtered.length) return toast('Nada para exportar.', true);
+  try {
+    const wb = XLSX.utils.book_new();
+    const data = S.filtered.map(r => { const o = {}; S.cols.filter(c => c.kind !== 'empty').forEach(c => { o[c.name] = (c.kind === 'number' && c.metric && r.__n[c.name] != null) ? r.__n[c.name] : r[c.name]; }); return o; });
+    const ws = XLSX.utils.json_to_sheet(data); ws['!cols'] = Object.keys(data[0]).map(k => ({ wch: Math.min(40, Math.max(10, k.length + 2)) }));
+    XLSX.utils.book_append_sheet(wb, ws, 'Dados');
+    const kp = computeKPIs();
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet([['Indicador', 'Valor', 'Detalhe'], ...kp.map(k => [k.label, k.value, k.sub]), [], ['Filtros ativos'], ...S.filters.map(f => [f.col, OPLBL[f.op], f.val || ''])]), 'Resumo');
+    const dn = S.rk.dim || (S.anyDims[0] || {}).name;
+    if (dn) XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet([[dn, 'Registros'], ...groupBy(S.filtered, dn, '__count', 'count').sort((a, b) => b.v - a.v).map(x => [x.k, x.v])]), 'Ranking');
+    if (telOn()) telSheets(wb);
+    XLSX.writeFile(wb, 'dashboard_' + new Date().toISOString().slice(0, 10) + '.xlsx');
+    toast('Excel exportado!');
+  } catch (e) { console.error(e); toast('Falha ao exportar Excel: ' + e.message, true); }
+}
+async function exportPDF() {
+  if (!S.filtered.length) return toast('Nada para exportar.', true);
+  if (!window.jspdf) { window.print(); return; }
+  toast('Gerando PDF...');
+  const prevTab = S.tab; S.exporting = true; S.noAnim = true; applyChartTheme(false); S.tab = telOn() ? 'painel' : 'dashboard'; renderActive();
+  await new Promise(r => setTimeout(r, 150));
+  const imgs = [];
+  for (const id of Object.keys(S.charts)) {
+    const cv = S.charts[id].canvas, t = document.createElement('canvas'); t.width = cv.width; t.height = cv.height;
+    const cx = t.getContext('2d'); cx.fillStyle = '#fff'; cx.fillRect(0, 0, t.width, t.height); cx.drawImage(cv, 0, 0);
+    imgs.push({ title: S.titles[id], data: t.toDataURL('image/png'), w: cv.width, h: cv.height });
+  }
+  const kp = telOn() ? telKPIs() : computeKPIs();
+  S.exporting = false; S.noAnim = false; applyChartTheme(S.dark); S.tab = prevTab; buildTabs(); renderActive();
+  try {
+    const doc = new window.jspdf.jsPDF({ orientation: 'landscape', unit: 'pt', format: 'a4' });
+    const PW = 842, M = 32; let y = 0;
+    doc.setFillColor(99, 102, 241); doc.rect(0, 0, PW, 62, 'F');
+    doc.setTextColor(255); doc.setFontSize(20); doc.setFont('helvetica', 'bold'); doc.text(telOn() ? 'Painel operacional de monitoramento de reparos' : 'Relatório executivo', M, 32);
+    doc.setFontSize(10); doc.setFont('helvetica', 'normal'); doc.text(`${S.file}  |  gerado em ${new Date().toLocaleString('pt-BR')}  |  ${S.filtered.length.toLocaleString('pt-BR')} de ${S.rows.length.toLocaleString('pt-BR')} registros`, M, 50);
+    y = 80; doc.setTextColor(60);
+    if (S.filters.length || S.search || S.dateFrom != null || S.dateTo != null) {
+      const ft = [S.search ? `busca "${S.search}"` : null, S.dateFrom != null || S.dateTo != null ? `${S.dateCol}: ${S.dateFrom != null ? fmtDate(S.dateFrom) : '...'} a ${S.dateTo != null ? fmtDate(S.dateTo) : '...'}` : null, ...S.filters.map(f => `${f.col} ${OPLBL[f.op]} ${f.val || ''}`)].filter(Boolean).join('  |  ');
+      doc.setFontSize(8); doc.text(doc.splitTextToSize('Filtros: ' + ft, PW - 2 * M), M, y); y += 22;
+    }
+    const cw = (PW - 2 * M - 30) / 4;
+    kp.forEach((k, i) => {
+      const x = M + (i % 4) * (cw + 10), yy = y + Math.floor(i / 4) * 62;
+      doc.setFillColor(244, 245, 252); doc.setDrawColor(220, 224, 240); doc.roundedRect(x, yy, cw, 54, 6, 6, 'FD');
+      doc.setTextColor(110); doc.setFontSize(7.5); doc.text(trunc(k.label, 34).toUpperCase(), x + 8, yy + 14);
+      doc.setTextColor(30); doc.setFontSize(15); doc.setFont('helvetica', 'bold'); doc.text(trunc(k.value, 20), x + 8, yy + 34); doc.setFont('helvetica', 'normal');
+      doc.setTextColor(120); doc.setFontSize(7); doc.text(trunc(k.sub, 48), x + 8, yy + 47);
+    });
+    y += Math.ceil(kp.length / 4) * 62 + 10;
+    const iw = (PW - 2 * M - 12) / 2;
+    let colN = 0, lastH = 0;
+    imgs.forEach(im => {
+      const ratio = im.h / im.w, tall = ratio > 0.62;
+      if (tall) {
+        if (colN) { y += lastH + 28; colN = 0; }
+        const dw0 = PW - 2 * M, dh0 = dw0 * ratio, k = Math.min(1, 340 / dh0), dw = dw0 * k, dh = dh0 * k;
+        if (y + dh + 24 > 575) { doc.addPage(); y = 36; }
+        doc.setTextColor(50); doc.setFontSize(9); doc.setFont('helvetica', 'bold'); doc.text(trunc(im.title, 90), M, y + 8); doc.setFont('helvetica', 'normal');
+        doc.addImage(im.data, 'PNG', M, y + 14, dw, dh); y += dh + 28; return;
+      }
+      const ih = Math.min(190, iw * ratio), dw = Math.min(iw, ih / ratio), x = M + colN * (iw + 12);
+      if (colN === 0 && y + ih + 24 > 575) { doc.addPage(); y = 36; }
+      doc.setTextColor(50); doc.setFontSize(9); doc.setFont('helvetica', 'bold'); doc.text(trunc(im.title, 60), x, y + 8); doc.setFont('helvetica', 'normal');
+      doc.addImage(im.data, 'PNG', x, y + 14, dw, ih);
+      lastH = Math.max(lastH, ih); colN++;
+      if (colN === 2) { y += lastH + 28; colN = 0; lastH = 0; }
+    });
+    if (colN) y += lastH + 28;
+    if (typeof doc.autoTable === 'function') {
+      const vc = S.cols.filter(c => S.visible.includes(c.name)).slice(0, 10), lim = 1000, rows = sortedRows().slice(0, lim);
+      doc.addPage();
+      doc.autoTable({ head: [vc.map(c => c.name)], body: rows.map(r => vc.map(c => trunc(r[c.name], 38))), startY: 40, styles: { fontSize: 6.5, cellPadding: 2.5, overflow: 'ellipsize' }, headStyles: { fillColor: [99, 102, 241] }, alternateRowStyles: { fillColor: [247, 248, 252] }, margin: { left: M, right: M, top: 36, bottom: 30 }, didDrawPage: () => { doc.setFontSize(9); doc.setTextColor(60); doc.text('Dados' + (S.filtered.length > lim ? ` (primeiras ${lim} de ${S.filtered.length.toLocaleString('pt-BR')} linhas)` : ''), M, 26); } });
+    }
+    const np = doc.getNumberOfPages();
+    for (let i = 1; i <= np; i++) { doc.setPage(i); doc.setFontSize(8); doc.setTextColor(140); doc.text(`Página ${i}/${np}`, PW - M, 585, { align: 'right' }); doc.text('DataLens BI', M, 585); }
+    doc.save('relatorio_' + new Date().toISOString().slice(0, 10) + '.pdf');
+    toast('PDF gerado!');
+  } catch (e) { console.error(e); toast('Falha ao gerar PDF: ' + e.message, true); }
+}
+
+/* ============================================================
+   INICIALIZAÇÃO
+   ============================================================ */
+/* ============================================================
+   MÓDULO TELECOM (ativado automaticamente quando as colunas existem)
+   ============================================================ */
+const TEL_ROLES = {
+  ba: 'cd_nrba', setor: 'cd_setor', estado: 'ds_estado', macro: 'ds_macro_atividade', atividade: 'ds_atividade', cp: 'cp', naf: 'status_naf', flag: 'flag_reparo',
+  olt: 'olt', pon: 'porta_pon', cdo: 'cdo', estacao: 'cd_estacao', uf: 'cd_uf', celula: 'celula', cabo2: 'cabo_secundario', gpon: 'cd_gpon',
+  pont: 'potencia_na_ont', polt: 'potencia_na_olt', desc: 'ds_descricao', logr: 'ds_logradouro', extr: 'dh_extracao'
+};
+const SLOTS = ['ontem', '07:00', '08:00', '09:00', '10:00', '11:00', '12:00', '13:00', '14:00', '15:00', '16:00', '17:00', '18:00', '19:00', '20:00', '21:00'];
+const SNAP_KEY = 'datalens-telecom-snaps-v1';
+const NAF_LBL = { com: 'Com potência', sem: 'Sem potência', degr: 'Degradação', risco: 'Área de risco' };
+const HEAT = { red: ['#d92b1f', '#ffffff'], orange: ['#f28c28', '#1a1a1a'], lorange: ['#f7b267', '#1a1a1a'], yellow: ['#fde047', '#1a1a1a'] };
+const TCOL = { navy: '#1f3864', green: '#375623', brown: '#843c0c', gold: '#7f6000', purple: '#7030a0' };
+
+function detectTelecom(cols) {
+  const lc = new Map(cols.filter(c => c.kind !== 'empty').map(c => [c.name.toLowerCase().trim(), c.name]));
+  const roles = {};
+  for (const k in TEL_ROLES) if (lc.has(TEL_ROLES[k])) roles[k] = lc.get(TEL_ROLES[k]);
+  return (roles.setor && roles.estado && (roles.naf || roles.olt || roles.cdo)) ? roles : null;
+}
+const TR = () => S.tel.roles;
+const isOpen = r => !/conclu|cancel|entreg|encerr|finaliz/i.test(r[TR().estado] || '');
+function nafClass(r) {
+  const R = TR(), v = R.naf ? r[R.naf] : '';
+  if (/sem\s*pot/i.test(v)) return 'sem';
+  if (/com\s*pot/i.test(v)) {
+    let p = R.pont ? numOf(r, R.pont) : null;
+    if (p == null && R.polt) p = numOf(r, R.polt);
+    return (p != null && p < S.tel.thr) ? 'degr' : 'com';
+  }
+  return 'nd';
+}
+const isRisco = r => { const d = TR().desc; return !!d && /risco/i.test(r[d]); };
+const facilKey = r => { const R = TR(); const o = R.olt && r[R.olt]; if (!o) return ''; const p = R.pon ? (r[R.pon] || '').replace(/\//g, '-') : ''; return p ? o + ':' + p : o; };
+const estCdoKey = r => { const R = TR(), c = R.cdo && r[R.cdo]; if (!c) return ''; return (R.uf && r[R.uf] ? r[R.uf] + '-' : '') + (R.estacao && r[R.estacao] ? r[R.estacao] + '-' : '') + c; };
+const oltCdoKey = r => { const R = TR(); return (R.olt && R.cdo && r[R.olt] && r[R.cdo]) ? r[R.olt] + ' ' + r[R.cdo] : ''; };
+const celKey = r => { const R = TR(); return (R.estacao && R.celula && r[R.estacao] && r[R.celula]) ? r[R.estacao] + '-' + r[R.celula] : ''; };
+function countBy(rows, fn, min = 1) {
+  const m = new Map();
+  for (const r of rows) { const k = fn(r); if (k) m.set(k, (m.get(k) || 0) + 1); }
+  return [...m.entries()].filter(x => x[1] >= min).sort((a, b) => b[1] - a[1] || String(a[0]).localeCompare(String(b[0]), 'pt-BR', { numeric: true }));
+}
+function telCounts(rows) {
+  const c = { total: rows.length, com: 0, sem: 0, degr: 0, nd: 0, risco: 0 };
+  for (const r of rows) { c[nafClass(r)]++; if (isRisco(r)) c.risco++; }
+  return c;
+}
+function telKPIs() {
+  const c = telCounts(S.filteredNoNaf);
+  return [
+    { label: 'Total de BAs', value: fmt(c.total), sub: 'sem leitura NAF: ' + c.nd },
+    { label: 'Com potência', value: fmt(c.com), sub: pct(c.com, c.total).toFixed(1).replace('.', ',') + '% do total' },
+    { label: 'Sem potência', value: fmt(c.sem), sub: pct(c.sem, c.total).toFixed(1).replace('.', ',') + '% do total' },
+    { label: 'Degradação (ONT < ' + S.tel.thr + ' dBm)', value: fmt(c.degr), sub: pct(c.degr, c.total).toFixed(1).replace('.', ',') + '% do total' },
+    { label: 'Área de risco', value: fmt(c.risco), sub: 'registros marcados em ' + (TR().desc || 'descrição') }
+  ];
+}
+const fmtDT = ms => fmtDate(ms) + ' ' + p2(new Date(ms).getUTCHours()) + ':' + p2(new Date(ms).getUTCMinutes());
+const isoBr = iso => iso ? iso.split('-').reverse().join('/') : '';
+const heatCell = v => v >= 6 ? HEAT.red : v === 5 ? HEAT.orange : v === 4 ? HEAT.lorange : v === 3 ? HEAT.yellow : null;
+const heatCdo = v => v >= 3 ? HEAT.red : v === 2 ? HEAT.orange : null;
+const hs = h => h ? `style="background:${h[0]};color:${h[1]};font-weight:700"` : '';
+
+/* ---------- inicialização / modo ---------- */
+function initTelecom() {
+  const roles = detectTelecom(S.cols);
+  S.tel = roles ? { roles, on: true, openOnly: true, naf: '', thr: -27, topN: 15, snapDate: '', snapSlot: '08:00' } : null;
+  $('#btnMode').classList.toggle('hidden', !S.tel);
+  if (S.tel) {
+    const mc = col(roles.macro);
+    if (mc) { const rep = [...mc.counts.keys()].find(k => /^rep/i.test(k)); if (rep) S.filters = [{ col: roles.macro, op: 'eq', val: rep }]; }
+    let ms = null;
+    if (roles.extr) for (const r of S.rows) { const t = r.__d && r.__d[roles.extr]; if (t != null) { ms = t; break; } }
+    const d = new Date(ms != null ? ms : Date.now()), h = ms != null ? d.getUTCHours() : d.getHours();
+    S.tel.snapDate = d.toISOString().slice(0, 10);
+    S.tel.snapSlot = p2(Math.min(21, Math.max(7, h))) + ':00';
+    S.tab = 'painel';
+  } else S.tab = 'dashboard';
+  updateModeBtn(); buildTelBar();
+}
+function updateModeBtn() { const b = $('#btnMode'); if (S.tel) b.textContent = telOn() ? '📡 Modo Telecom: ligado' : '📡 Modo Telecom: desligado'; }
+function toggleMode() {
+  if (!S.tel) return;
+  S.tel.on = !S.tel.on; S.tab = S.tel.on ? 'painel' : 'dashboard';
+  updateModeBtn(); buildTelBar(); buildTabs(); refresh();
+}
+function setNaf(v) { S.tel.naf = S.tel.naf === v ? '' : v; buildTelBar(); refresh(true); }
+function scopeBadges() {
+  if (!telOn()) return '';
+  const b = [];
+  if (S.tel.openOnly) b.push('Somente abertas');
+  if (S.tel.naf) b.push('Situação: ' + NAF_LBL[S.tel.naf]);
+  return b.map(t => `<span class="badge bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300 !py-1">${esc(t)}</span>`).join('');
+}
+function buildTelBar() {
+  const el = $('#telBar');
+  if (!telOn()) { el.classList.add('hidden'); el.innerHTML = ''; return; }
+  el.classList.remove('hidden');
+  const R = TR(), T = S.tel;
+  const sl = [['macro', 'Atividade'], ['cp', 'Operadora'], ['setor', 'Setor'], ['naf', 'Status NAF'], ['flag', 'Flag reparo'], ['estado', 'Estado']].filter(([k]) => R[k] && col(R[k]));
+  el.innerHTML = `<div class="flex flex-wrap items-end gap-3">
+    <label class="flex items-center gap-2 text-sm font-medium cursor-pointer pb-2"><input type="checkbox" ${T.openOnly ? 'checked' : ''} onchange="S.tel.openOnly=this.checked;refresh(true)"> Somente abertas</label>
+    ${sl.map(([k, l]) => { const c = col(R[k]); const top = [...c.counts.entries()].sort((a, b) => b[1] - a[1]).slice(0, 80); return `<div class="min-w-[130px]"><label class="lbl">${l}</label><select class="inp w-full qsel" data-c="${esc(c.name)}" onchange="quickFilter(this)"><option value="">Todos</option>${top.map(([v, n]) => `<option value="${esc(v)}">${esc(trunc(v, 30))} (${n})</option>`).join('')}</select></div>`; }).join('')}
+    <div><label class="lbl">Situação de potência</label><select class="inp" onchange="S.tel.naf=this.value;refresh(true)">${opts([['', 'Todas'], ['com', 'Com potência'], ['sem', 'Sem potência'], ['degr', 'Degradação'], ['risco', 'Área de risco']], T.naf)}</select></div>
+    <div><label class="lbl" title="ONT com leitura abaixo deste valor e status Com Potência é considerada degradação">Degradação abaixo de (dBm)</label><input type="number" step="0.5" class="inp w-28" value="${T.thr}" onchange="S.tel.thr=parseFloat(this.value)||-27;refresh(true)"></div>
+  </div>`;
+  syncQuick();
+}
+
+/* ---------- componentes ---------- */
+const valLabels = {
+  id: 'valLabels',
+  afterDatasetsDraw(ch) {
+    const ctx = ch.ctx, horiz = ch.options.indexAxis === 'y';
+    ctx.save(); ctx.font = '600 11px sans-serif'; ctx.fillStyle = Chart.defaults.color; ctx.textBaseline = 'middle';
+    ch.data.datasets.forEach((ds, di) => {
+      const m = ch.getDatasetMeta(di); if (m.hidden) return;
+      m.data.forEach((bar, i) => { const v = ds.data[i]; if (!v) return; ctx.textAlign = horiz ? 'left' : 'center'; ctx.fillText(fmt(v), horiz ? bar.x + 4 : bar.x, horiz ? bar.y : bar.y - 8); });
+    });
+    ctx.restore();
+  }
+};
+const totLabels = {
+  id: 'totLabels',
+  afterDatasetsDraw(ch) {
+    const ctx = ch.ctx; ctx.save(); ctx.font = '700 11px sans-serif'; ctx.fillStyle = Chart.defaults.color; ctx.textBaseline = 'middle'; ctx.textAlign = 'left';
+    ch.data.labels.forEach((_, i) => {
+      let t = 0, x = 0, y = null;
+      ch.data.datasets.forEach((ds, di) => { const m = ch.getDatasetMeta(di); if (m.hidden) return; t += ds.data[i] || 0; const b = m.data[i]; if (b) { if (b.x > x) x = b.x; if (y == null) y = b.y; } });
+      if (t && y != null) ctx.fillText(fmt(t), x + 4, y);
+    });
+    ctx.restore();
+  }
+};
+function telBarCfg(items, color, click) {
+  return {
+    type: 'bar', plugins: [valLabels],
+    data: { labels: items.map(x => x[0]), datasets: [{ data: items.map(x => x[1]), backgroundColor: color, borderRadius: 3, barPercentage: .6, categoryPercentage: .9 }] },
+    options: {
+      indexAxis: 'y', layout: { padding: { right: 16 } }, plugins: { legend: { display: false } },
+      scales: { x: { beginAtZero: true, grace: '12%', ticks: { precision: 0 } }, y: { grid: { display: false }, ticks: { font: { size: 10 }, callback(v) { return trunc(this.getLabelForValue(v), 26); } } } },
+      onClick: click, onHover: hover(!!click)
+    }
+  };
+}
+const navyBar = () => S.dark && !S.exporting ? '#7c93d6' : '#1f3864';
+function colorTable(title, items, color, h1, h2, o = {}) {
+  const body = items.length ? items.map(([k, v], i) => {
+    const st = (i === 0 && o.first) ? 'background:#fde047;color:#111;font-weight:700' : `background:${color}1f`;
+    const click = o.col ? `data-c="${esc(o.col)}" data-v="${esc(k)}" onclick="addFilter({col:this.dataset.c,op:'eq',val:this.dataset.v})" title="Clique para filtrar" class="cursor-pointer hover:brightness-95"` : '';
+    return `<tr ${click} style="${st}"><td class="px-2 py-1 border-t border-white/40 dark:border-slate-900/50" title="${esc(k)}">${esc(trunc(k, 38))}</td><td class="px-2 py-1 text-right font-semibold tabular-nums border-t border-white/40 dark:border-slate-900/50" ${o.heat ? hs(o.heat(v)) : ''}>${fmt(v)}</td></tr>`;
+  }).join('') : `<tr><td colspan="2" class="px-2 py-4 text-center text-slate-500">Sem dados no recorte</td></tr>`;
+  return `<div class="rounded-xl overflow-hidden border border-slate-200 dark:border-slate-700 shadow-sm bg-white dark:bg-slate-900">
+    <div class="text-white text-center font-extrabold tracking-wide py-2 text-sm" style="background:${color}">${title}</div>
+    <div class="overflow-auto max-h-[30rem]"><table class="w-full text-xs"><thead class="sticky top-0"><tr class="text-white" style="background:${color}"><th class="text-left px-2 py-1.5">${h1}</th><th class="text-right px-2 py-1.5">${h2}</th></tr></thead><tbody>${body}</tbody></table></div></div>`;
+}
+const bandTitle = (t, sub, color = '#14284b') => `<div class="rounded-xl py-3 px-4 text-center text-white mb-4" style="background:${color}"><div class="font-extrabold tracking-wide text-sm sm:text-base">${esc(t)}</div>${sub ? `<div class="text-xs opacity-80 mt-0.5">${esc(sub)}</div>` : ''}</div>`;
+const noCols = msg => `<div class="card p-10 text-center text-slate-500">${msg}</div>`;
+
+/* ---------- PAINEL OPERACIONAL ---------- */
+function renderPainel() {
+  const el = $('#v-painel'), R = TR(), F = S.filtered, c = telCounts(S.filteredNoNaf), plan = [];
+  let ms = null; if (R.extr) for (const r of S.rows) { const t = r.__d && r.__d[R.extr]; if (t != null) { ms = t; break; } }
+  const tile = (key, label, val, color, sub, navy) => `<div class="rounded-xl overflow-hidden border border-slate-200 dark:border-slate-700 cursor-pointer shadow-sm transition hover:shadow-md ${S.tel.naf === key && key ? 'ring-2 ring-offset-2 ring-indigo-500 dark:ring-offset-slate-950' : ''}" onclick="setNaf('${key}')" title="Clique para filtrar esta situação"><div class="text-white text-center text-xs font-bold tracking-wide py-1.5" style="background:${color}">${label}</div><div class="text-center py-3 bg-white dark:bg-slate-900" style="background-image:linear-gradient(${color}1a,${color}1a)"><div class="text-4xl font-extrabold ${navy ? 'text-slate-800 dark:text-slate-100' : ''}" style="${navy ? '' : 'color:' + color}">${val}</div><div class="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">${sub}</div></div></div>`;
+  const pc = v => pct(v, c.total).toFixed(1).replace('.', ',') + '%';
+  let h = bandTitle('PAINEL OPERACIONAL DE MONITORAMENTO DE REPAROS', (ms ? 'Extração: ' + fmtDT(ms) + '  ·  ' : '') + F.length.toLocaleString('pt-BR') + ' BAs no recorte atual' + (S.tel.openOnly ? ' (somente abertas)' : ''));
+  h += `<div class="grid grid-cols-2 md:grid-cols-5 gap-3 mb-4">${tile('', 'TOTAL DE BAs', fmt(c.total), TCOL.navy, 'sem leitura NAF: ' + c.nd, true)}${tile('com', 'COM POTÊNCIA', fmt(c.com), '#00a651', pc(c.com))}${tile('sem', 'SEM POTÊNCIA', fmt(c.sem), '#d62828', pc(c.sem))}${tile('degr', 'DEGRADAÇÃO', fmt(c.degr), '#c08400', pc(c.degr) + ' · ONT &lt; ' + S.tel.thr + ' dBm')}${tile('risco', 'ÁREA DE RISCO', fmt(c.risco), TCOL.purple, 'marcados na descrição')}</div>`;
+  // top 10
+  h += `<div class="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-4">`;
+  h += chartCard('p_setor', 'TOP 10 OFENSORES - SETOR', '', 'Clique numa barra para filtrar');
+  plan.push(() => mk('p_setor', telBarCfg(countBy(F, r => r[R.setor]).slice(0, 10), navyBar(), dimClick(R.setor)), 'TOP 10 OFENSORES - SETOR'));
+  if (R.olt) { h += chartCard('p_olt', 'TOP 10 OFENSORES - OLT GALC SLOT', '', 'OLT : slot-porta PON'); plan.push(() => mk('p_olt', telBarCfg(countBy(F, facilKey).slice(0, 10), navyBar()), 'TOP 10 OFENSORES - OLT GALC SLOT')); }
+  if (R.cdo) { h += chartCard('p_cdo', 'TOP 10 OFENSORES - ESTAÇÃO / CDOE', '', 'UF - estação - CDOE/I'); plan.push(() => mk('p_cdo', telBarCfg(countBy(F, estCdoKey).slice(0, 10), navyBar()), 'TOP 10 OFENSORES - ESTAÇÃO / CDOE')); }
+  h += `</div>`;
+  // abertas por setor + células ofensoras
+  const sm = new Map();
+  for (const r of F) { const k = r[R.setor]; if (!k) continue; const o = sm.get(k) || { sem: 0, degr: 0, com: 0, nd: 0 }; o[nafClass(r)]++; sm.set(k, o); }
+  const setores = [...sm.keys()].sort();
+  h += `<div class="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-4">`;
+  h += chartCard('p_abertas', 'Gráfico ABERTAS TOTAL por setor', 'lg:col-span-2', 'Empilhado por situação de potência · clique para filtrar o setor', '', 'h-[34rem]');
+  plan.push(() => {
+    const cls = [['sem', 'Sem potência', '#e03a2f'], ['degr', 'Degradação', '#f2a900'], ['com', 'Com potência', '#2fa36b'], ['nd', 'Sem leitura', '#94a3b8']];
+    mk('p_abertas', {
+      type: 'bar', plugins: [totLabels],
+      data: { labels: setores, datasets: cls.map(([k, l, cc]) => ({ label: l, data: setores.map(s => sm.get(s)[k]), backgroundColor: cc, stack: 's', barPercentage: .7, categoryPercentage: .9 })) },
+      options: { indexAxis: 'y', layout: { padding: { right: 22 } }, plugins: { legend: { position: 'bottom', labels: { boxWidth: 10, usePointStyle: true } } }, scales: { x: { stacked: true, beginAtZero: true, grace: '8%', ticks: { precision: 0 } }, y: { stacked: true, grid: { display: false }, ticks: { font: { size: 10 } } } }, onClick: dimClick(R.setor), onHover: hover(true) }
+    }, 'Gráfico ABERTAS TOTAL por setor');
+  });
+  const cel = R.cabo2 ? countBy(F, r => r[R.cabo2], 2).slice(0, 14) : [];
+  h += `<div class="space-y-4">${R.cabo2 ? colorTable('CÉLULAS OFENSORAS', cel, TCOL.navy, 'SETOR - CÉLULAS (cabo secundário)', 'BAs', { heat: heatCell }) : ''}${R.logr ? colorTable('LOGRADOUROS COM CONCENTRAÇÃO', countBy(F, r => r[R.logr], 2).slice(0, 12), TCOL.gold, 'LOGRADOURO', 'BAs', { heat: heatCdo }) : ''}</div></div>`;
+  // pivot setor x estado
+  const est = [...new Set(F.map(r => r[R.estado]).filter(Boolean))];
+  const pref = ['Atribuído', 'Em deslocamento', 'Em execução', 'Não atribuído', 'Recebido'];
+  est.sort((a, b) => { const ia = pref.indexOf(a), ib = pref.indexOf(b); return (ia < 0 ? 99 : ia) - (ib < 0 ? 99 : ib) || a.localeCompare(b, 'pt-BR'); });
+  const pv = new Map(); const ct = {};
+  for (const r of F) { const s = r[R.setor], e = r[R.estado]; if (!s) continue; const o = pv.get(s) || { t: 0 }; o[e] = (o[e] || 0) + 1; o.t++; pv.set(s, o); ct[e] = (ct[e] || 0) + 1; }
+  const rowsP = [...pv.entries()].sort((a, b) => b[1].t - a[1].t); const mx = rowsP.length ? rowsP[0][1].t : 0;
+  h += `<div class="card p-4"><div class="font-semibold text-sm mb-2">ACOMPANHAMENTO - ABERTAS · setor × estado</div><div class="overflow-auto max-h-[34rem] rounded-xl border border-slate-200 dark:border-slate-700"><table class="w-full text-sm"><thead class="sticky top-0 text-white" style="background:#14284b"><tr><th class="text-left px-3 py-2">Setor</th>${est.map(e => `<th class="text-right px-3 py-2 whitespace-nowrap">${esc(e)}</th>`).join('')}<th class="text-right px-3 py-2">Total geral</th></tr></thead><tbody>${rowsP.map(([s, o]) => `<tr class="border-t border-slate-100 dark:border-slate-800"><td class="px-3 py-1.5 font-medium whitespace-nowrap">${esc(s)}</td>${est.map(e => `<td class="text-right px-3 py-1.5 tabular-nums">${o[e] || ''}</td>`).join('')}<td class="text-right px-3 py-1.5 font-bold tabular-nums" ${o.t >= mx * 0.85 ? hs(['#fde047', '#111']) : ''}>${o.t}</td></tr>`).join('')}<tr class="border-t-2 border-slate-300 dark:border-slate-600 bg-slate-100 dark:bg-slate-800 font-bold"><td class="px-3 py-2">Total geral</td>${est.map(e => `<td class="text-right px-3 py-2 tabular-nums">${ct[e] || ''}</td>`).join('')}<td class="text-right px-3 py-2 tabular-nums">${F.length}</td></tr></tbody></table></div></div>`;
+  el.innerHTML = h; plan.forEach(f => f());
+}
+
+/* ---------- OFENSORES E CONCENTRAÇÃO ---------- */
+function renderOfensores() {
+  const el = $('#v-ofensores'), R = TR(), F = S.filtered, N = S.tel.topN;
+  let h = bandTitle('OFENSORES E CONCENTRAÇÃO', 'Setor · OLT/PON · CDOE/I · Célula · clique em um setor para filtrar');
+  h += `<div class="flex justify-end mb-3"><div class="flex items-center gap-2 text-sm"><span class="text-slate-500">Mostrar top</span>${sel('tel.topN', [10, 15, 25, 50], N)}</div></div>`;
+  h += `<div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4 mb-6">`;
+  h += colorTable('SETOR', countBy(F, r => r[R.setor]).slice(0, N), TCOL.navy, 'SETOR', 'BAs', { first: true, col: R.setor });
+  if (R.olt) h += colorTable('OLT GALC SLOT PON', countBy(F, facilKey).slice(0, N), TCOL.green, 'OLT : SLOT-PON', 'BAs');
+  if (R.cdo && R.olt) h += colorTable('CDOE', countBy(F, oltCdoKey).slice(0, N), TCOL.brown, 'OLT + CDOE/I', 'BAs');
+  if (R.celula && R.estacao) h += colorTable('CÉLULA', countBy(F, celKey).slice(0, N), TCOL.gold, 'ESTAÇÃO-CÉLULA', 'TOTAL');
+  h += `</div>`;
+  h += `<div class="grid grid-cols-1 lg:grid-cols-3 gap-4">`;
+  if (R.cdo) h += colorTable('ATIVIDADE POR CDOE/I', countBy(F, r => r[R.cdo]).slice(0, N), TCOL.navy, 'CDOE/CDOI', 'BAs', { heat: heatCdo });
+  if (R.olt) {
+    const m = new Map();
+    for (const r of F) { const k = facilKey(r); if (!k) continue; const o = m.get(k) || { n: 0, c: new Set() }; o.n++; if (R.cdo && r[R.cdo]) o.c.add(r[R.cdo]); m.set(k, o); }
+    const items = [...m.entries()].sort((a, b) => b[1].n - a[1].n || b[1].c.size - a[1].c.size).slice(0, N);
+    h += `<div class="lg:col-span-2 rounded-xl overflow-hidden border border-slate-200 dark:border-slate-700 shadow-sm bg-white dark:bg-slate-900"><div class="text-white text-center font-extrabold tracking-wide py-2 text-sm" style="background:${TCOL.purple}">CONCENTRAÇÃO POR FACILIDADE (OLT : SLOT-PON)</div><div class="overflow-auto max-h-[30rem]"><table class="w-full text-xs"><thead class="sticky top-0 text-white" style="background:${TCOL.purple}"><tr><th class="text-left px-2 py-1.5">FACILIDADE</th><th class="text-right px-2 py-1.5">BAs</th><th class="text-right px-2 py-1.5">CDOE/I distintos</th></tr></thead><tbody>${items.map(([k, o]) => `<tr style="background:${TCOL.purple}14"><td class="px-2 py-1 border-t border-white/40 dark:border-slate-900/50">${esc(k)}</td><td class="px-2 py-1 text-right font-semibold tabular-nums border-t border-white/40 dark:border-slate-900/50" ${hs(heatCdo(o.n))}>${o.n}</td><td class="px-2 py-1 text-right tabular-nums border-t border-white/40 dark:border-slate-900/50">${o.c.size}</td></tr>`).join('')}</tbody></table></div></div>`;
+  }
+  h += `</div>`;
+  el.innerHTML = h;
+}
+
+/* ---------- REINCIDÊNCIA (INFÂNCIA × REPETIDA) ---------- */
+function renderReinc() {
+  const el = $('#v-reinc'), R = TR();
+  if (!R.flag) { el.innerHTML = noCols('A coluna <b>flag_reparo</b> não existe neste arquivo.'); return; }
+  const rows = S.filtered.filter(r => r[R.flag]);
+  let h = bandTitle('REINCIDÊNCIA: INFÂNCIA × REPETIDA', 'Reparos marcados em ' + R.flag + ' no recorte atual');
+  if (!rows.length) { el.innerHTML = h + noCols('Nenhum reparo marcado como repetido ou infância no recorte atual.'); return; }
+  const fm = new Map(); rows.forEach(r => fm.set(r[R.flag], (fm.get(r[R.flag]) || 0) + 1));
+  const flags = [...fm.keys()].sort((a, b) => fm.get(b) - fm.get(a));
+  const fcol = ['#d62828', '#c08400', '#7030a0', '#1f3864'];
+  h += `<div class="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">${flags.map((f, i) => `<div class="rounded-xl overflow-hidden border border-slate-200 dark:border-slate-700 shadow-sm"><div class="text-white text-center text-xs font-bold tracking-wide py-1.5" style="background:${fcol[i % 4]}">${esc(f)}</div><div class="text-center py-3 bg-white dark:bg-slate-900"><div class="text-4xl font-extrabold" style="color:${fcol[i % 4]}">${fm.get(f)}</div><div class="text-[11px] text-slate-500">${pct(fm.get(f), S.filtered.length).toFixed(1).replace('.', ',')}% dos BAs</div></div></div>`).join('')}<div class="rounded-xl overflow-hidden border border-slate-200 dark:border-slate-700 shadow-sm"><div class="text-white text-center text-xs font-bold tracking-wide py-1.5" style="background:${TCOL.navy}">TOTAL</div><div class="text-center py-3 bg-white dark:bg-slate-900"><div class="text-4xl font-extrabold text-slate-800 dark:text-slate-100">${rows.length}</div><div class="text-[11px] text-slate-500">reincidentes</div></div></div></div>`;
+  const pv = new Map();
+  for (const r of rows) { const s = r[R.setor]; if (!s) continue; const o = pv.get(s) || { t: 0 }; o[r[R.flag]] = (o[r[R.flag]] || 0) + 1; o.t++; pv.set(s, o); }
+  const rp = [...pv.entries()].sort((a, b) => b[1].t - a[1].t), mx = rp.length ? rp[0][1].t : 0;
+  h += `<div class="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-4"><div class="card p-4 lg:col-span-2"><div class="font-semibold text-sm mb-2">Setor × flag de reparo</div><div class="overflow-auto max-h-[32rem] rounded-xl border border-slate-200 dark:border-slate-700"><table class="w-full text-sm"><thead class="sticky top-0 text-white" style="background:#6b7280"><tr><th class="text-left px-3 py-2">SETOR</th>${flags.map(f => `<th class="text-right px-3 py-2">${esc(f)}</th>`).join('')}<th class="text-right px-3 py-2">Total</th></tr></thead><tbody>${rp.map(([s, o]) => `<tr class="border-t border-slate-100 dark:border-slate-800"><td class="px-3 py-1.5 font-medium whitespace-nowrap">${esc(s)}</td>${flags.map(f => `<td class="text-right px-3 py-1.5 tabular-nums">${o[f] || ''}</td>`).join('')}<td class="text-right px-3 py-1.5 font-bold tabular-nums" ${o.t >= mx * 0.85 && o.t >= 3 ? hs(HEAT.red) : ''}>${o.t}</td></tr>`).join('')}<tr class="font-bold" style="background:#d92b1f;color:#fff"><td class="px-3 py-2">Total geral</td>${flags.map(f => `<td class="text-right px-3 py-2">${fm.get(f)}</td>`).join('')}<td class="text-right px-3 py-2">${rows.length}</td></tr></tbody></table></div></div>`;
+  h += chartCard('r_reinc', 'Reincidência por setor', '', 'Empilhado por flag', '', 'h-[30rem]');
+  h += `</div><div class="grid grid-cols-1 md:grid-cols-2 gap-4">`;
+  if (R.cdo) h += colorTable('CDOE/I COM REINCIDÊNCIA', countBy(rows, r => r[R.cdo]).slice(0, 15), TCOL.navy, 'CDOE/I', 'TOTAL', { heat: heatCdo });
+  if (R.gpon) h += colorTable('REPARO OFENSORES GPON', countBy(rows, r => r[R.gpon], 2).slice(0, 15), TCOL.gold, 'GPON (2 ou mais BAs)', 'BAs', { heat: heatCell });
+  h += `</div>`;
+  el.innerHTML = h;
+  const sets = rp.map(x => x[0]).sort();
+  mk('r_reinc', {
+    type: 'bar', plugins: [totLabels],
+    data: { labels: sets, datasets: flags.map((f, i) => ({ label: f, data: sets.map(s => pv.get(s)[f] || 0), backgroundColor: fcol[i % 4], stack: 's', barPercentage: .7 })) },
+    options: { indexAxis: 'y', layout: { padding: { right: 20 } }, plugins: { legend: { position: 'bottom', labels: { boxWidth: 10, usePointStyle: true } } }, scales: { x: { stacked: true, beginAtZero: true, grace: '8%', ticks: { precision: 0 } }, y: { stacked: true, grid: { display: false }, ticks: { font: { size: 9 } } } }, onClick: dimClick(R.setor), onHover: hover(true) }
+  }, 'Reincidência por setor');
+}
+
+/* ---------- CONTROLE POR HORA (snapshots) ---------- */
+function snapStore() {
+  if (!S.snaps) { try { S.snaps = JSON.parse(localStorage.getItem(SNAP_KEY) || '{}'); } catch (e) { S.snaps = {}; } }
+  return S.snaps;
+}
+function snapPersist() {
+  try { localStorage.setItem(SNAP_KEY, JSON.stringify(S.snaps)); return true; }
+  catch (e) { toast('O navegador bloqueou o armazenamento local: os snapshots valem só nesta sessão. Use o backup .json.', true); return false; }
+}
+const prevDay = iso => new Date(Date.parse(iso + 'T00:00:00Z') - 864e5).toISOString().slice(0, 10);
+function getSnap(date, cp, slot) {
+  const st = snapStore(); let d = st[date] && st[date][cp] && st[date][cp][slot];
+  if (!d && slot === 'ontem') { const p = st[prevDay(date)]; d = p && p[cp] && p[cp]['21:00']; }
+  return d || null;
+}
+function baseRows() { const R = TR(); return S.rows.filter(r => isOpen(r) && (!R.macro || /^rep/i.test(r[R.macro]))); }
+function snapCounts(rows, cp) { const R = TR(), o = {}; for (const r of rows) { if (R.cp && r[R.cp] !== cp) continue; const s = r[R.setor]; if (s) o[s] = (o[s] || 0) + 1; } return o; }
+function cpList() {
+  const R = TR(); if (!R.cp) return ['(todos)'];
+  const cnt = col(R.cp).counts, pref = ['TIM', 'NIO'].filter(p => cnt.has(p));
+  return pref.length ? pref : [...cnt.entries()].sort((a, b) => b[1] - a[1]).slice(0, 2).map(x => x[0]);
+}
+function registerSnap() {
+  const T = S.tel, st = snapStore(), date = T.snapDate, slot = T.snapSlot;
+  if (!date) return toast('Informe a data.', true);
+  const base = baseRows(); st[date] = st[date] || {};
+  for (const cp of cpList()) { st[date][cp] = st[date][cp] || {}; st[date][cp][slot] = snapCounts(base, cp); }
+  snapPersist(); toast(`Snapshot ${slot === 'ontem' ? 'ONTEM 21hs' : slot} de ${isoBr(date)} registrado (${base.length} BAs de reparo abertas).`); renderActive();
+}
+function delSlot() {
+  const T = S.tel, st = snapStore(); if (!st[T.snapDate]) return toast('Nada registrado nesta data.', true);
+  if (!confirm(`Apagar o snapshot ${T.snapSlot} de ${isoBr(T.snapDate)}?`)) return;
+  Object.values(st[T.snapDate]).forEach(c => delete c[T.snapSlot]); snapPersist(); renderActive();
+}
+function delDay() {
+  const T = S.tel, st = snapStore(); if (!st[T.snapDate]) return toast('Nada registrado nesta data.', true);
+  if (!confirm(`Apagar TODOS os snapshots de ${isoBr(T.snapDate)}?`)) return;
+  delete st[T.snapDate]; snapPersist(); renderActive();
+}
+function exportBackup() {
+  const blob = new Blob([JSON.stringify(snapStore(), null, 1)], { type: 'application/json' }), a = document.createElement('a');
+  a.href = URL.createObjectURL(blob); a.download = 'snapshots_controle_' + new Date().toISOString().slice(0, 10) + '.json'; a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 2000);
+}
+function importBackup(inp) {
+  const f = inp.files[0]; if (!f) return;
+  f.text().then(t => {
+    const o = JSON.parse(t), st = snapStore();
+    for (const d in o) { st[d] = st[d] || {}; for (const cp in o[d]) { st[d][cp] = Object.assign(st[d][cp] || {}, o[d][cp]); } }
+    snapPersist(); toast('Backup restaurado.'); renderActive();
+  }).catch(e => toast('Arquivo de backup inválido.', true)); inp.value = '';
+}
+function matrixData(cp, date) {
+  const R = TR(), rec = SLOTS.map(s => getSnap(date, cp, s)), set = new Set(S.rows.map(r => r[R.setor]).filter(Boolean));
+  rec.forEach(d => d && Object.keys(d).forEach(k => set.add(k)));
+  const setores = [...set].sort();
+  return { rec, setores, val: (i, s) => rec[i] ? (rec[i][s] || 0) : null, tot: i => rec[i] ? setores.reduce((a, s) => a + (rec[i][s] || 0), 0) : null };
+}
+function matrixHtml(cp, date, color) {
+  const M = matrixData(cp, date), rec = M.rec;
+  const cols = []; SLOTS.forEach((s, i) => { cols.push({ t: 'v', i }); if (i >= 2) cols.push({ t: 'f', i }); });
+  const prevIdx = i => { for (let j = i - 1; j >= 0; j--) if (rec[j]) return j; return -1; };
+  const dot = (cur, prev) => { let c = '#f2c879', o = cur == null ? .3 : 1; if (cur != null && prev != null) { if (cur > prev) c = '#d9482b'; else if (cur < prev) c = '#3f9b7a'; } return `<span class="inline-block w-3.5 h-3.5 rounded-full align-middle" style="background:${c};opacity:${o}"></span>`; };
+  const fCell = (i, getter) => { const cur = getter(i), j = prevIdx(i); return `<td class="px-1 py-1 text-center border border-slate-200 dark:border-slate-700">${dot(cur, j >= 0 ? getter(j) : null)}</td>`; };
+  const shade = i => rec[i] ? 'background:rgba(148,163,184,.25)' : '';
+  const head = SLOTS.map((s, i) => `<th class="px-2 py-1.5 border border-white/30 whitespace-nowrap">${s === 'ontem' ? 'ONTEM 21hs' : s}</th>${i >= 2 ? '<th class="px-1 py-1.5 border border-white/30">F</th>' : ''}`).join('');
+  const rowsH = M.setores.map(s => `<tr><td class="px-2 py-1 font-semibold whitespace-nowrap sticky left-0 z-10 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700">${esc(s)}</td>${cols.map(c => c.t === 'v' ? `<td class="px-2 py-1 text-center tabular-nums border border-slate-200 dark:border-slate-700" style="${shade(c.i)}">${M.val(c.i, s) == null ? '' : M.val(c.i, s)}</td>` : fCell(c.i, i => M.val(i, s))).join('')}</tr>`).join('');
+  const totH = `<tr class="font-bold text-white" style="background:${color}"><td class="px-2 py-1.5 sticky left-0 z-10" style="background:${color}">TOTAL</td>${cols.map(c => c.t === 'v' ? `<td class="px-2 py-1.5 text-center tabular-nums">${M.tot(c.i) == null ? '' : M.tot(c.i)}</td>` : fCell(c.i, i => M.tot(i)).replace('border border-slate-200 dark:border-slate-700', '')).join('')}</tr>`;
+  const n = SLOTS.filter((_, i) => rec[i]).length;
+  return `<div class="card p-3 mb-4 overflow-hidden"><div class="overflow-auto max-h-[75vh] rounded-lg"><table class="text-xs border-collapse min-w-full"><thead class="sticky top-0 z-20 text-white" style="background:${color}"><tr><th class="px-3 py-2 text-base tracking-wide" colspan="${cols.length + 1}">CONTROLE DE REPAROS - ${esc(cp)} <span class="text-xs font-normal opacity-80">· ${isoBr(date)} · ${n} horário(s) registrado(s)</span></th></tr><tr><th class="px-2 py-1.5 text-left sticky left-0 z-20" style="background:${color}">SETOR</th>${head}</tr></thead><tbody>${rowsH}${totH}</tbody></table></div></div>`;
+}
+function renderControle() {
+  const T = S.tel, el = $('#v-controle'), colors = { TIM: TCOL.navy, NIO: '#2f5d27' };
+  let h = `<div class="card p-4 mb-4"><div class="flex flex-wrap items-end gap-3">
+    <div class="mr-auto max-w-xl"><div class="font-semibold">Controle de reparos por horário</div><div class="text-xs text-slate-500 dark:text-slate-400 mt-1">Carregue a extração, escolha o horário e clique em <b>Registrar snapshot</b>: o app guarda a contagem de BAs de reparo abertas por setor e operadora. A coluna F compara com o snapshot anterior: <span class="inline-block w-2.5 h-2.5 rounded-full align-middle" style="background:#d9482b"></span> subiu · <span class="inline-block w-2.5 h-2.5 rounded-full align-middle" style="background:#3f9b7a"></span> caiu · <span class="inline-block w-2.5 h-2.5 rounded-full align-middle" style="background:#f2c879"></span> igual. O "Ontem 21hs" é preenchido sozinho se você registrou 21:00 no dia anterior.</div></div>
+    <div><label class="lbl">Data</label><input type="date" class="inp" value="${T.snapDate}" onchange="S.tel.snapDate=this.value;renderActive()"></div>
+    <div><label class="lbl">Horário</label><select class="inp" onchange="S.tel.snapSlot=this.value">${SLOTS.map(s => `<option value="${s}" ${s === T.snapSlot ? 'selected' : ''}>${s === 'ontem' ? 'ONTEM 21hs' : s}</option>`).join('')}</select></div>
+    <button class="btn btn-primary" onclick="registerSnap()">Registrar snapshot</button>
+    <button class="btn" onclick="delSlot()">Apagar horário</button><button class="btn" onclick="delDay()">Apagar dia</button>
+    <button class="btn" onclick="exportBackup()">Backup (.json)</button>
+    <label class="btn cursor-pointer">Restaurar<input type="file" accept=".json" class="hidden" onchange="importBackup(this)"></label></div></div>`;
+  h += cpList().map(cp => matrixHtml(cp, T.snapDate, colors[cp] || '#475569')).join('');
+  el.innerHTML = h;
+}
+
+/* ---------- exportação Excel (abas telecom) ---------- */
+function telSheets(wb) {
+  const R = TR(), F = S.filtered, c = telCounts(S.filteredNoNaf);
+  const add = (n, aoa) => XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(aoa), n);
+  add('Painel', [['Indicador', 'Valor'], ['Total de BAs', c.total], ['Com potência', c.com], ['Sem potência', c.sem], ['Degradação (ONT < ' + S.tel.thr + ' dBm)', c.degr], ['Sem leitura NAF', c.nd], ['Área de risco', c.risco]]);
+  const ss = new Map();
+  F.forEach(r => { const k = r[R.setor]; if (!k) return; const o = ss.get(k) || { sem: 0, degr: 0, com: 0, nd: 0, t: 0 }; o[nafClass(r)]++; o.t++; ss.set(k, o); });
+  add('Setores', [['Setor', 'Total', 'Sem potência', 'Degradação', 'Com potência', 'Sem leitura'], ...[...ss.entries()].sort((a, b) => b[1].t - a[1].t).map(([k, o]) => [k, o.t, o.sem, o.degr, o.com, o.nd])]);
+  if (R.olt) add('Facilidades OLT-PON', [['OLT:PON', 'BAs'], ...countBy(F, facilKey)]);
+  if (R.cdo) add('Estação-CDOE', [['UF-Estação-CDOE/I', 'BAs'], ...countBy(F, estCdoKey)]);
+  if (R.celula && R.estacao) add('Células', [['Estação-Célula', 'BAs'], ...countBy(F, celKey)]);
+  if (R.flag) { const rr = F.filter(r => r[R.flag]); add('Reincidência', [['Setor', 'Flag', 'BAs'], ...countBy(rr, r => r[R.setor] + '\u0001' + r[R.flag]).map(([k, v]) => [...k.split('\u0001'), v])]); }
+  for (const cp of cpList()) {
+    const M = matrixData(cp, S.tel.snapDate);
+    if (!M.rec.some(Boolean)) continue;
+    add(('Controle ' + cp).slice(0, 31), [['Setor', ...SLOTS.map(s => s === 'ontem' ? 'Ontem 21hs' : s)], ...M.setores.map(s => [s, ...SLOTS.map((_, i) => M.val(i, s))]), ['TOTAL', ...SLOTS.map((_, i) => M.tot(i))]]);
+  }
+}
+
+/* ============================================================
+   DADOS PUBLICADOS (leitura automática) E GERAÇÃO DO ARQUIVO PÚBLICO
+   ============================================================ */
+const DATA_URL = 'atividades.csv';         // arquivo publicado na mesma pasta da página; deixe '' para desativar
+const REFRESH_MIN = 10;                    // checa se o arquivo mudou a cada X minutos
+const SENS = /nome|cliente|tecnico|técnico|matricula|cpf|cnpj|fone|telefone|celular|e-?mail|cep|latitude|longitude|^lat$|^lon$|numero|número|complemento|referencia|referência|documento/i;
+
+function checksum(buf) { const u = new Uint8Array(buf); let s = 0; const st = Math.max(1, Math.floor(u.length / 4096)); for (let i = 0; i < u.length; i += st) s = (s * 31 + u[i]) % 1000003; return s; }
+function stateSnapshot() {
+  return { tab: S.tab, filters: JSON.parse(JSON.stringify(S.filters)), search: S.search, tel: S.tel ? { on: S.tel.on, naf: S.tel.naf, thr: S.tel.thr, openOnly: S.tel.openOnly, topN: S.tel.topN, snapDate: S.tel.snapDate, snapSlot: S.tel.snapSlot } : null };
+}
+function stateRestore(k) {
+  S.filters = k.filters.filter(f => col(f.col)); S.search = k.search; $('#search').value = k.search;
+  if (S.tel && k.tel) { Object.assign(S.tel, k.tel); updateModeBtn(); buildTelBar(); }
+  S.tab = k.tab; buildTabs(); refresh();
+}
+async function loadFromUrl(url, mode) {
+  try {
+    const r = await fetch(url + (url.includes('?') ? '&' : '?') + 't=' + Date.now(), { cache: 'no-store' });
+    if (!r.ok) throw new Error('HTTP ' + r.status);
+    const buf = await r.arrayBuffer(), sig = buf.byteLength + ':' + checksum(buf);
+    if (mode === 'auto' && (!S.src || S.src.sig === sig)) return 'same';
+    if (mode === 'manual' && S.src && S.src.sig === sig) return 'same';
+    const keep = (S.src && S.rows.length) ? stateSnapshot() : null, lm = r.headers.get('last-modified');
+    S.src = { url, sig, lm: lm ? new Date(lm) : null };
+    loadData(bufToAoa(buf, url), url.split('?')[0].split('/').pop(), mode !== 'boot');
+    if (keep) stateRestore(keep);
+    return 'updated';
+  } catch (e) { console.warn('Dados publicados indisponíveis:', e.message); return 'err'; }
+}
+async function bootSource() {
+  const q = new URLSearchParams(location.search);
+  let url = q.get('dados') || DATA_URL;
+  if (!url || location.protocol === 'file:') return;
+  try { if (new URL(url, location.href).origin !== location.origin) return; } catch (e) { return; }
+  S.srcUrl = url; toast('Carregando dados publicados...');
+  const r = await loadFromUrl(url, 'boot');
+  if (r === 'err') { const n = $('#srcNote'); n.textContent = 'Ainda não há arquivo publicado em ' + url + '. Carregue um arquivo manualmente.'; n.classList.remove('hidden'); return; }
+  $('#btnRefresh').classList.remove('hidden');
+  setInterval(() => loadFromUrl(url, 'auto'), REFRESH_MIN * 60000);
+  document.addEventListener('visibilitychange', () => { if (!document.hidden) loadFromUrl(url, 'auto'); });
+}
+function openPublish() {
+  const cs = S.cols.filter(c => c.kind !== 'empty'), n = cs.filter(c => SENS.test(c.name)).length;
+  $('#pubList').innerHTML = cs.map(c => { const s = SENS.test(c.name); return `<label class="flex items-start gap-2 text-sm py-1 cursor-pointer"><input type="checkbox" class="mt-1" data-c="${esc(c.name)}" ${s ? 'checked' : ''}><span class="min-w-0"><b>${esc(c.name)}</b> ${s ? '<span class="badge bg-rose-100 text-rose-700 dark:bg-rose-950 dark:text-rose-300">dado pessoal?</span>' : ''}<span class="block text-xs text-slate-500 truncate">ex.: ${esc(trunc(c.example, 34))}</span></span></label>`; }).join('');
+  $('#pubInfo').textContent = S.rows.length.toLocaleString('pt-BR') + ' linhas · ' + n + ' coluna(s) sugerida(s) para remover';
+  $('#pubModal').classList.remove('hidden');
+}
+function closePub() { $('#pubModal').classList.add('hidden'); }
+function downloadPublic() {
+  const drop = new Set([...document.querySelectorAll('#pubList input:checked')].map(i => i.dataset.c));
+  const cs = S.cols.filter(c => c.kind !== 'empty' && !drop.has(c.name));
+  const q = v => /[";\r\n]/.test(v) ? '"' + v.replace(/"/g, '""') + '"' : v;
+  const lines = [cs.map(c => q(c.name)).join(';')];
+  for (const r of S.rows) lines.push(cs.map(c => q(r[c.name])).join(';'));
+  const blob = new Blob(['﻿' + lines.join('\r\n')], { type: 'text/csv;charset=utf-8' }), a = document.createElement('a');
+  a.href = URL.createObjectURL(blob); a.download = 'atividades.csv'; a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 2000);
+  closePub(); toast('Arquivo gerado com ' + cs.length + ' colunas (' + drop.size + ' removidas). Envie este arquivo para o GitHub, na mesma pasta do index.html.');
+}
+
+(function init() {
+  let dark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+  try { const t = localStorage.getItem('datalens-theme'); if (t) dark = t === 'dark'; } catch (e) { }
+  setTheme(dark);
+  document.querySelectorAll('.hidden-until-data').forEach(b => b.classList.add('hidden'));
+  const onFile = e => { handleFile(e.target.files[0]); e.target.value = ''; };
+  $('#fileInput').addEventListener('change', onFile); $('#fileInput2').addEventListener('change', onFile);
+  $('#btnSample').addEventListener('click', () => { S.src = null; loadData(sampleData(), 'dados_exemplo_vendas.xlsx'); });
+  $('#btnTheme').addEventListener('click', () => setTheme(!S.dark));
+  $('#btnMode').addEventListener('click', toggleMode);
+  $('#btnXlsx').addEventListener('click', exportXLSX); $('#btnPdf').addEventListener('click', exportPDF);
+  $('#btnToggleFilters').addEventListener('click', () => $('#advFilters').classList.toggle('hidden'));
+  $('#btnClear').addEventListener('click', clearAll);
+  let st; $('#search').addEventListener('input', e => { clearTimeout(st); st = setTimeout(() => { S.search = e.target.value.trim().toLowerCase(); S.page = 1; refresh(true); }, 250); });
+  $('#dateCol').addEventListener('change', e => { S.dateCol = e.target.value; refresh(true); });
+  const dr = () => {
+    const f = $('#dateFrom').value, t = $('#dateTo').value;
+    S.dateFrom = f ? Date.parse(f + 'T00:00:00Z') : null; S.dateTo = t ? Date.parse(t + 'T23:59:59Z') : null; S.page = 1; refresh(true);
+  };
+  $('#dateFrom').addEventListener('change', dr); $('#dateTo').addEventListener('change', dr);
+  $('#fAdd').addEventListener('click', () => {
+    const c = $('#fCol').value, op = $('#fOp').value, v = $('#fVal').value.trim();
+    if (!c) return; if (!['empty', 'notempty'].includes(op) && v === '') return toast('Informe um valor para o filtro.', true);
+    addFilter({ col: c, op, val: v }); $('#fVal').value = '';
+  });
+  $('#fVal').addEventListener('keydown', e => { if (e.key === 'Enter') $('#fAdd').click(); });
+  $('#modal').addEventListener('click', e => { if (e.target.id === 'modal') closeModal(); });
+  document.addEventListener('keydown', e => { if (e.key === 'Escape') { closeModal(); closePub(); } });
+  $('#pubModal').addEventListener('click', e => { if (e.target.id === 'pubModal') closePub(); });
+  $('#btnPub').addEventListener('click', openPublish); $('#pubDl').addEventListener('click', downloadPublic);
+  $('#btnRefresh').addEventListener('click', async () => { const r = await loadFromUrl(S.srcUrl, 'manual'); toast(r === 'same' ? 'Já está com os dados mais recentes.' : r === 'updated' ? 'Dados atualizados!' : 'Não consegui buscar o arquivo publicado.', r === 'err'); });
+  const dz = $('#dropzone');
+  ['dragenter', 'dragover'].forEach(ev => document.addEventListener(ev, e => { e.preventDefault(); dz.classList.add('border-indigo-500', 'bg-indigo-50/50'); }));
+  ['dragleave', 'drop'].forEach(ev => document.addEventListener(ev, e => { e.preventDefault(); dz.classList.remove('border-indigo-500', 'bg-indigo-50/50'); }));
+  document.addEventListener('drop', e => { if (e.dataTransfer && e.dataTransfer.files.length) handleFile(e.dataTransfer.files[0]); });
+  bootSource();
+  let rt; window.addEventListener('resize', () => { clearTimeout(rt); rt = setTimeout(() => Object.values(S.charts).forEach(c => c.resize()), 150); });
+})();
+</script>
+</body>
+</html>
