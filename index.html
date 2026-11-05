@@ -1408,13 +1408,35 @@ async function loadSnaps() {
   } catch (e) { return false; }
 }
 async function syncSnaps(first) {
-  if (location.protocol === 'file:') return;
-  const ch = await loadSnaps(); if (!ch) return;
+  if (location.protocol === 'file:') return false;
+  const ch = await loadSnaps(); if (!ch) return false;
   if (S.tel) {
     const st = snapStore();
     if (first && !st[S.tel.snapDate]) { const ds = Object.keys(st).sort(); if (ds.length) S.tel.snapDate = ds[ds.length - 1]; }
     if (S.tab === 'controle') renderActive();
   }
+  return true;
+}
+/* Busca dados + controle por hora juntos. Se só um dos dois veio novo (o site ainda está publicando o outro),
+   insiste a cada 20 s até pegar o outro: o controle novo implica dados novos. */
+const wait = ms => new Promise(r => setTimeout(r, ms));
+async function syncAll(url, mode) {
+  const r = await loadFromUrl(url, mode);
+  const ch = await syncSnaps(false);
+  const csvNovo = r === 'updated';
+  if (!S.retrying && ch !== csvNovo) {
+    S.retrying = true;
+    (async () => {
+      try {
+        for (let i = 0; i < (ch ? 9 : 3); i++) {
+          await wait(20000);
+          if (ch) { if (await loadFromUrl(url, 'auto') === 'updated') break; }
+          else if (await syncSnaps(false)) break;
+        }
+      } finally { S.retrying = false; }
+    })();
+  }
+  return (csvNovo || ch) ? 'updated' : r;
 }
 async function bootSource() {
   const q = new URLSearchParams(location.search);
@@ -1426,7 +1448,7 @@ async function bootSource() {
   if (r === 'err') { const n = $('#srcNote'); n.textContent = 'Ainda não há arquivo publicado em ' + url + '. Carregue um arquivo manualmente.'; n.classList.remove('hidden'); return; }
   $('#btnRefresh').classList.remove('hidden');
   syncSnaps(true);
-  const tick = async () => { await loadFromUrl(url, 'auto'); syncSnaps(false); };
+  const tick = () => syncAll(url, 'auto');
   setInterval(tick, REFRESH_MIN * 60000);
   document.addEventListener('visibilitychange', () => { if (!document.hidden) tick(); });
 }
@@ -1478,7 +1500,7 @@ function downloadPublic() {
   document.addEventListener('keydown', e => { if (e.key === 'Escape') { closeModal(); closePub(); } });
   $('#pubModal').addEventListener('click', e => { if (e.target.id === 'pubModal') closePub(); });
   $('#btnPub').addEventListener('click', openPublish); $('#pubDl').addEventListener('click', downloadPublic);
-  $('#btnRefresh').addEventListener('click', async () => { const r = await loadFromUrl(S.srcUrl, 'manual'); await syncSnaps(false); toast(r === 'same' ? 'Já está com os dados mais recentes.' : r === 'updated' ? 'Dados atualizados!' : 'Não consegui buscar o arquivo publicado.', r === 'err'); });
+  $('#btnRefresh').addEventListener('click', async () => { const r = await syncAll(S.srcUrl, 'manual'); toast(r === 'same' ? 'Já está com os dados mais recentes.' : r === 'updated' ? 'Dados atualizados!' : 'Não consegui buscar o arquivo publicado.', r === 'err'); });
   const dz = $('#dropzone');
   ['dragenter', 'dragover'].forEach(ev => document.addEventListener(ev, e => { e.preventDefault(); dz.classList.add('border-indigo-500', 'bg-indigo-50/50'); }));
   ['dragleave', 'drop'].forEach(ev => document.addEventListener(ev, e => { e.preventDefault(); dz.classList.remove('border-indigo-500', 'bg-indigo-50/50'); }));
