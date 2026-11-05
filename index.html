@@ -1091,6 +1091,17 @@ const estCdoKey = r => { const R = TR(), c = R.cdo && r[R.cdo]; if (!c) return '
 const oltCdoKey = r => { const R = TR(); return (R.olt && R.cdo && r[R.olt] && r[R.cdo]) ? r[R.olt] + ' ' + r[R.cdo] : ''; };
 const celKey = r => { const R = TR(); return (R.estacao && R.celula && r[R.estacao] && r[R.celula]) ? r[R.estacao] + '-' + r[R.celula] : ''; };
 const KEYFN = { facil: facilKey, oltcdo: oltCdoKey, cel: celKey };
+/* clique na aba Reincidência: filtra só as reincidências (e o setor/CDO/GPON clicado) e continua na aba */
+function reincPick(el) {
+  const d = el.dataset, R = TR();
+  const all = [...new Set(S.rows.map(r => r[R.flag]).filter(Boolean))];
+  if (d.c) { S.filters = S.filters.filter(x => !(x.col === d.c && (x.op === 'eq' || x.op === 'in'))); S.filters.push({ col: d.c, op: 'eq', val: d.v }); }
+  const fl = d.f ? [d.f] : all;
+  S.filters = S.filters.filter(x => !(x.col === R.flag && (x.op === 'eq' || x.op === 'in')));
+  if (fl.length) S.filters.push(fl.length === 1 ? { col: R.flag, op: 'eq', val: fl[0] } : { col: R.flag, op: 'in', val: fl });
+  S.page = 1; refresh();
+  toast('Filtrado: ' + (d.v ? d.v + ' · ' : '') + (d.f || 'reincidências') + ' · os BAs estão na aba Dados · para tirar, clique no × do filtro');
+}
 /* clique numa linha das tabelas de Ofensores: filtra e continua em Ofensores */
 function ofPick(el) {
   const d = el.dataset;
@@ -1217,7 +1228,7 @@ const navyBar = () => S.dark && !S.exporting ? '#7c93d6' : '#1f3864';
 function colorTable(title, items, color, h1, h2, o = {}) {
   const body = items.length ? items.map(([k, v], i) => {
     const st = (i === 0 && o.first) ? 'background:#fde047;color:#111;font-weight:700' : `background:${color}1f`;
-    const click = o.col ? `data-c="${esc(o.col)}" data-v="${esc(k)}" onclick="ofPick(this)" title="Clique para ver os BAs" class="cursor-pointer hover:brightness-90"`
+    const click = o.col ? `data-c="${esc(o.col)}" data-v="${esc(k)}" onclick="${o.reinc ? 'reincPick' : 'ofPick'}(this)" title="Clique para ver os BAs" class="cursor-pointer hover:brightness-90"`
       : o.key ? `data-k="${o.key}" data-l="${esc(h1)}" data-v="${esc(k)}" onclick="ofPick(this)" title="Clique para ver os BAs" class="cursor-pointer hover:brightness-90"` : '';
     return `<tr ${click} style="${st}"><td class="px-2 py-1 border-t border-white/40 dark:border-slate-900/50" title="${esc(k)}">${esc(trunc(k, 38))}</td><td class="px-2 py-1 text-right font-semibold tabular-nums border-t border-white/40 dark:border-slate-900/50" ${o.heat ? hs(o.heat(v)) : ''}>${fmt(v)}</td></tr>`;
   }).join('') : `<tr><td colspan="2" class="px-2 py-4 text-center text-slate-500">Sem dados no recorte</td></tr>`;
@@ -1298,27 +1309,27 @@ function renderReinc() {
   const el = $('#v-reinc'), R = TR();
   if (!R.flag) { el.innerHTML = noCols('A coluna <b>flag_reparo</b> não existe neste arquivo.'); return; }
   const rows = S.filtered.filter(r => r[R.flag]);
-  let h = bandTitle('REINCIDÊNCIA: INFÂNCIA × REPETIDA', 'Reparos marcados em ' + R.flag + ' no recorte atual');
+  let h = bandTitle('REINCIDÊNCIA: INFÂNCIA × REPETIDA', 'Reparos marcados em ' + R.flag + ' no recorte atual · clique em qualquer card ou linha para filtrar só as reincidências (os BAs ficam na aba Dados)');
   if (!rows.length) { el.innerHTML = h + noCols('Nenhum reparo marcado como repetido ou infância no recorte atual.'); return; }
   const fm = new Map(); rows.forEach(r => fm.set(r[R.flag], (fm.get(r[R.flag]) || 0) + 1));
   const flags = [...fm.keys()].sort((a, b) => fm.get(b) - fm.get(a));
   const fcol = ['#d62828', '#c08400', '#7030a0', '#1f3864'];
-  h += `<div class="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">${flags.map((f, i) => `<div class="rounded-xl overflow-hidden border border-slate-200 dark:border-slate-700 shadow-sm"><div class="text-white text-center text-xs font-bold tracking-wide py-1.5" style="background:${fcol[i % 4]}">${esc(f)}</div><div class="text-center py-3 bg-white dark:bg-slate-900"><div class="text-4xl font-extrabold" style="color:${fcol[i % 4]}">${fm.get(f)}</div><div class="text-[11px] text-slate-500">${pct(fm.get(f), S.filtered.length).toFixed(1).replace('.', ',')}% dos BAs</div></div></div>`).join('')}<div class="rounded-xl overflow-hidden border border-slate-200 dark:border-slate-700 shadow-sm"><div class="text-white text-center text-xs font-bold tracking-wide py-1.5" style="background:${TCOL.navy}">TOTAL</div><div class="text-center py-3 bg-white dark:bg-slate-900"><div class="text-4xl font-extrabold text-slate-800 dark:text-slate-100">${rows.length}</div><div class="text-[11px] text-slate-500">reincidentes</div></div></div></div>`;
+  h += `<div class="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">${flags.map((f, i) => `<div data-f="${esc(f)}" onclick="reincPick(this)" title="Clique para ver só ${esc(f)}" class="rounded-xl overflow-hidden border border-slate-200 dark:border-slate-700 shadow-sm cursor-pointer transition hover:shadow-md"><div class="text-white text-center text-xs font-bold tracking-wide py-1.5" style="background:${fcol[i % 4]}">${esc(f)}</div><div class="text-center py-3 bg-white dark:bg-slate-900"><div class="text-4xl font-extrabold" style="color:${fcol[i % 4]}">${fm.get(f)}</div><div class="text-[11px] text-slate-500">${pct(fm.get(f), S.filtered.length).toFixed(1).replace('.', ',')}% dos BAs</div></div></div>`).join('')}<div onclick="reincPick(this)" title="Clique para ver todas as reincidências" class="rounded-xl overflow-hidden border border-slate-200 dark:border-slate-700 shadow-sm cursor-pointer transition hover:shadow-md"><div class="text-white text-center text-xs font-bold tracking-wide py-1.5" style="background:${TCOL.navy}">TOTAL</div><div class="text-center py-3 bg-white dark:bg-slate-900"><div class="text-4xl font-extrabold text-slate-800 dark:text-slate-100">${rows.length}</div><div class="text-[11px] text-slate-500">reincidentes</div></div></div></div>`;
   const pv = new Map();
   for (const r of rows) { const s = r[R.setor]; if (!s) continue; const o = pv.get(s) || { t: 0 }; o[r[R.flag]] = (o[r[R.flag]] || 0) + 1; o.t++; pv.set(s, o); }
   const rp = [...pv.entries()].sort((a, b) => b[1].t - a[1].t), mx = rp.length ? rp[0][1].t : 0;
-  h += `<div class="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-4"><div class="card p-4 lg:col-span-2"><div class="font-semibold text-sm mb-2">Setor × flag de reparo</div><div class="overflow-auto max-h-[32rem] rounded-xl border border-slate-200 dark:border-slate-700"><table class="w-full text-sm"><thead class="sticky top-0 text-white" style="background:#6b7280"><tr><th class="text-left px-3 py-2">SETOR</th>${flags.map(f => `<th class="text-right px-3 py-2">${esc(f)}</th>`).join('')}<th class="text-right px-3 py-2">Total</th></tr></thead><tbody>${rp.map(([s, o]) => `<tr class="border-t border-slate-100 dark:border-slate-800"><td class="px-3 py-1.5 font-medium whitespace-nowrap">${esc(s)}</td>${flags.map(f => `<td class="text-right px-3 py-1.5 tabular-nums">${o[f] || ''}</td>`).join('')}<td class="text-right px-3 py-1.5 font-bold tabular-nums" ${o.t >= mx * 0.85 && o.t >= 3 ? hs(HEAT.red) : ''}>${o.t}</td></tr>`).join('')}<tr class="font-bold" style="background:#d92b1f;color:#fff"><td class="px-3 py-2">Total geral</td>${flags.map(f => `<td class="text-right px-3 py-2">${fm.get(f)}</td>`).join('')}<td class="text-right px-3 py-2">${rows.length}</td></tr></tbody></table></div></div>`;
+  h += `<div class="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-4"><div class="card p-4 lg:col-span-2"><div class="font-semibold text-sm mb-2">Setor × flag de reparo</div><div class="overflow-auto max-h-[32rem] rounded-xl border border-slate-200 dark:border-slate-700"><table class="w-full text-sm"><thead class="sticky top-0 text-white" style="background:#6b7280"><tr><th class="text-left px-3 py-2">SETOR</th>${flags.map(f => `<th class="text-right px-3 py-2">${esc(f)}</th>`).join('')}<th class="text-right px-3 py-2">Total</th></tr></thead><tbody>${rp.map(([s, o]) => `<tr class="border-t border-slate-100 dark:border-slate-800 cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-800/60"><td data-c="${esc(R.setor)}" data-v="${esc(s)}" onclick="reincPick(this)" class="px-3 py-1.5 font-medium whitespace-nowrap">${esc(s)}</td>${flags.map(f => `<td data-c="${esc(R.setor)}" data-v="${esc(s)}" data-f="${esc(f)}" onclick="reincPick(this)" class="text-right px-3 py-1.5 tabular-nums">${o[f] || ''}</td>`).join('')}<td data-c="${esc(R.setor)}" data-v="${esc(s)}" onclick="reincPick(this)" class="text-right px-3 py-1.5 font-bold tabular-nums" ${o.t >= mx * 0.85 && o.t >= 3 ? hs(HEAT.red) : ''}>${o.t}</td></tr>`).join('')}<tr class="font-bold cursor-pointer" style="background:#d92b1f;color:#fff"><td class="px-3 py-2" onclick="reincPick(this)">Total geral</td>${flags.map(f => `<td data-f="${esc(f)}" onclick="reincPick(this)" class="text-right px-3 py-2">${fm.get(f)}</td>`).join('')}<td onclick="reincPick(this)" class="text-right px-3 py-2">${rows.length}</td></tr></tbody></table></div></div>`;
   h += chartCard('r_reinc', 'Reincidência por setor', '', 'Empilhado por flag', '', 'h-[30rem]');
   h += `</div><div class="grid grid-cols-1 md:grid-cols-2 gap-4">`;
-  if (R.cdo) h += colorTable('CDOE/I COM REINCIDÊNCIA', countBy(rows, r => r[R.cdo]).slice(0, 15), TCOL.navy, 'CDOE/I', 'TOTAL', { heat: heatCdo });
-  if (R.gpon) h += colorTable('REPARO OFENSORES GPON', countBy(rows, r => r[R.gpon], 2).slice(0, 15), TCOL.gold, 'GPON (2 ou mais BAs)', 'BAs', { heat: heatCell });
+  if (R.cdo) h += colorTable('CDOE/I COM REINCIDÊNCIA', countBy(rows, r => r[R.cdo]).slice(0, 15), TCOL.navy, 'CDOE/I', 'TOTAL', { heat: heatCdo, col: R.cdo, reinc: true });
+  if (R.gpon) h += colorTable('REPARO OFENSORES GPON', countBy(rows, r => r[R.gpon], 2).slice(0, 15), TCOL.gold, 'GPON (2 ou mais BAs)', 'BAs', { heat: heatCell, col: R.gpon, reinc: true });
   h += `</div>`;
   el.innerHTML = h;
   const sets = rp.map(x => x[0]).sort();
   mk('r_reinc', {
     type: 'bar', plugins: [totLabels],
     data: { labels: sets, datasets: flags.map((f, i) => ({ label: f, data: sets.map(s => pv.get(s)[f] || 0), backgroundColor: fcol[i % 4], stack: 's', barPercentage: .7 })) },
-    options: { indexAxis: 'y', layout: { padding: { right: 20 } }, plugins: { legend: { position: 'bottom', labels: { boxWidth: 10, usePointStyle: true } } }, scales: { x: { stacked: true, beginAtZero: true, grace: '8%', ticks: { precision: 0 } }, y: { stacked: true, grid: { display: false }, ticks: { font: { size: 9 } } } }, onClick: dimClick(R.setor), onHover: hover(true) }
+    options: { indexAxis: 'y', layout: { padding: { right: 20 } }, plugins: { legend: { position: 'bottom', labels: { boxWidth: 10, usePointStyle: true } } }, scales: { x: { stacked: true, beginAtZero: true, grace: '8%', ticks: { precision: 0 } }, y: { stacked: true, grid: { display: false }, ticks: { font: { size: 9 } } } }, onClick: (e, els, ch) => { if (els.length) reincPick({ dataset: { c: R.setor, v: ch.data.labels[els[0].index] } }); }, onHover: hover(true) }
   }, 'Reincidência por setor');
 }
 
