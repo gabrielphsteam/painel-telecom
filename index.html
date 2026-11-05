@@ -1084,14 +1084,13 @@ const estCdoKey = r => { const R = TR(), c = R.cdo && r[R.cdo]; if (!c) return '
 const oltCdoKey = r => { const R = TR(); return (R.olt && R.cdo && r[R.olt] && r[R.cdo]) ? r[R.olt] + ' ' + r[R.cdo] : ''; };
 const celKey = r => { const R = TR(); return (R.estacao && R.celula && r[R.estacao] && r[R.celula]) ? r[R.estacao] + '-' + r[R.celula] : ''; };
 const KEYFN = { facil: facilKey, oltcdo: oltCdoKey, cel: celKey };
-/* clique numa linha das tabelas de Ofensores: filtra e abre a aba Dados */
+/* clique numa linha das tabelas de Ofensores: filtra e continua em Ofensores */
 function ofPick(el) {
   const d = el.dataset;
   if (d.k) { S.filters = S.filters.filter(x => !(x.op === 'key' && x.key === d.k)); S.filters.push({ col: d.l, op: 'key', key: d.k, val: d.v }); }
   else { S.filters = S.filters.filter(x => !(x.col === d.c && (x.op === 'eq' || x.op === 'in'))); S.filters.push({ col: d.c, op: 'eq', val: d.v }); }
-  S.page = 1; S.tab = 'tabela'; buildTabs(); refresh();
-  toast('Filtrado: ' + d.v + ' · para voltar, remova o filtro (×) ou clique em Ofensores');
-  window.scrollTo({ top: 0, behavior: 'smooth' });
+  S.page = 1; refresh();
+  toast('Filtrado: ' + d.v + ' · os BAs estão na aba Dados · para tirar, clique no × do filtro');
 }
 function countBy(rows, fn, min = 1) {
   const m = new Map();
@@ -1267,7 +1266,7 @@ function renderPainel() {
 /* ---------- OFENSORES E CONCENTRAÇÃO ---------- */
 function renderOfensores() {
   const el = $('#v-ofensores'), R = TR(), F = S.filtered, N = S.tel.topN;
-  let h = bandTitle('OFENSORES E CONCENTRAÇÃO', 'Setor · OLT/PON · CDOE/I · Célula · clique em qualquer linha para ver os BAs na aba Dados');
+  let h = bandTitle('OFENSORES E CONCENTRAÇÃO', 'Setor · OLT/PON · CDOE/I · Célula · clique em qualquer linha para filtrar (os BAs ficam na aba Dados)');
   h += `<div class="flex justify-end mb-3"><div class="flex items-center gap-2 text-sm"><span class="text-slate-500">Mostrar top</span>${sel('tel.topN', [10, 15, 25, 50], N)}</div></div>`;
   h += `<div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4 mb-6">`;
   h += colorTable('SETOR', countBy(F, r => r[R.setor]).slice(0, N), TCOL.navy, 'SETOR', 'BAs', { first: true, col: R.setor });
