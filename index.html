@@ -319,7 +319,7 @@ const TEL_TABS = [['painel', '📡 Painel operacional'], ['ofensores', 'Ofensore
 const ALL_IDS = ['painel', 'ofensores', 'reinc', 'controle', 'dashboard', 'tabela', 'pivot', 'comparativo', 'ranking', 'estrutura'];
 const telOn = () => !!(S.tel && S.tel.on);
 const tabsList = () => telOn() ? TEL_TABS.concat(GEN_TABS) : GEN_TABS;
-const OPLBL = { eq: '=', neq: '≠', contains: 'contém', gt: '>', gte: '≥', lt: '<', lte: '≤', empty: 'vazio', notempty: 'preenchido' };
+const OPLBL = { in: 'em', eq: '=', neq: '≠', contains: 'contém', gt: '>', gte: '≥', lt: '<', lte: '≤', empty: 'vazio', notempty: 'preenchido' };
 const MESES = ['jan', 'fev', 'mar', 'abr', 'mai', 'jun', 'jul', 'ago', 'set', 'out', 'nov', 'dez'];
 const DIAS = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
 
@@ -489,12 +489,12 @@ function setupFilterUI() {
 }
 function quickFilter(el) {
   const c = el.dataset.c;
-  S.filters = S.filters.filter(f => !(f.col === c && f.op === 'eq'));
+  S.filters = S.filters.filter(f => !(f.col === c && (f.op === 'eq' || f.op === 'in')));
   if (el.value) S.filters.push({ col: c, op: 'eq', val: el.value });
   S.page = 1; refresh(true);
 }
 function addFilter(f, fromChart) {
-  if (f.op === 'eq') S.filters = S.filters.filter(x => !(x.col === f.col && x.op === 'eq'));
+  if (f.op === 'eq') S.filters = S.filters.filter(x => !(x.col === f.col && (x.op === 'eq' || x.op === 'in')));
   if (!S.filters.some(x => x.col === f.col && x.op === f.op && x.val === f.val)) S.filters.push(f);
   S.page = 1; refresh();
 }
@@ -503,6 +503,7 @@ function testF(r, f) {
   const raw = r[f.col], v = f.val;
   switch (f.op) {
     case 'eq': return raw === v || (v === '(vazio)' && raw === '');
+    case 'in': return Array.isArray(v) ? v.includes(raw) || (v.includes('(vazio)') && raw === '') : raw === v;
     case 'neq': return raw !== v;
     case 'contains': return raw.toLowerCase().includes(String(v).toLowerCase());
     case 'empty': return raw === '';
@@ -530,7 +531,7 @@ function applyFilters() {
   S.filtered = nv ? base.filter(r => nv === 'risco' ? isRisco(r) : nafClass(r) === nv) : base;
 }
 function renderChips() {
-  $('#chips').innerHTML = scopeBadges() + S.filters.map((f, i) => `<span class="badge bg-indigo-100 text-indigo-700 dark:bg-indigo-950 dark:text-indigo-300 flex items-center gap-1 !py-1"><b>${esc(trunc(f.col, 28))}</b> ${OPLBL[f.op]} ${f.op === 'empty' || f.op === 'notempty' ? '' : esc(trunc(f.val, 30))}<button class="ml-1 font-bold hover:text-rose-500" onclick="rmFilter(${i})">×</button></span>`).join('');
+  $('#chips').innerHTML = scopeBadges() + S.filters.map((f, i) => `<span class="badge bg-indigo-100 text-indigo-700 dark:bg-indigo-950 dark:text-indigo-300 flex items-center gap-1 !py-1"><b>${esc(trunc(f.col, 28))}</b> ${OPLBL[f.op]} ${f.op === 'empty' || f.op === 'notempty' ? '' : esc(trunc(fval(f), 60))}<button class="ml-1 font-bold hover:text-rose-500" onclick="rmFilter(${i})">×</button></span>`).join('');
   $('#counter').innerHTML = `<span class="text-indigo-600 dark:text-indigo-400 font-bold">${S.filtered.length.toLocaleString('pt-BR')}</span> <span class="text-slate-500">de ${S.rows.length.toLocaleString('pt-BR')} registros</span>`;
 }
 function refresh(keepQuick) {
@@ -540,7 +541,34 @@ function refresh(keepQuick) {
 }
 function syncQuick() {
   document.querySelectorAll('select.qsel').forEach(s => { const f = S.filters.find(x => x.col === s.dataset.c && x.op === 'eq'); s.value = f ? f.val : ''; });
+  document.querySelectorAll('.msel').forEach(b => { const v = curVals(b.dataset.c); b.querySelector('.msel-txt').textContent = !v.length ? 'Todos' : v.length === 1 ? v[0] : v.length + ' selecionados'; b.querySelector('button').title = v.join('\n'); });
 }
+const fval = f => f.val == null ? '' : Array.isArray(f.val) ? f.val.join(', ') : f.val;
+/* ---------- seleção múltipla (barra telecom) ---------- */
+function curVals(c) { const f = S.filters.find(x => x.col === c && (x.op === 'eq' || x.op === 'in')); return f ? (f.op === 'in' ? f.val.slice() : [f.val]) : []; }
+function setVals(c, vals) {
+  S.filters = S.filters.filter(x => !(x.col === c && (x.op === 'eq' || x.op === 'in')));
+  if (vals.length === 1) S.filters.push({ col: c, op: 'eq', val: vals[0] });
+  else if (vals.length > 1) S.filters.push({ col: c, op: 'in', val: vals });
+  S.page = 1; refresh();
+}
+function mselClose() { document.querySelectorAll('.msel-pop').forEach(p => p.classList.add('hidden')); }
+function mselOpen(btn) {
+  const box = btn.closest('.msel'), pop = box.querySelector('.msel-pop'), was = !pop.classList.contains('hidden');
+  mselClose(); if (was) return;
+  const cur = curVals(box.dataset.c);
+  pop.querySelectorAll('input[type=checkbox]').forEach(i => { i.checked = cur.includes(i.value); });
+  const q = pop.querySelector('.msel-q'); q.value = ''; mselFind(q);
+  pop.classList.remove('hidden'); q.focus();
+}
+function mselFind(inp) { const t = inp.value.toLowerCase(); inp.closest('.msel-pop').querySelectorAll('.msel-it').forEach(l => l.classList.toggle('hidden', !l.dataset.v.toLowerCase().includes(t))); }
+function mselAll(b, on) { b.closest('.msel-pop').querySelectorAll('.msel-it:not(.hidden) input').forEach(i => { i.checked = on; }); }
+function mselApply(b) {
+  const box = b.closest('.msel'), all = box.querySelectorAll('.msel-it input'), vals = [...all].filter(i => i.checked).map(i => i.value);
+  mselClose(); setVals(box.dataset.c, vals.length === all.length ? [] : vals);
+}
+document.addEventListener('click', e => { if (!e.target.closest('.msel')) mselClose(); });
+document.addEventListener('keydown', e => { if (e.key === 'Escape') mselClose(); });
 
 /* ============================================================
    TEMA E ABAS
@@ -934,7 +962,7 @@ function exportXLSX() {
     const ws = XLSX.utils.json_to_sheet(data); ws['!cols'] = Object.keys(data[0]).map(k => ({ wch: Math.min(40, Math.max(10, k.length + 2)) }));
     XLSX.utils.book_append_sheet(wb, ws, 'Dados');
     const kp = computeKPIs();
-    XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet([['Indicador', 'Valor', 'Detalhe'], ...kp.map(k => [k.label, k.value, k.sub]), [], ['Filtros ativos'], ...S.filters.map(f => [f.col, OPLBL[f.op], f.val || ''])]), 'Resumo');
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet([['Indicador', 'Valor', 'Detalhe'], ...kp.map(k => [k.label, k.value, k.sub]), [], ['Filtros ativos'], ...S.filters.map(f => [f.col, OPLBL[f.op], fval(f)])]), 'Resumo');
     const dn = S.rk.dim || (S.anyDims[0] || {}).name;
     if (dn) XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet([[dn, 'Registros'], ...groupBy(S.filtered, dn, '__count', 'count').sort((a, b) => b.v - a.v).map(x => [x.k, x.v])]), 'Ranking');
     if (telOn()) telSheets(wb);
@@ -964,7 +992,7 @@ async function exportPDF() {
     doc.setFontSize(10); doc.setFont('helvetica', 'normal'); doc.text(`${S.file}  |  gerado em ${new Date().toLocaleString('pt-BR')}  |  ${S.filtered.length.toLocaleString('pt-BR')} de ${S.rows.length.toLocaleString('pt-BR')} registros`, M, 50);
     y = 80; doc.setTextColor(60);
     if (S.filters.length || S.search || S.dateFrom != null || S.dateTo != null) {
-      const ft = [S.search ? `busca "${S.search}"` : null, S.dateFrom != null || S.dateTo != null ? `${S.dateCol}: ${S.dateFrom != null ? fmtDate(S.dateFrom) : '...'} a ${S.dateTo != null ? fmtDate(S.dateTo) : '...'}` : null, ...S.filters.map(f => `${f.col} ${OPLBL[f.op]} ${f.val || ''}`)].filter(Boolean).join('  |  ');
+      const ft = [S.search ? `busca "${S.search}"` : null, S.dateFrom != null || S.dateTo != null ? `${S.dateCol}: ${S.dateFrom != null ? fmtDate(S.dateFrom) : '...'} a ${S.dateTo != null ? fmtDate(S.dateTo) : '...'}` : null, ...S.filters.map(f => `${f.col} ${OPLBL[f.op]} ${fval(f)}`)].filter(Boolean).join('  |  ');
       doc.setFontSize(8); doc.text(doc.splitTextToSize('Filtros: ' + ft, PW - 2 * M), M, y); y += 22;
     }
     const cw = (PW - 2 * M - 30) / 4;
@@ -1112,7 +1140,13 @@ function buildTelBar() {
   const sl = [['macro', 'Atividade'], ['cp', 'Operadora'], ['setor', 'Setor'], ['naf', 'Status NAF'], ['flag', 'Flag reparo'], ['estado', 'Estado']].filter(([k]) => R[k] && col(R[k]));
   el.innerHTML = `<div class="flex flex-wrap items-end gap-3">
     <label class="flex items-center gap-2 text-sm font-medium cursor-pointer pb-2"><input type="checkbox" ${T.openOnly ? 'checked' : ''} onchange="S.tel.openOnly=this.checked;refresh(true)"> Somente abertas</label>
-    ${sl.map(([k, l]) => { const c = col(R[k]); const top = [...c.counts.entries()].sort((a, b) => b[1] - a[1]).slice(0, 80); return `<div class="min-w-[130px]"><label class="lbl">${l}</label><select class="inp w-full qsel" data-c="${esc(c.name)}" onchange="quickFilter(this)"><option value="">Todos</option>${top.map(([v, n]) => `<option value="${esc(v)}">${esc(trunc(v, 30))} (${n})</option>`).join('')}</select></div>`; }).join('')}
+    ${sl.map(([k, l]) => { const c = col(R[k]); const top = [...c.counts.entries()].sort((a, b) => b[1] - a[1]).slice(0, 400); return `<div class="relative min-w-[150px] msel" data-c="${esc(c.name)}"><label class="lbl">${l}</label><button type="button" class="inp w-full text-left flex items-center justify-between gap-2" onclick="mselOpen(this)"><span class="truncate msel-txt">Todos</span><span class="text-slate-400">▾</span></button>
+      <div class="msel-pop hidden absolute left-0 z-50 mt-1 w-72 max-w-[90vw] rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 p-2 shadow-xl">
+        <input class="inp w-full mb-2 msel-q" placeholder="Buscar ${l.toLowerCase()}..." oninput="mselFind(this)">
+        <div class="flex gap-3 text-xs mb-1 px-1"><button type="button" class="text-indigo-600 dark:text-indigo-400 font-semibold" onclick="mselAll(this,true)">Marcar todos visíveis</button><button type="button" class="text-slate-500" onclick="mselAll(this,false)">Desmarcar</button></div>
+        <div class="max-h-64 overflow-auto">${top.map(([v, n]) => `<label class="msel-it flex items-center gap-2 px-1 py-1 text-sm rounded hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer" data-v="${esc(v)}"><input type="checkbox" value="${esc(v)}"><span class="truncate flex-1">${esc(v)}</span><span class="text-xs text-slate-400">${n}</span></label>`).join('')}</div>
+        <div class="flex justify-end gap-2 mt-2 pt-2 border-t border-slate-200 dark:border-slate-700"><button type="button" class="btn" onclick="mselClose()">Cancelar</button><button type="button" class="btn btn-primary" onclick="mselApply(this)">Aplicar</button></div>
+      </div></div>`; }).join('')}
     <div><label class="lbl">Situação de potência</label><select class="inp" onchange="S.tel.naf=this.value;refresh(true)">${opts([['', 'Todas'], ['com', 'Com potência'], ['sem', 'Sem potência'], ['degr', 'Degradação'], ['risco', 'Área de risco']], T.naf)}</select></div>
     <div><label class="lbl" title="ONT com leitura abaixo deste valor e status Com Potência é considerada degradação">Degradação abaixo de (dBm)</label><input type="number" step="0.5" class="inp w-28" value="${T.thr}" onchange="S.tel.thr=parseFloat(this.value)||-27;refresh(true)"></div>
   </div>`;
@@ -1317,7 +1351,8 @@ function importBackup(inp) {
 function matrixData(cp, date) {
   const R = TR(), rec = SLOTS.map(s => getSnap(date, cp, s)), set = new Set(S.rows.map(r => r[R.setor]).filter(Boolean));
   rec.forEach(d => d && Object.keys(d).forEach(k => set.add(k)));
-  const setores = [...set].sort();
+  let setores = [...set].sort();
+  const sel = R.setor ? curVals(R.setor) : []; if (sel.length) setores = setores.filter(s => sel.includes(s));
   return { rec, setores, val: (i, s) => rec[i] ? (rec[i][s] || 0) : null, tot: i => rec[i] ? setores.reduce((a, s) => a + (rec[i][s] || 0), 0) : null };
 }
 function matrixHtml(cp, date, color) {
