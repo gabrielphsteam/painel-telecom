@@ -785,7 +785,7 @@ function sortedRows() {
 function sortBy(c) { S.sort = { col: c, dir: S.sort.col === c ? -S.sort.dir : 1 }; renderTable(); }
 function toggleCol(c, on) { S.visible = S.cols.map(x => x.name).filter(n => n === c ? on : S.visible.includes(n)); renderTable(); }
 function goPage(p) { S.page = p; renderTable(); $('#v-tabela').scrollIntoView({ behavior: 'smooth', block: 'start' }); }
-const PRIO_COLS = ['cd_nrba', 'ds_macro_atividade', 'cd_documento_associado', 'cd_gpon', 'cd_setor', 'cd_estacao', 'cp', 'cdo', 'dh_abertura_ba'];
+const PRIO_COLS = ['cd_nrba', 'ds_macro_atividade', 'cd_documento_associado', 'cd_gpon', 'cd_setor', 'cd_estacao', 'cp', 'cdo', 'dh_abertura_ba', 'ds_logradouro', 'ds_numero', 'ds_complemento_tipo', 'ds_complemento_desc', 'ds_bairro'];
 function visCols() {
   const vc = S.cols.filter(c => S.visible.includes(c.name)), ix = n => { const i = PRIO_COLS.indexOf(n); return i < 0 ? 99 : i; };
   return vc.map((c, i) => [c, i]).sort((a, b) => ix(a[0].name) - ix(b[0].name) || a[1] - b[1]).map(x => x[0]);
