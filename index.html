@@ -319,7 +319,7 @@ const TEL_TABS = [['painel', '📡 Painel operacional'], ['ofensores', 'Ofensore
 const ALL_IDS = ['painel', 'ofensores', 'reinc', 'controle', 'dashboard', 'tabela', 'pivot', 'comparativo', 'ranking', 'estrutura'];
 const telOn = () => !!(S.tel && S.tel.on);
 const tabsList = () => telOn() ? TEL_TABS.concat(GEN_TABS) : GEN_TABS;
-const OPLBL = { in: 'em', eq: '=', neq: '≠', contains: 'contém', gt: '>', gte: '≥', lt: '<', lte: '≤', empty: 'vazio', notempty: 'preenchido' };
+const OPLBL = { key: '=', in: 'em', eq: '=', neq: '≠', contains: 'contém', gt: '>', gte: '≥', lt: '<', lte: '≤', empty: 'vazio', notempty: 'preenchido' };
 const MESES = ['jan', 'fev', 'mar', 'abr', 'mai', 'jun', 'jul', 'ago', 'set', 'out', 'nov', 'dez'];
 const DIAS = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
 
@@ -451,6 +451,8 @@ function loadData(aoa, name, quiet) {
   S.pv = { row: d0, col: d1 !== d0 ? d1 : '', measure: '__count', agg: 'sum' };
   S.rk = { dim: d0, measure: '__count', agg: 'sum', n: 10, order: 'desc' };
   S.visible = S.cols.filter(c => c.kind !== 'empty').slice(0, 12).map(c => c.name);
+  const pr = PRIO_COLS.filter(n => S.cols.some(c => c.name === n && c.kind !== 'empty'));
+  if (pr.length >= 3) S.visible = [...new Set([...pr, ...S.visible])];
   $('#fileName').textContent = name + ' · ' + S.rows.length.toLocaleString('pt-BR') + ' linhas · ' + S.cols.length + ' colunas' + (S.src ? ' · atualizado em ' + (S.src.lm || new Date()).toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' }) : '');
   $('#empty').classList.add('hidden'); $('#app').classList.remove('hidden');
   document.querySelectorAll('.hidden-until-data').forEach(b => b.classList.remove('hidden'));
@@ -503,6 +505,7 @@ function testF(r, f) {
   const raw = r[f.col], v = f.val;
   switch (f.op) {
     case 'eq': return raw === v || (v === '(vazio)' && raw === '');
+    case 'key': return KEYFN[f.key] ? KEYFN[f.key](r) === v : true;
     case 'in': return Array.isArray(v) ? v.includes(raw) || (v.includes('(vazio)') && raw === '') : raw === v;
     case 'neq': return raw !== v;
     case 'contains': return raw.toLowerCase().includes(String(v).toLowerCase());
@@ -775,11 +778,16 @@ function sortedRows() {
 function sortBy(c) { S.sort = { col: c, dir: S.sort.col === c ? -S.sort.dir : 1 }; renderTable(); }
 function toggleCol(c, on) { S.visible = S.cols.map(x => x.name).filter(n => n === c ? on : S.visible.includes(n)); renderTable(); }
 function goPage(p) { S.page = p; renderTable(); $('#v-tabela').scrollIntoView({ behavior: 'smooth', block: 'start' }); }
+const PRIO_COLS = ['cd_nrba', 'ds_macro_atividade', 'cd_documento_associado', 'cd_gpon', 'cd_setor', 'cd_estacao', 'cp', 'cdo', 'dh_abertura_ba'];
+function visCols() {
+  const vc = S.cols.filter(c => S.visible.includes(c.name)), ix = n => { const i = PRIO_COLS.indexOf(n); return i < 0 ? 99 : i; };
+  return vc.map((c, i) => [c, i]).sort((a, b) => ix(a[0].name) - ix(b[0].name) || a[1] - b[1]).map(x => x[0]);
+}
 function renderTable() {
   const rows = sortedRows(), tot = rows.length, ps = S.pageSize, pages = Math.max(1, Math.ceil(tot / ps));
   if (S.page > pages) S.page = pages;
   const start = (S.page - 1) * ps, slice = rows.slice(start, start + ps);
-  const vc = S.cols.filter(c => S.visible.includes(c.name));
+  const vc = visCols();
   let h = `<div class="card p-4"><div class="flex flex-wrap items-center gap-2 mb-3"><div class="font-semibold mr-auto">Tabela de dados <span class="text-sm font-normal text-slate-500">(${tot.toLocaleString('pt-BR')} linhas · clique no cabeçalho para ordenar · clique na linha para ver detalhes)</span></div>
     <details class="relative"><summary class="btn cursor-pointer list-none">Colunas (${vc.length}/${S.cols.filter(c => c.kind !== 'empty').length})</summary>
     <div class="absolute right-0 z-30 mt-2 w-72 max-h-80 overflow-auto card p-3 shadow-xl">${S.cols.filter(c => c.kind !== 'empty').map(c => `<label class="flex items-center gap-2 py-1 text-sm cursor-pointer"><input type="checkbox" data-c="${esc(c.name)}" ${S.visible.includes(c.name) ? 'checked' : ''} onchange="toggleCol(this.dataset.c,this.checked)"> <span class="truncate">${esc(c.name)}</span></label>`).join('')}</div></details>
@@ -1024,7 +1032,7 @@ async function exportPDF() {
     });
     if (colN) y += lastH + 28;
     if (typeof doc.autoTable === 'function') {
-      const vc = S.cols.filter(c => S.visible.includes(c.name)).slice(0, 10), lim = 1000, rows = sortedRows().slice(0, lim);
+      const vc = visCols().slice(0, 10), lim = 1000, rows = sortedRows().slice(0, lim);
       doc.addPage();
       doc.autoTable({ head: [vc.map(c => c.name)], body: rows.map(r => vc.map(c => trunc(r[c.name], 38))), startY: 40, styles: { fontSize: 6.5, cellPadding: 2.5, overflow: 'ellipsize' }, headStyles: { fillColor: [99, 102, 241] }, alternateRowStyles: { fillColor: [247, 248, 252] }, margin: { left: M, right: M, top: 36, bottom: 30 }, didDrawPage: () => { doc.setFontSize(9); doc.setTextColor(60); doc.text('Dados' + (S.filtered.length > lim ? ` (primeiras ${lim} de ${S.filtered.length.toLocaleString('pt-BR')} linhas)` : ''), M, 26); } });
     }
@@ -1075,6 +1083,16 @@ const facilKey = r => { const R = TR(); const o = R.olt && r[R.olt]; if (!o) ret
 const estCdoKey = r => { const R = TR(), c = R.cdo && r[R.cdo]; if (!c) return ''; return (R.uf && r[R.uf] ? r[R.uf] + '-' : '') + (R.estacao && r[R.estacao] ? r[R.estacao] + '-' : '') + c; };
 const oltCdoKey = r => { const R = TR(); return (R.olt && R.cdo && r[R.olt] && r[R.cdo]) ? r[R.olt] + ' ' + r[R.cdo] : ''; };
 const celKey = r => { const R = TR(); return (R.estacao && R.celula && r[R.estacao] && r[R.celula]) ? r[R.estacao] + '-' + r[R.celula] : ''; };
+const KEYFN = { facil: facilKey, oltcdo: oltCdoKey, cel: celKey };
+/* clique numa linha das tabelas de Ofensores: filtra e abre a aba Dados */
+function ofPick(el) {
+  const d = el.dataset;
+  if (d.k) { S.filters = S.filters.filter(x => !(x.op === 'key' && x.key === d.k)); S.filters.push({ col: d.l, op: 'key', key: d.k, val: d.v }); }
+  else { S.filters = S.filters.filter(x => !(x.col === d.c && (x.op === 'eq' || x.op === 'in'))); S.filters.push({ col: d.c, op: 'eq', val: d.v }); }
+  S.page = 1; S.tab = 'tabela'; buildTabs(); refresh();
+  toast('Filtrado: ' + d.v + ' · para voltar, remova o filtro (×) ou clique em Ofensores');
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
 function countBy(rows, fn, min = 1) {
   const m = new Map();
   for (const r of rows) { const k = fn(r); if (k) m.set(k, (m.get(k) || 0) + 1); }
@@ -1193,7 +1211,8 @@ const navyBar = () => S.dark && !S.exporting ? '#7c93d6' : '#1f3864';
 function colorTable(title, items, color, h1, h2, o = {}) {
   const body = items.length ? items.map(([k, v], i) => {
     const st = (i === 0 && o.first) ? 'background:#fde047;color:#111;font-weight:700' : `background:${color}1f`;
-    const click = o.col ? `data-c="${esc(o.col)}" data-v="${esc(k)}" onclick="addFilter({col:this.dataset.c,op:'eq',val:this.dataset.v})" title="Clique para filtrar" class="cursor-pointer hover:brightness-95"` : '';
+    const click = o.col ? `data-c="${esc(o.col)}" data-v="${esc(k)}" onclick="ofPick(this)" title="Clique para ver os BAs" class="cursor-pointer hover:brightness-90"`
+      : o.key ? `data-k="${o.key}" data-l="${esc(h1)}" data-v="${esc(k)}" onclick="ofPick(this)" title="Clique para ver os BAs" class="cursor-pointer hover:brightness-90"` : '';
     return `<tr ${click} style="${st}"><td class="px-2 py-1 border-t border-white/40 dark:border-slate-900/50" title="${esc(k)}">${esc(trunc(k, 38))}</td><td class="px-2 py-1 text-right font-semibold tabular-nums border-t border-white/40 dark:border-slate-900/50" ${o.heat ? hs(o.heat(v)) : ''}>${fmt(v)}</td></tr>`;
   }).join('') : `<tr><td colspan="2" class="px-2 py-4 text-center text-slate-500">Sem dados no recorte</td></tr>`;
   return `<div class="rounded-xl overflow-hidden border border-slate-200 dark:border-slate-700 shadow-sm bg-white dark:bg-slate-900">
@@ -1248,21 +1267,21 @@ function renderPainel() {
 /* ---------- OFENSORES E CONCENTRAÇÃO ---------- */
 function renderOfensores() {
   const el = $('#v-ofensores'), R = TR(), F = S.filtered, N = S.tel.topN;
-  let h = bandTitle('OFENSORES E CONCENTRAÇÃO', 'Setor · OLT/PON · CDOE/I · Célula · clique em um setor para filtrar');
+  let h = bandTitle('OFENSORES E CONCENTRAÇÃO', 'Setor · OLT/PON · CDOE/I · Célula · clique em qualquer linha para ver os BAs na aba Dados');
   h += `<div class="flex justify-end mb-3"><div class="flex items-center gap-2 text-sm"><span class="text-slate-500">Mostrar top</span>${sel('tel.topN', [10, 15, 25, 50], N)}</div></div>`;
   h += `<div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4 mb-6">`;
   h += colorTable('SETOR', countBy(F, r => r[R.setor]).slice(0, N), TCOL.navy, 'SETOR', 'BAs', { first: true, col: R.setor });
-  if (R.olt) h += colorTable('OLT GALC SLOT PON', countBy(F, facilKey).slice(0, N), TCOL.green, 'OLT : SLOT-PON', 'BAs');
-  if (R.cdo && R.olt) h += colorTable('CDOE', countBy(F, oltCdoKey).slice(0, N), TCOL.brown, 'OLT + CDOE/I', 'BAs');
-  if (R.celula && R.estacao) h += colorTable('CÉLULA', countBy(F, celKey).slice(0, N), TCOL.gold, 'ESTAÇÃO-CÉLULA', 'TOTAL');
+  if (R.olt) h += colorTable('OLT GALC SLOT PON', countBy(F, facilKey).slice(0, N), TCOL.green, 'OLT : SLOT-PON', 'BAs', { key: 'facil' });
+  if (R.cdo && R.olt) h += colorTable('CDOE', countBy(F, oltCdoKey).slice(0, N), TCOL.brown, 'OLT + CDOE/I', 'BAs', { key: 'oltcdo' });
+  if (R.celula && R.estacao) h += colorTable('CÉLULA', countBy(F, celKey).slice(0, N), TCOL.gold, 'ESTAÇÃO-CÉLULA', 'TOTAL', { key: 'cel' });
   h += `</div>`;
   h += `<div class="grid grid-cols-1 lg:grid-cols-3 gap-4">`;
-  if (R.cdo) h += colorTable('ATIVIDADE POR CDOE/I', countBy(F, r => r[R.cdo]).slice(0, N), TCOL.navy, 'CDOE/CDOI', 'BAs', { heat: heatCdo });
+  if (R.cdo) h += colorTable('ATIVIDADE POR CDOE/I', countBy(F, r => r[R.cdo]).slice(0, N), TCOL.navy, 'CDOE/CDOI', 'BAs', { heat: heatCdo, col: R.cdo });
   if (R.olt) {
     const m = new Map();
     for (const r of F) { const k = facilKey(r); if (!k) continue; const o = m.get(k) || { n: 0, c: new Set() }; o.n++; if (R.cdo && r[R.cdo]) o.c.add(r[R.cdo]); m.set(k, o); }
     const items = [...m.entries()].sort((a, b) => b[1].n - a[1].n || b[1].c.size - a[1].c.size).slice(0, N);
-    h += `<div class="lg:col-span-2 rounded-xl overflow-hidden border border-slate-200 dark:border-slate-700 shadow-sm bg-white dark:bg-slate-900"><div class="text-white text-center font-extrabold tracking-wide py-2 text-sm" style="background:${TCOL.purple}">CONCENTRAÇÃO POR FACILIDADE (OLT : SLOT-PON)</div><div class="overflow-auto max-h-[30rem]"><table class="w-full text-xs"><thead class="sticky top-0 text-white" style="background:${TCOL.purple}"><tr><th class="text-left px-2 py-1.5">FACILIDADE</th><th class="text-right px-2 py-1.5">BAs</th><th class="text-right px-2 py-1.5">CDOE/I distintos</th></tr></thead><tbody>${items.map(([k, o]) => `<tr style="background:${TCOL.purple}14"><td class="px-2 py-1 border-t border-white/40 dark:border-slate-900/50">${esc(k)}</td><td class="px-2 py-1 text-right font-semibold tabular-nums border-t border-white/40 dark:border-slate-900/50" ${hs(heatCdo(o.n))}>${o.n}</td><td class="px-2 py-1 text-right tabular-nums border-t border-white/40 dark:border-slate-900/50">${o.c.size}</td></tr>`).join('')}</tbody></table></div></div>`;
+    h += `<div class="lg:col-span-2 rounded-xl overflow-hidden border border-slate-200 dark:border-slate-700 shadow-sm bg-white dark:bg-slate-900"><div class="text-white text-center font-extrabold tracking-wide py-2 text-sm" style="background:${TCOL.purple}">CONCENTRAÇÃO POR FACILIDADE (OLT : SLOT-PON)</div><div class="overflow-auto max-h-[30rem]"><table class="w-full text-xs"><thead class="sticky top-0 text-white" style="background:${TCOL.purple}"><tr><th class="text-left px-2 py-1.5">FACILIDADE</th><th class="text-right px-2 py-1.5">BAs</th><th class="text-right px-2 py-1.5">CDOE/I distintos</th></tr></thead><tbody>${items.map(([k, o]) => `<tr style="background:${TCOL.purple}14" data-k="facil" data-l="FACILIDADE" data-v="${esc(k)}" onclick="ofPick(this)" title="Clique para ver os BAs" class="cursor-pointer hover:brightness-90"><td class="px-2 py-1 border-t border-white/40 dark:border-slate-900/50">${esc(k)}</td><td class="px-2 py-1 text-right font-semibold tabular-nums border-t border-white/40 dark:border-slate-900/50" ${hs(heatCdo(o.n))}>${o.n}</td><td class="px-2 py-1 text-right tabular-nums border-t border-white/40 dark:border-slate-900/50">${o.c.size}</td></tr>`).join('')}</tbody></table></div></div>`;
   }
   h += `</div>`;
   el.innerHTML = h;
@@ -1413,7 +1432,7 @@ function stateSnapshot() {
   return { tab: S.tab, filters: JSON.parse(JSON.stringify(S.filters)), search: S.search, tel: S.tel ? { on: S.tel.on, naf: S.tel.naf, thr: S.tel.thr, openOnly: S.tel.openOnly, topN: S.tel.topN, snapDate: S.tel.snapDate, snapSlot: S.tel.snapSlot } : null };
 }
 function stateRestore(k) {
-  S.filters = k.filters.filter(f => col(f.col)); S.search = k.search; $('#search').value = k.search;
+  S.filters = k.filters.filter(f => f.op === 'key' || col(f.col)); S.search = k.search; $('#search').value = k.search;
   if (S.tel && k.tel) { Object.assign(S.tel, k.tel); updateModeBtn(); buildTelBar(); }
   S.tab = k.tab; buildTabs(); refresh();
 }
