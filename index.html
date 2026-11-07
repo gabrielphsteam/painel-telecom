@@ -74,7 +74,7 @@
     </div>
     <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 mt-4 text-sm">
       <div class="card p-4"><b>Análise automática</b><div class="text-slate-500 dark:text-slate-400 mt-1">Detecta datas, métricas, categorias, identificadores e relações entre colunas.</div></div>
-      <div class="card p-4"><b>Dashboard executivo</b><div class="text-slate-500 dark:text-slate-400 mt-1">KPIs, gráficos, comparativos por período, rankings e tabela dinâmica.</div></div>
+      <div class="card p-4"><b>Dashboard executivo</b><div class="text-slate-500 dark:text-slate-400 mt-1">KPIs, gráficos, comparativos por período e tabela de dados.</div></div>
       <div class="card p-4"><b>Exportação</b><div class="text-slate-500 dark:text-slate-400 mt-1">Dados filtrados em Excel e relatório com gráficos em PDF.</div></div>
     </div>
   </section>
@@ -132,10 +132,7 @@
     <div id="v-controle" class="hidden"></div>
     <div id="v-dashboard"></div>
     <div id="v-tabela" class="hidden"></div>
-    <div id="v-pivot" class="hidden"></div>
     <div id="v-comparativo" class="hidden"></div>
-    <div id="v-ranking" class="hidden"></div>
-    <div id="v-estrutura" class="hidden"></div>
   </section>
   <footer class="mt-10 pt-4 pb-2 border-t border-slate-200 dark:border-slate-800 text-[11px] leading-relaxed font-bold text-slate-600 dark:text-slate-300 flex flex-col sm:flex-row items-center justify-center gap-3 text-center sm:text-left">
     <img src="data:image/png;base64,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" alt="tel" class="w-9 h-9 rounded-md shrink-0">
@@ -317,13 +314,11 @@ const S = {
   dateCol: null, dateFrom: null, dateTo: null, sort: { col: null, dir: 1 }, page: 1, pageSize: 25, visible: [],
   charts: {}, titles: {}, dark: false, noAnim: false, exporting: false, gran: 'auto',
   ex: { dim: '', measure: '__count', agg: 'sum', type: 'bar', n: 10 },
-  cp: { measure: '__count', agg: 'sum', win: 7, dim: '' },
-  pv: { row: '', col: '', measure: '__count', agg: 'sum' },
-  rk: { dim: '', measure: '__count', agg: 'sum', n: 10, order: 'desc' }
+  cp: { measure: '__count', agg: 'sum', win: 7, dim: '' }
 };
-const GEN_TABS = [['dashboard', 'Dashboard'], ['tabela', 'Dados'], ['pivot', 'Tabela dinâmica'], ['comparativo', 'Comparativo'], ['ranking', 'Rankings'], ['estrutura', 'Estrutura']];
+const GEN_TABS = [['dashboard', 'Dashboard'], ['tabela', 'Dados'], ['comparativo', 'Comparativo']];
 const TEL_TABS = [['painel', '📡 Painel operacional'], ['ofensores', 'Ofensores'], ['reinc', 'Reincidência'], ['controle', 'Controle por hora']];
-const ALL_IDS = ['painel', 'ofensores', 'reinc', 'controle', 'dashboard', 'tabela', 'pivot', 'comparativo', 'ranking', 'estrutura'];
+const ALL_IDS = ['painel', 'ofensores', 'reinc', 'controle', 'dashboard', 'tabela', 'comparativo'];
 const telOn = () => !!(S.tel && S.tel.on);
 const tabsList = () => telOn() ? TEL_TABS.concat(GEN_TABS) : GEN_TABS;
 const OPLBL = { key: '=', in: 'em', eq: '=', neq: '≠', contains: 'contém', gt: '>', gte: '≥', lt: '<', lte: '≤', empty: 'vazio', notempty: 'preenchido' };
@@ -452,11 +447,8 @@ function loadData(aoa, name, quiet) {
   S.dimsRank = S.cols.filter(c => c.dim && c.uniq <= 40).sort((a, b) => b.H * b.fill - a.H * a.fill);
   S.anyDims = S.cols.filter(c => c.anyDim);
   const d0 = (S.dimsRank[0] || S.anyDims[0] || {}).name || '';
-  const d1 = (S.dimsRank[1] || S.dimsRank[0] || S.anyDims[0] || {}).name || '';
   S.ex = { dim: d0, measure: '__count', agg: 'sum', type: 'bar', n: 10 };
   S.cp = { measure: '__count', agg: 'sum', win: 7, dim: d0 };
-  S.pv = { row: d0, col: d1 !== d0 ? d1 : '', measure: '__count', agg: 'sum' };
-  S.rk = { dim: d0, measure: '__count', agg: 'sum', n: 10, order: 'desc' };
   S.visible = S.cols.filter(c => c.kind !== 'empty').slice(0, 12).map(c => c.name);
   const pr = PRIO_COLS.filter(n => S.cols.some(c => c.name === n && c.kind !== 'empty'));
   if (pr.length >= 3) S.visible = [...new Set([...pr, ...S.visible])];
@@ -604,8 +596,8 @@ function renderActive() {
   if (!tabsList().some(t => t[0] === S.tab)) { S.tab = telOn() ? 'painel' : 'dashboard'; buildTabs(); }
   ALL_IDS.forEach(id => $('#v-' + id).classList.toggle('hidden', id !== S.tab));
   const F = S.filtered;
-  if (!F.length && !['estrutura', 'controle'].includes(S.tab)) { $('#v-' + S.tab).innerHTML = `<div class="card p-10 text-center text-slate-500">Nenhum registro encontrado com os filtros atuais. <button class="btn mt-3" onclick="clearAll()">Limpar filtros</button></div>`; return; }
-  ({ dashboard: renderDashboard, tabela: renderTable, pivot: renderPivot, comparativo: renderComp, ranking: renderRanking, estrutura: renderEstrutura, painel: renderPainel, ofensores: renderOfensores, reinc: renderReinc, controle: renderControle })[S.tab]();
+  if (!F.length && !['controle'].includes(S.tab)) { $('#v-' + S.tab).innerHTML = `<div class="card p-10 text-center text-slate-500">Nenhum registro encontrado com os filtros atuais. <button class="btn mt-3" onclick="clearAll()">Limpar filtros</button></div>`; return; }
+  ({ dashboard: renderDashboard, tabela: renderTable, comparativo: renderComp, painel: renderPainel, ofensores: renderOfensores, reinc: renderReinc, controle: renderControle })[S.tab]();
 }
 function clearAll() {
   S.filters = []; S.search = ''; S.dateFrom = S.dateTo = null; $('#search').value = ''; $('#dateFrom').value = ''; $('#dateTo').value = ''; S.page = 1; refresh();
@@ -814,39 +806,6 @@ function showRow(i) {
 function closeModal() { $('#modal').classList.add('hidden'); }
 
 /* ============================================================
-   TABELA DINÂMICA
-   ============================================================ */
-function renderPivot() {
-  const P = S.pv, F = S.filtered;
-  const dimNames = S.anyDims.map(c => c.name);
-  let h = `<div class="card p-4"><div class="flex flex-wrap items-end gap-3 mb-4"><div class="font-semibold mr-auto">Tabela dinâmica</div>
-    <div><label class="lbl">Linhas</label>${sel('pv.row', dimNames, P.row, 'max-w-[200px]')}</div>
-    <div><label class="lbl">Colunas</label>${sel('pv.col', [['', '(nenhuma)'], ...dimNames], P.col, 'max-w-[200px]')}</div>
-    <div><label class="lbl">Valor</label>${sel('pv.measure', measureList(), P.measure, 'max-w-[200px]')}</div>
-    ${P.measure !== '__count' ? `<div><label class="lbl">Agregação</label>${sel('pv.agg', aggList, P.agg)}</div>` : ''}</div>`;
-  if (!P.row) { $('#v-pivot').innerHTML = h + '<div class="text-slate-500">Nenhuma coluna categórica disponível.</div></div>'; return; }
-  const rowsM = new Map(), colTot = new Map();
-  for (const r of F) {
-    const rk = r[P.row] || '(vazio)', ck = P.col ? (r[P.col] || '(vazio)') : 'Valor';
-    let ro = rowsM.get(rk); if (!ro) { ro = { cells: new Map(), tot: newAcc() }; rowsM.set(rk, ro); }
-    let ce = ro.cells.get(ck); if (!ce) { ce = newAcc(); ro.cells.set(ck, ce); }
-    addAcc(ce, r, P.measure); addAcc(ro.tot, r, P.measure);
-    let ct = colTot.get(ck); if (!ct) { ct = newAcc(); colTot.set(ck, ct); } addAcc(ct, r, P.measure);
-  }
-  const V = a => a ? accVal(a, P.agg, P.measure) : null;
-  const colKeys = [...colTot.entries()].sort((a, b) => V(b[1]) - V(a[1])).slice(0, 12).map(x => x[0]);
-  const rowKeys = [...rowsM.entries()].sort((a, b) => V(b[1].tot) - V(a[1].tot));
-  const shown = rowKeys.slice(0, 50);
-  let max = 0; shown.forEach(([k, ro]) => colKeys.forEach(ck => { const v = V(ro.cells.get(ck)); if (v > max) max = v; }));
-  const grand = newAcc(); F.forEach(r => addAcc(grand, r, P.measure));
-  h += `<div class="overflow-auto rounded-xl border border-slate-200 dark:border-slate-800 max-h-[70vh]"><table class="w-full text-sm"><thead class="sticky top-0 bg-slate-100 dark:bg-slate-800 z-10"><tr><th class="text-left px-3 py-2 font-semibold">${esc(P.row)}${P.col ? ' \\ ' + esc(P.col) : ''}</th>${P.col ? colKeys.map(k => `<th class="text-right px-3 py-2 font-semibold whitespace-nowrap">${esc(trunc(k, 22))}</th>`).join('') : ''}<th class="text-right px-3 py-2 font-semibold">Total</th></tr></thead><tbody>`;
-  h += shown.map(([k, ro]) => `<tr class="border-t border-slate-100 dark:border-slate-800"><td class="px-3 py-2 font-medium whitespace-nowrap">${esc(trunc(k, 36))}</td>${P.col ? colKeys.map(ck => { const v = V(ro.cells.get(ck)); return `<td class="text-right px-3 py-2 tabular-nums" style="${v ? `background:rgba(99,102,241,${(0.08 + 0.4 * v / (max || 1)).toFixed(2)})` : ''}">${v == null ? '<span class="text-slate-300 dark:text-slate-600">-</span>' : fmt(v)}</td>`; }).join('') : ''}<td class="text-right px-3 py-2 font-bold tabular-nums">${fmt(V(ro.tot))}</td></tr>`).join('');
-  h += `<tr class="border-t-2 border-slate-300 dark:border-slate-600 bg-slate-50 dark:bg-slate-800/60 font-bold"><td class="px-3 py-2">Total geral</td>${P.col ? colKeys.map(ck => `<td class="text-right px-3 py-2 tabular-nums">${fmt(V(colTot.get(ck)))}</td>`).join('') : ''}<td class="text-right px-3 py-2 tabular-nums">${fmt(V(grand))}</td></tr></tbody></table></div>`;
-  h += `<div class="text-xs text-slate-500 mt-2">${rowKeys.length > 50 ? 'Exibindo as 50 maiores linhas de ' + rowKeys.length + '. ' : ''}${colTot.size > 12 && P.col ? 'Exibindo as 12 maiores colunas de ' + colTot.size + '. ' : ''}${S.pv.agg === 'avg' && P.measure !== '__count' ? 'O total geral é a média geral.' : ''}</div></div>`;
-  $('#v-pivot').innerHTML = h;
-}
-
-/* ============================================================
    COMPARATIVO POR PERÍODO
    ============================================================ */
 function renderComp() {
@@ -888,85 +847,6 @@ function renderComp() {
 }
 
 /* ============================================================
-   RANKINGS
-   ============================================================ */
-function rankCard(title, items, total, sub, dimCol, big) {
-  const max = Math.max(...items.map(x => x.v), 1);
-  return `<div class="card p-4 ${big ? 'lg:col-span-2' : ''}"><div class="font-semibold text-sm">${esc(title)}</div>${sub ? `<div class="text-xs text-slate-500 mb-2">${esc(sub)}</div>` : '<div class="mb-2"></div>'}<div class="space-y-2">${items.map((x, i) => `<div class="cursor-pointer group" data-c="${esc(dimCol)}" data-v="${esc(x.k)}" onclick="addFilter({col:this.dataset.c,op:this.dataset.v==='(vazio)'?'empty':'eq',val:this.dataset.v})" title="Clique para filtrar"><div class="flex items-center justify-between gap-2 text-sm"><div class="flex items-center gap-2 min-w-0"><span class="w-6 h-6 shrink-0 rounded-full text-[11px] font-bold flex items-center justify-center ${i === 0 ? 'bg-amber-400 text-white' : i === 1 ? 'bg-slate-400 text-white' : i === 2 ? 'bg-orange-400 text-white' : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300'}">${i + 1}</span><span class="truncate group-hover:text-indigo-600">${esc(trunc(x.k, 42))}</span></div><div class="tabular-nums font-semibold shrink-0">${fmt(x.v)}${total ? ` <span class="text-xs font-normal text-slate-500">${pct(x.v, total).toFixed(1).replace('.', ',')}%</span>` : ''}</div></div><div class="h-1.5 mt-1 rounded-full bg-slate-100 dark:bg-slate-800 overflow-hidden"><div class="h-full rounded-full" style="width:${Math.max(2, x.v / max * 100)}%;background:${PAL[i % PAL.length]}"></div></div></div>`).join('')}</div></div>`;
-}
-function renderRanking() {
-  const R = S.rk, F = S.filtered;
-  if (!S.anyDims.length) { $('#v-ranking').innerHTML = '<div class="card p-10 text-center text-slate-500">Nenhuma coluna categórica para ranquear.</div>'; return; }
-  const items = groupBy(F, R.dim, R.measure, R.agg).sort((a, b) => R.order === 'desc' ? b.v - a.v : a.v - b.v).slice(0, R.n);
-  const total = (R.measure === '__count' || R.agg === 'sum') ? F.reduce((s, r) => s + (R.measure === '__count' ? 1 : (numOf(r, R.measure) || 0)), 0) : 0;
-  let h = `<div class="card p-4 mb-4"><div class="flex flex-wrap items-end gap-3"><div class="font-semibold mr-auto">Rankings</div>
-    <div><label class="lbl">Dimensão</label>${sel('rk.dim', S.anyDims.map(c => c.name), R.dim, 'max-w-[220px]')}</div>
-    <div><label class="lbl">Medida</label>${sel('rk.measure', measureList(), R.measure, 'max-w-[200px]')}</div>
-    ${R.measure !== '__count' ? `<div><label class="lbl">Agregação</label>${sel('rk.agg', aggList, R.agg)}</div>` : ''}
-    <div><label class="lbl">Ordem</label>${sel('rk.order', [['desc', 'Maiores'], ['asc', 'Menores']], R.order)}</div>
-    <div><label class="lbl">Top</label>${sel('rk.n', [5, 10, 15, 20, 30], R.n)}</div></div></div>`;
-  h += `<div class="grid grid-cols-1 lg:grid-cols-3 gap-4">${rankCard(`${R.order === 'desc' ? 'Top' : 'Menores'} ${R.n} · ${R.dim}`, items, total, mLabel(R.measure, R.agg), R.dim, true)}`;
-  // gráfico lateral
-  h += chartCard('r_chart', 'Visão gráfica', '', 'Mesma seleção');
-  h += `</div><div class="text-sm font-semibold mt-6 mb-3">Rankings automáticos (por contagem)</div><div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">`;
-  for (const c of S.dimsRank.filter(c => c.name !== R.dim).slice(0, 6)) {
-    const it = groupBy(F, c.name, '__count', 'count').sort((a, b) => b.v - a.v).slice(0, 5);
-    h += rankCard('Top 5 · ' + c.name, it, F.length, '', c.name, false);
-  }
-  const mt = metrics().sort((a, b) => b.fill - a.fill)[0];
-  if (mt && S.dimsRank[0]) { const it = groupBy(F, S.dimsRank[0].name, mt.name, 'sum').sort((a, b) => b.v - a.v).slice(0, 5); h += rankCard(`Soma de ${mt.name} por ${S.dimsRank[0].name}`, it, it.reduce((s, x) => s + x.v, 0) && F.reduce((s, r) => s + (numOf(r, mt.name) || 0), 0), '', S.dimsRank[0].name, false); }
-  h += `</div>`;
-  $('#v-ranking').innerHTML = h;
-  mk('r_chart', barCfg(items.map(x => x.k), items.map(x => +x.v.toFixed(2)), { h: true, single: true, ci: 5, label: mLabel(R.measure, R.agg), click: dimClick(R.dim) }), 'Ranking · ' + R.dim);
-}
-
-/* ============================================================
-   ESTRUTURA DOS DADOS
-   ============================================================ */
-function pearson(a, b) {
-  let n = 0, sx = 0, sy = 0, sxx = 0, syy = 0, sxy = 0;
-  for (const r of S.rows) { const x = r.__n[a], y = r.__n[b]; if (x == null || y == null) continue; n++; sx += x; sy += y; sxx += x * x; syy += y * y; sxy += x * y; }
-  if (n < 5) return null; const d = Math.sqrt((n * sxx - sx * sx) * (n * syy - sy * sy)); return d ? (n * sxy - sx * sy) / d : null;
-}
-function findHierarchies() {
-  const ds = S.cols.filter(c => c.dim || (c.kind === 'category' && c.uniq >= 2)).sort((a, b) => b.fill - a.fill).slice(0, 18), res = [];
-  const sample = S.rows.length > 20000 ? S.rows.filter((_, i) => i % Math.ceil(S.rows.length / 20000) === 0) : S.rows;
-  for (const a of ds) for (const b of ds) {
-    if (a === b || a.uniq <= b.uniq || b.uniq < 2) continue;
-    const m = new Map(); let bad = 0, tot = 0;
-    for (const r of sample) { const x = r[a.name], y = r[b.name]; if (!x || !y) continue; tot++; const p = m.get(x); if (p === undefined) m.set(x, y); else if (p !== y) bad++; }
-    if (tot > 20 && bad / tot <= 0.01) res.push({ a: a.name, b: b.name, ua: a.uniq, ub: b.uniq });
-  }
-  return res.sort((x, y) => y.ua - x.ua).slice(0, 10);
-}
-function renderEstrutura() {
-  const KIND = { date: ['Data', 'bg-sky-100 text-sky-700 dark:bg-sky-950 dark:text-sky-300'], number: ['Número', 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300'], category: ['Categoria', 'bg-violet-100 text-violet-700 dark:bg-violet-950 dark:text-violet-300'], id: ['Identificador', 'bg-amber-100 text-amber-700 dark:bg-amber-950 dark:text-amber-300'], text: ['Texto', 'bg-slate-200 text-slate-700 dark:bg-slate-700 dark:text-slate-200'], empty: ['Vazia', 'bg-rose-100 text-rose-700 dark:bg-rose-950 dark:text-rose-300'] };
-  const cnt = k => S.cols.filter(c => c.kind === k).length, ms = metrics();
-  let h = `<div class="grid grid-cols-2 md:grid-cols-6 gap-3 mb-4">${['date', 'number', 'category', 'id', 'text', 'empty'].map(k => `<div class="card p-3 text-center"><div class="text-2xl font-bold">${cnt(k)}</div><span class="badge ${KIND[k][1]}">${KIND[k][0]}</span></div>`).join('')}</div>`;
-  const corr = []; for (let i = 0; i < ms.length && i < 10; i++) for (let j = i + 1; j < ms.length && j < 10; j++) { const r = pearson(ms[i].name, ms[j].name); if (r != null && Math.abs(r) >= 0.5) corr.push({ a: ms[i].name, b: ms[j].name, r }); }
-  corr.sort((a, b) => Math.abs(b.r) - Math.abs(a.r));
-  const hier = findHierarchies();
-  h += `<div class="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-4"><div class="card p-4"><div class="font-semibold mb-2">🔗 Relacionamentos detectados</div>
-    ${hier.length ? `<div class="text-xs text-slate-500 mb-1">Hierarquias (cada valor da primeira coluna pertence a um único valor da segunda)</div><ul class="text-sm space-y-1 mb-3">${hier.map(x => `<li><b>${esc(x.a)}</b> <span class="text-slate-400">(${x.ua})</span> → <b>${esc(x.b)}</b> <span class="text-slate-400">(${x.ub})</span></li>`).join('')}</ul>` : ''}
-    ${corr.length ? `<div class="text-xs text-slate-500 mb-1">Correlações entre métricas (|r| ≥ 0,5)</div><ul class="text-sm space-y-1">${corr.slice(0, 6).map(x => `<li><b>${esc(x.a)}</b> × <b>${esc(x.b)}</b>: <span class="${x.r > 0 ? 'text-emerald-600' : 'text-rose-500'} font-semibold">${x.r.toFixed(2).replace('.', ',')}</span></li>`).join('')}</ul>` : ''}
-    ${!hier.length && !corr.length ? '<div class="text-sm text-slate-500">Nenhum relacionamento forte encontrado.</div>' : ''}</div>
-    <div class="card p-4"><div class="font-semibold mb-2">🧭 Leitura automática</div><ul class="text-sm list-disc pl-5 space-y-1">
-    <li><b>${S.rows.length.toLocaleString('pt-BR')}</b> linhas e <b>${S.cols.length}</b> colunas (${S.cols.filter(c => c.kind !== 'empty').length} com dados).</li>
-    ${S.dateCol ? `<li>Coluna de data principal: <b>${esc(S.dateCol)}</b> (${fmtDate(col(S.dateCol).dmin)} a ${fmtDate(col(S.dateCol).dmax)}).</li>` : '<li>Nenhuma coluna de data detectada.</li>'}
-    <li>Métricas numéricas utilizáveis: ${ms.length ? ms.slice(0, 8).map(m => `<b>${esc(m.name)}</b>`).join(', ') : 'nenhuma'}.</li>
-    <li>Dimensões para agrupamento: ${S.dimsRank.slice(0, 8).map(m => `<b>${esc(m.name)}</b>`).join(', ') || 'nenhuma'}.</li>
-    <li>Colunas sem variação (valor único): ${S.cols.filter(c => c.kind !== 'empty' && c.uniq === 1).length}.</li></ul></div></div>`;
-  h += `<div class="card p-4"><div class="font-semibold mb-3">Dicionário de colunas</div><div class="overflow-auto max-h-[65vh] rounded-xl border border-slate-200 dark:border-slate-800"><table class="w-full text-sm"><thead class="sticky top-0 bg-slate-100 dark:bg-slate-800"><tr><th class="text-left px-3 py-2">Coluna</th><th class="text-left px-3 py-2">Tipo</th><th class="text-right px-3 py-2">Preench.</th><th class="text-right px-3 py-2">Únicos</th><th class="text-left px-3 py-2">Resumo</th></tr></thead><tbody>${S.cols.map(c => {
-    let sm = '';
-    if (c.kind === 'number') sm = `min ${fmt(c.min)} · máx ${fmt(c.max)} · média ${fmt(c.avg)}${c.metric ? ' · <b>métrica</b>' : ' · código'}`;
-    else if (c.kind === 'date') sm = `${fmtDate(c.dmin)} a ${fmtDate(c.dmax)}`;
-    else if (c.kind !== 'empty') { const t = [...c.counts.entries()].sort((a, b) => b[1] - a[1]).slice(0, 3); sm = t.map(([v, n]) => `${esc(trunc(v, 22))} (${n})`).join(' · '); }
-    return `<tr class="border-t border-slate-100 dark:border-slate-800"><td class="px-3 py-2 font-medium">${esc(c.name)}</td><td class="px-3 py-2"><span class="badge ${KIND[c.kind][1]}">${KIND[c.kind][0]}</span></td><td class="px-3 py-2 text-right"><div class="inline-flex items-center gap-2"><div class="w-16 h-1.5 rounded-full bg-slate-200 dark:bg-slate-700 overflow-hidden"><div class="h-full bg-indigo-500" style="width:${(c.fill * 100).toFixed(0)}%"></div></div><span class="tabular-nums w-10 text-right">${(c.fill * 100).toFixed(0)}%</span></div></td><td class="px-3 py-2 text-right tabular-nums">${fmt(c.uniq)}</td><td class="px-3 py-2 text-slate-600 dark:text-slate-400 text-xs">${sm}</td></tr>`;
-  }).join('')}</tbody></table></div></div>`;
-  $('#v-estrutura').innerHTML = h;
-}
-
-/* ============================================================
    EXPORTAÇÃO
    ============================================================ */
 function exportXLSX() {
@@ -978,7 +858,7 @@ function exportXLSX() {
     XLSX.utils.book_append_sheet(wb, ws, 'Dados');
     const kp = computeKPIs();
     XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet([['Indicador', 'Valor', 'Detalhe'], ...kp.map(k => [k.label, k.value, k.sub]), [], ['Filtros ativos'], ...S.filters.map(f => [f.col, OPLBL[f.op], fval(f)])]), 'Resumo');
-    const dn = S.rk.dim || (S.anyDims[0] || {}).name;
+    const dn = (S.dimsRank[0] || S.anyDims[0] || {}).name;
     if (dn) XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet([[dn, 'Registros'], ...groupBy(S.filtered, dn, '__count', 'count').sort((a, b) => b.v - a.v).map(x => [x.k, x.v])]), 'Ranking');
     if (telOn()) telSheets(wb);
     XLSX.writeFile(wb, 'dashboard_' + new Date().toISOString().slice(0, 10) + '.xlsx');
