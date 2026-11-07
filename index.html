@@ -130,6 +130,7 @@
     <div id="v-ofensores" class="hidden"></div>
     <div id="v-reinc" class="hidden"></div>
     <div id="v-controle" class="hidden"></div>
+    <div id="v-risco" class="hidden"></div>
     <div id="v-dashboard"></div>
     <div id="v-tabela" class="hidden"></div>
     <div id="v-comparativo" class="hidden"></div>
@@ -317,8 +318,8 @@ const S = {
   cp: { measure: '__count', agg: 'sum', win: 7, dim: '' }
 };
 const GEN_TABS = [['dashboard', 'Dashboard'], ['tabela', 'Dados'], ['comparativo', 'Comparativo']];
-const TEL_TABS = [['painel', '📡 Painel operacional'], ['ofensores', 'Ofensores'], ['reinc', 'Reincidência'], ['controle', 'Controle por hora']];
-const ALL_IDS = ['painel', 'ofensores', 'reinc', 'controle', 'dashboard', 'tabela', 'comparativo'];
+const TEL_TABS = [['painel', '📡 Painel operacional'], ['ofensores', 'Ofensores'], ['reinc', 'Reincidência'], ['controle', 'Controle por hora'], ['risco', 'Área de risco']];
+const ALL_IDS = ['painel', 'ofensores', 'reinc', 'controle', 'risco', 'dashboard', 'tabela', 'comparativo'];
 const telOn = () => !!(S.tel && S.tel.on);
 const tabsList = () => telOn() ? TEL_TABS.concat(GEN_TABS) : GEN_TABS;
 const OPLBL = { key: '=', in: 'em', eq: '=', neq: '≠', contains: 'contém', gt: '>', gte: '≥', lt: '<', lte: '≤', empty: 'vazio', notempty: 'preenchido' };
@@ -597,7 +598,7 @@ function renderActive() {
   ALL_IDS.forEach(id => $('#v-' + id).classList.toggle('hidden', id !== S.tab));
   const F = S.filtered;
   if (!F.length && !['controle'].includes(S.tab)) { $('#v-' + S.tab).innerHTML = `<div class="card p-10 text-center text-slate-500">Nenhum registro encontrado com os filtros atuais. <button class="btn mt-3" onclick="clearAll()">Limpar filtros</button></div>`; return; }
-  ({ dashboard: renderDashboard, tabela: renderTable, comparativo: renderComp, painel: renderPainel, ofensores: renderOfensores, reinc: renderReinc, controle: renderControle })[S.tab]();
+  ({ dashboard: renderDashboard, tabela: renderTable, comparativo: renderComp, painel: renderPainel, ofensores: renderOfensores, reinc: renderReinc, controle: renderControle, risco: renderRisco })[S.tab]();
 }
 function clearAll() {
   S.filters = []; S.search = ''; S.dateFrom = S.dateTo = null; $('#search').value = ''; $('#dateFrom').value = ''; $('#dateTo').value = ''; S.page = 1; refresh();
@@ -777,7 +778,7 @@ function sortedRows() {
 function sortBy(c) { S.sort = { col: c, dir: S.sort.col === c ? -S.sort.dir : 1 }; renderTable(); }
 function toggleCol(c, on) { S.visible = S.cols.map(x => x.name).filter(n => n === c ? on : S.visible.includes(n)); renderTable(); }
 function goPage(p) { S.page = p; renderTable(); $('#v-tabela').scrollIntoView({ behavior: 'smooth', block: 'start' }); }
-const PRIO_COLS = ['cd_nrba', 'ds_macro_atividade', 'cd_documento_associado', 'cd_gpon', 'cd_setor', 'cd_estacao', 'cp', 'cdo', 'dh_abertura_ba', 'ds_logradouro', 'ds_numero', 'ds_complemento_tipo', 'ds_complemento_desc', 'ds_bairro'];
+const PRIO_COLS = ['cd_nrba', 'ds_macro_atividade', 'cd_documento_associado', 'cd_gpon', 'cd_setor', 'cd_estacao', 'cp', 'cdo', 'area_risco', 'area_risco_motivo', 'dh_abertura_ba', 'ds_logradouro', 'ds_numero', 'ds_complemento_tipo', 'ds_complemento_desc', 'ds_bairro'];
 function visCols() {
   const vc = S.cols.filter(c => S.visible.includes(c.name)), ix = n => { const i = PRIO_COLS.indexOf(n); return i < 0 ? 99 : i; };
   return vc.map((c, i) => [c, i]).sort((a, b) => ix(a[0].name) - ix(b[0].name) || a[1] - b[1]).map(x => x[0]);
@@ -939,7 +940,8 @@ async function exportPDF() {
 const TEL_ROLES = {
   ba: 'cd_nrba', setor: 'cd_setor', estado: 'ds_estado', macro: 'ds_macro_atividade', atividade: 'ds_atividade', cp: 'cp', naf: 'status_naf', flag: 'flag_reparo',
   olt: 'olt', pon: 'porta_pon', cdo: 'cdo', estacao: 'cd_estacao', uf: 'cd_uf', celula: 'celula', cabo2: 'cabo_secundario', gpon: 'cd_gpon',
-  pont: 'potencia_na_ont', polt: 'potencia_na_olt', desc: 'ds_descricao', logr: 'ds_logradouro', extr: 'dh_extracao'
+  pont: 'potencia_na_ont', polt: 'potencia_na_olt', desc: 'ds_descricao', logr: 'ds_logradouro', extr: 'dh_extracao',
+  ar: 'area_risco', arm: 'area_risco_motivo', arp: 'status_cdo'
 };
 const SLOTS = ['ontem', '07:00', '08:00', '09:00', '10:00', '11:00', '12:00', '13:00', '14:00', '15:00', '16:00', '17:00', '18:00', '19:00', '20:00', '21:00'];
 const SNAP_KEY = 'datalens-telecom-snaps-v1';
@@ -965,12 +967,15 @@ function nafClass(r) {
   }
   return 'nd';
 }
-const isRisco = r => { const d = TR().desc; return !!d && /risco/i.test(r[d]); };
+/* área de risco: com o cruzamento (coluna area_risco) conta a BA cuja CDO está bloqueada na base; sem ele, usa a descrição */
+const arLivre = v => !v || /^(liberad|n[ãa]o consta|sem cdo)/i.test(v);
+const isRisco = r => { const R = TR(); if (R.ar) return !arLivre(r[R.ar]); const d = R.desc; return !!d && /risco/i.test(r[d]); };
+const arSub = () => TR().ar ? 'BAs em CDO bloqueada' : 'marcados na descrição';
 const facilKey = r => { const R = TR(); const o = R.olt && r[R.olt]; if (!o) return ''; const p = R.pon ? (r[R.pon] || '').replace(/\//g, '-') : ''; return p ? o + ':' + p : o; };
 const estCdoKey = r => { const R = TR(), c = R.cdo && r[R.cdo]; if (!c) return ''; return (R.uf && r[R.uf] ? r[R.uf] + '-' : '') + (R.estacao && r[R.estacao] ? r[R.estacao] + '-' : '') + c; };
 const oltCdoKey = r => { const R = TR(); return (R.olt && R.cdo && r[R.olt] && r[R.cdo]) ? r[R.olt] + ' ' + r[R.cdo] : ''; };
 const celKey = r => { const R = TR(); return (R.estacao && R.celula && r[R.estacao] && r[R.celula]) ? r[R.estacao] + '-' + r[R.celula] : ''; };
-const KEYFN = { facil: facilKey, oltcdo: oltCdoKey, cel: celKey };
+const KEYFN = { facil: facilKey, oltcdo: oltCdoKey, cel: celKey, estcdo: estCdoKey };
 /* clique na aba Reincidência: filtra só as reincidências (e o setor/CDO/GPON clicado) e continua na aba */
 function reincPick(el) {
   const d = el.dataset, R = TR();
@@ -1007,7 +1012,7 @@ function telKPIs() {
     { label: 'Com potência', value: fmt(c.com), sub: pct(c.com, c.total).toFixed(1).replace('.', ',') + '% do total' },
     { label: 'Sem potência', value: fmt(c.sem), sub: pct(c.sem, c.total).toFixed(1).replace('.', ',') + '% do total' },
     { label: 'Degradação (ONT < ' + S.tel.thr + ' dBm)', value: fmt(c.degr), sub: pct(c.degr, c.total).toFixed(1).replace('.', ',') + '% do total' },
-    { label: 'Área de risco', value: fmt(c.risco), sub: 'registros marcados em ' + (TR().desc || 'descrição') }
+    { label: 'Área de risco', value: fmt(c.risco), sub: TR().ar ? 'BAs em CDO bloqueada (base de área de risco)' : 'registros marcados em ' + (TR().desc || 'descrição') }
   ];
 }
 const fmtDT = ms => fmtDate(ms) + ' ' + p2(new Date(ms).getUTCHours()) + ':' + p2(new Date(ms).getUTCMinutes());
@@ -1119,6 +1124,62 @@ function colorTable(title, items, color, h1, h2, o = {}) {
 const bandTitle = (t, sub, color = '#14284b') => `<div class="rounded-xl py-3 px-4 text-center text-white mb-4" style="background:${color}"><div class="font-extrabold tracking-wide text-sm sm:text-base">${esc(t)}</div>${sub ? `<div class="text-xs opacity-80 mt-0.5">${esc(sub)}</div>` : ''}</div>`;
 const noCols = msg => `<div class="card p-10 text-center text-slate-500">${msg}</div>`;
 
+/* ---------- ÁREA DE RISCO ---------- */
+const AR_ORD = ['IMPEDIMENTO', 'AREA DE RISCO INDETERMINADO', 'LIBERADA', 'NÃO CONSTA NA BASE', 'SEM CDO'];
+const AR_COR = { 'IMPEDIMENTO': '#d62828', 'AREA DE RISCO INDETERMINADO': '#7030a0', 'LIBERADA': '#00a651', 'NÃO CONSTA NA BASE': '#64748b', 'SEM CDO': '#94a3b8' };
+const arCor = s => AR_COR[s] || '#c08400';
+/* clique na aba Área de risco: filtra situação (e setor) e continua na aba */
+function riscoPick(el) {
+  const d = el.dataset, R = TR();
+  const put = (c, v) => { S.filters = S.filters.filter(x => !(x.col === c && (x.op === 'eq' || x.op === 'in'))); S.filters.push({ col: c, op: 'eq', val: v }); };
+  if (d.c) put(d.c, d.v);
+  if (d.s === '*') { const bl = [...new Set(S.rows.map(r => r[R.ar]).filter(v => !arLivre(v)))]; S.filters = S.filters.filter(x => !(x.col === R.ar && (x.op === 'eq' || x.op === 'in'))); if (bl.length) S.filters.push({ col: R.ar, op: 'in', val: bl }); }
+  else if (d.s) put(R.ar, d.s);
+  S.page = 1; refresh();
+  toast('Filtrado: ' + [d.v, d.s === '*' ? 'CDO bloqueada' : d.s].filter(Boolean).join(' · ') + ' · os BAs estão na aba Dados · para tirar, clique no × do filtro');
+}
+function renderRisco() {
+  const el = $('#v-risco'), R = TR(), F = S.filtered, I = S.risco;
+  const dt = iso => { if (!iso) return ''; const [d, h] = String(iso).split('T'); return isoBr(d.slice(0, 10)) + (h ? ' ' + h.slice(0, 5) : ''); };
+  const sub = I ? 'Base: ' + I.arquivo + ' · enviada em ' + dt(I.atualizado) + (I.base_vtal ? ' · status V.tal de ' + isoBr(String(I.base_vtal).slice(0, 10)) : '') : '';
+  let h = bandTitle('ÁREA DE RISCO: CDOs COM BLOQUEIO', sub || 'Cruzamento das BAs com a planilha de área de risco', TCOL.purple);
+  if (!R.ar) {
+    el.innerHTML = h + noCols('As BAs ainda não foram cruzadas com a base de área de risco.<br>Coloque a planilha de área de risco na pasta <b>Area_de_Risco</b> do Drive: a partir da próxima planilha de hora em hora, o cruzamento aparece aqui.');
+    return;
+  }
+  const stOf = r => r[R.ar] || 'SEM CDO';
+  const sts = new Map(); for (const r of F) { const s = stOf(r); const o = sts.get(s) || { n: 0, c: new Set() }; o.n++; const k = estCdoKey(r); if (k) o.c.add(k); sts.set(s, o); }
+  const ord = [...AR_ORD.filter(s => sts.has(s)), ...[...sts.keys()].filter(s => !AR_ORD.includes(s))];
+  const nBloq = F.filter(isRisco).length;
+  const card = (s, o) => `<div data-s="${esc(s)}" onclick="riscoPick(this)" title="Clique para ver só ${esc(s)}" class="rounded-xl overflow-hidden border border-slate-200 dark:border-slate-700 shadow-sm cursor-pointer transition hover:shadow-md"><div class="text-white text-center text-[11px] font-bold tracking-wide py-1.5 px-1" style="background:${arCor(s)}">${esc(s)}</div><div class="p-3 text-center bg-white dark:bg-slate-900"><div class="text-3xl font-extrabold tabular-nums" style="color:${arCor(s)}">${fmt(o.n)}</div><div class="text-[11px] text-slate-500">BAs · ${fmt(o.c.size)} CDOs</div></div></div>`;
+  h += `<div class="grid grid-cols-2 md:grid-cols-${Math.min(ord.length + 1, 6)} gap-3 mb-4"><div data-s="*" onclick="riscoPick(this)" title="Clique para ver todas as BAs em CDO bloqueada" class="rounded-xl overflow-hidden border border-slate-200 dark:border-slate-700 shadow-sm cursor-pointer transition hover:shadow-md"><div class="text-white text-center text-[11px] font-bold tracking-wide py-1.5" style="background:${TCOL.navy}">BLOQUEADAS (TOTAL)</div><div class="p-3 text-center bg-white dark:bg-slate-900"><div class="text-3xl font-extrabold tabular-nums">${fmt(nBloq)}</div><div class="text-[11px] text-slate-500">${pct(nBloq, F.length).toFixed(1).replace('.', ',')}% das BAs</div></div></div>${ord.map(s => card(s, sts.get(s))).join('')}</div>`;
+
+  // setor x situação
+  const blq = ord.filter(s => !arLivre(s)), cols = [...blq, ...ord.filter(s => arLivre(s))];
+  const ps = new Map(); for (const r of F) { const k = r[R.setor] || '(vazio)'; const o = ps.get(k) || { t: 0, b: 0 }; const s = stOf(r); o[s] = (o[s] || 0) + 1; o.t++; if (!arLivre(s)) o.b++; ps.set(k, o); }
+  const rp = [...ps.entries()].sort((a, b) => b[1].b - a[1].b || b[1].t - a[1].t);
+  const td = (setor, s, v, extra = '') => `<td data-c="${esc(R.setor)}" data-v="${esc(setor)}" ${s ? `data-s="${esc(s)}"` : ''} onclick="riscoPick(this)" class="text-right px-2 py-1.5 tabular-nums cursor-pointer ${extra}">${v || ''}</td>`;
+  h += `<div class="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-4"><div class="card p-4"><div class="font-semibold text-sm mb-1">Setor × situação da CDO</div><div class="text-xs text-slate-500 mb-2">Clique num número para ver as BAs</div><div class="overflow-auto max-h-[30rem] rounded-xl border border-slate-200 dark:border-slate-700"><table class="w-full text-xs"><thead class="sticky top-0 text-white" style="background:${TCOL.navy}"><tr><th class="text-left px-2 py-1.5">SETOR</th>${cols.map(s => `<th class="text-right px-2 py-1.5" title="${esc(s)}">${esc(s.replace('AREA DE RISCO INDETERMINADO', 'RISCO INDET.').replace('NÃO CONSTA NA BASE', 'NÃO CONSTA'))}</th>`).join('')}<th class="text-right px-2 py-1.5">% BLOQ.</th></tr></thead><tbody>
+    ${rp.map(([k, o]) => `<tr class="border-t border-slate-100 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800/60"><td data-c="${esc(R.setor)}" data-v="${esc(k)}" data-s="*" onclick="riscoPick(this)" class="px-2 py-1.5 font-medium whitespace-nowrap cursor-pointer">${esc(k)}</td>${cols.map(s => td(k, s, o[s], !arLivre(s) && o[s] ? 'font-bold text-red-600 dark:text-red-400' : '')).join('')}<td class="text-right px-2 py-1.5 tabular-nums font-semibold" ${o.b && o.b / o.t >= 0.15 ? hs(HEAT.orange) : ''}>${o.b ? pct(o.b, o.t).toFixed(0) + '%' : ''}</td></tr>`).join('')}</tbody></table></div></div>`;
+
+  // CDOs bloqueadas com BA aberta
+  const cm = new Map(); for (const r of F) { if (!isRisco(r)) continue; const k = estCdoKey(r); if (!k) continue; const o = cm.get(k) || { n: 0, sem: 0, s: stOf(r), m: R.arm ? r[R.arm] : '', st: new Map() }; o.n++; if (nafClass(r) === 'sem') o.sem++; o.st.set(r[R.setor], (o.st.get(r[R.setor]) || 0) + 1); cm.set(k, o); }
+  const cr = [...cm.entries()].sort((a, b) => b[1].n - a[1].n || a[0].localeCompare(b[0], 'pt-BR', { numeric: true }));
+  h += `<div class="card p-4"><div class="font-semibold text-sm mb-1">CDOs bloqueadas com BA aberta (${fmt(cr.length)})</div><div class="text-xs text-slate-500 mb-2">Clique numa linha para ver as BAs da CDO</div><div class="overflow-auto max-h-[30rem] rounded-xl border border-slate-200 dark:border-slate-700"><table class="w-full text-xs"><thead class="sticky top-0 text-white" style="background:${TCOL.purple}"><tr><th class="text-left px-2 py-1.5">ESTAÇÃO / CDO</th><th class="text-left px-2 py-1.5">SETOR</th><th class="text-left px-2 py-1.5">SITUAÇÃO / MOTIVO</th><th class="text-right px-2 py-1.5">BAs</th><th class="text-right px-2 py-1.5">SEM POT.</th></tr></thead><tbody>
+    ${cr.length ? cr.map(([k, o]) => `<tr data-k="estcdo" data-l="Estação-CDO" data-v="${esc(k)}" onclick="ofPick(this)" title="Clique para ver as BAs" class="border-t border-slate-100 dark:border-slate-800 cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-800/60"><td class="px-2 py-1.5 font-medium whitespace-nowrap">${esc(k)}</td><td class="px-2 py-1.5 whitespace-nowrap">${esc([...o.st.entries()].sort((a, b) => b[1] - a[1])[0][0] || '')}</td><td class="px-2 py-1.5"><span class="font-semibold" style="color:${arCor(o.s)}">${esc(o.s)}</span>${o.m ? `<div class="text-[10px] text-slate-500">${esc(o.m)}</div>` : ''}</td><td class="text-right px-2 py-1.5 font-bold tabular-nums" ${o.n >= 3 ? hs(HEAT.red) : o.n === 2 ? hs(HEAT.orange) : ''}>${o.n}</td><td class="text-right px-2 py-1.5 tabular-nums">${o.sem || ''}</td></tr>`).join('') : '<tr><td colspan="5" class="px-2 py-4 text-center text-slate-500">Nenhuma BA em CDO bloqueada no recorte</td></tr>'}</tbody></table></div></div></div>`;
+
+  // base inteira por estação
+  if (I && I.estacoes) {
+    const ativas = new Set(F.map(r => { const k = estCdoKey(r).split('-'); return k.length > 2 ? k[1] : ''; }).filter(Boolean));
+    const er = Object.entries(I.estacoes).map(([e, o]) => { const t = Object.values(o).reduce((a, b) => a + b, 0), b = t - (o.LIBERADA || 0); return [e, o, t, b]; }).sort((a, b) => (ativas.has(b[0]) - ativas.has(a[0])) || b[3] - a[3] || b[2] - a[2]);
+    const bcols = Object.keys(I.total || {}).sort((a, b) => AR_ORD.indexOf(a) - AR_ORD.indexOf(b));
+    h += `<div class="card p-4"><div class="font-semibold text-sm mb-1">Base de área de risco por estação (todas as CDOs da planilha)</div><div class="text-xs text-slate-500 mb-2">${fmt(I.cdos)} CDOs na base · primeiro e em negrito, as estações com BA aberta no recorte</div><div class="overflow-auto max-h-[30rem] rounded-xl border border-slate-200 dark:border-slate-700"><table class="w-full text-xs"><thead class="sticky top-0 text-white" style="background:${TCOL.navy}"><tr><th class="text-left px-2 py-1.5">ESTAÇÃO</th>${bcols.map(s => `<th class="text-right px-2 py-1.5">${esc(s.replace('AREA DE RISCO INDETERMINADO', 'RISCO INDET.'))}</th>`).join('')}<th class="text-right px-2 py-1.5">TOTAL</th><th class="text-right px-2 py-1.5">% BLOQ.</th></tr></thead><tbody>
+      ${er.map(([e, o, t, b]) => `<tr class="border-t border-slate-100 dark:border-slate-800 ${ativas.has(e) ? 'font-bold' : ''}"><td class="px-2 py-1.5">${esc(e)}</td>${bcols.map(s => `<td class="text-right px-2 py-1.5 tabular-nums ${!arLivre(s) && o[s] ? 'text-red-600 dark:text-red-400' : ''}">${o[s] ? fmt(o[s]) : ''}</td>`).join('')}<td class="text-right px-2 py-1.5 tabular-nums">${fmt(t)}</td><td class="text-right px-2 py-1.5 tabular-nums" ${b / t >= 0.3 ? hs(HEAT.orange) : ''}>${pct(b, t).toFixed(0)}%</td></tr>`).join('')}
+      <tr class="font-bold text-white" style="background:${TCOL.navy}"><td class="px-2 py-1.5">TOTAL</td>${bcols.map(s => `<td class="text-right px-2 py-1.5">${fmt(I.total[s])}</td>`).join('')}<td class="text-right px-2 py-1.5">${fmt(I.cdos)}</td><td class="text-right px-2 py-1.5">${pct(I.cdos - (I.total.LIBERADA || 0), I.cdos).toFixed(0)}%</td></tr></tbody></table></div></div>`;
+  }
+  el.innerHTML = h;
+}
+
 /* ---------- PAINEL OPERACIONAL ---------- */
 function renderPainel() {
   const el = $('#v-painel'), R = TR(), F = S.filtered, c = telCounts(S.filteredNoNaf), plan = [];
@@ -1126,7 +1187,7 @@ function renderPainel() {
   const tile = (key, label, val, color, sub, navy) => `<div class="rounded-xl overflow-hidden border border-slate-200 dark:border-slate-700 cursor-pointer shadow-sm transition hover:shadow-md ${S.tel.naf === key && key ? 'ring-2 ring-offset-2 ring-indigo-500 dark:ring-offset-slate-950' : ''}" onclick="setNaf('${key}')" title="Clique para filtrar esta situação"><div class="text-white text-center text-xs font-bold tracking-wide py-1.5" style="background:${color}">${label}</div><div class="text-center py-3 bg-white dark:bg-slate-900" style="background-image:linear-gradient(${color}1a,${color}1a)"><div class="text-4xl font-extrabold ${navy ? 'text-slate-800 dark:text-slate-100' : ''}" style="${navy ? '' : 'color:' + color}">${val}</div><div class="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">${sub}</div></div></div>`;
   const pc = v => pct(v, c.total).toFixed(1).replace('.', ',') + '%';
   let h = bandTitle('PAINEL OPERACIONAL DE MONITORAMENTO DE REPAROS', (ms ? 'Extração: ' + fmtDT(ms) + '  ·  ' : '') + F.length.toLocaleString('pt-BR') + ' BAs no recorte atual' + (S.tel.openOnly ? ' (somente abertas)' : ''));
-  h += `<div class="grid grid-cols-2 md:grid-cols-5 gap-3 mb-4">${tile('', 'TOTAL DE BAs', fmt(c.total), TCOL.navy, 'sem leitura NAF: ' + c.nd, true)}${tile('com', 'COM POTÊNCIA', fmt(c.com), '#00a651', pc(c.com))}${tile('sem', 'SEM POTÊNCIA', fmt(c.sem), '#d62828', pc(c.sem))}${tile('degr', 'DEGRADAÇÃO', fmt(c.degr), '#c08400', pc(c.degr) + ' · ONT &lt; ' + S.tel.thr + ' dBm')}${tile('risco', 'ÁREA DE RISCO', fmt(c.risco), TCOL.purple, 'marcados na descrição')}</div>`;
+  h += `<div class="grid grid-cols-2 md:grid-cols-5 gap-3 mb-4">${tile('', 'TOTAL DE BAs', fmt(c.total), TCOL.navy, 'sem leitura NAF: ' + c.nd, true)}${tile('com', 'COM POTÊNCIA', fmt(c.com), '#00a651', pc(c.com))}${tile('sem', 'SEM POTÊNCIA', fmt(c.sem), '#d62828', pc(c.sem))}${tile('degr', 'DEGRADAÇÃO', fmt(c.degr), '#c08400', pc(c.degr) + ' · ONT &lt; ' + S.tel.thr + ' dBm')}${tile('risco', 'ÁREA DE RISCO', fmt(c.risco), TCOL.purple, arSub())}</div>`;
   // top 10
   h += `<div class="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-4">`;
   h += chartCard('p_setor', 'TOP 10 OFENSORES - SETOR', '', 'Clique numa barra para filtrar');
@@ -1303,6 +1364,7 @@ function telSheets(wb) {
   const R = TR(), F = S.filtered, c = telCounts(S.filteredNoNaf);
   const add = (n, aoa) => XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(aoa), n);
   add('Painel', [['Indicador', 'Valor'], ['Total de BAs', c.total], ['Com potência', c.com], ['Sem potência', c.sem], ['Degradação (ONT < ' + S.tel.thr + ' dBm)', c.degr], ['Sem leitura NAF', c.nd], ['Área de risco', c.risco]]);
+  if (R.ar) add('Área de risco', [['Estação-CDO', 'Setor', 'Situação', 'Motivo', 'cd_nrba'], ...F.filter(isRisco).map(r => [estCdoKey(r), r[R.setor], r[R.ar], R.arm ? r[R.arm] : '', r[R.ba]])]);
   const ss = new Map();
   F.forEach(r => { const k = r[R.setor]; if (!k) return; const o = ss.get(k) || { sem: 0, degr: 0, com: 0, nd: 0, t: 0 }; o[nafClass(r)]++; o.t++; ss.set(k, o); });
   add('Setores', [['Setor', 'Total', 'Sem potência', 'Degradação', 'Com potência', 'Sem leitura'], ...[...ss.entries()].sort((a, b) => b[1].t - a[1].t).map(([k, o]) => [k, o.t, o.sem, o.degr, o.com, o.nd])]);
@@ -1358,8 +1420,16 @@ async function loadSnaps() {
     return true;
   } catch (e) { return false; }
 }
+async function loadRiscoInfo() {
+  try {
+    const r = await fetch('risco_info.json?t=' + Date.now(), { cache: 'no-store' }); if (!r.ok) return;
+    const txt = await r.text(); if (S.riscoSig === txt) return; S.riscoSig = txt; S.risco = JSON.parse(txt);
+    if (S.tel && S.tab === 'risco') renderActive();
+  } catch (e) { }
+}
 async function syncSnaps(first) {
   if (location.protocol === 'file:') return false;
+  loadRiscoInfo();
   const ch = await loadSnaps(); if (!ch) return false;
   if (S.tel) {
     const st = snapStore();
