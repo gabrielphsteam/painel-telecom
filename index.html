@@ -1141,7 +1141,7 @@ function riscoPick(el) {
 function renderRisco() {
   const el = $('#v-risco'), R = TR(), F = S.filtered, I = S.risco;
   const dt = iso => { if (!iso) return ''; const [d, h] = String(iso).split('T'); return isoBr(d.slice(0, 10)) + (h ? ' ' + h.slice(0, 5) : ''); };
-  const sub = I ? 'Base: ' + I.arquivo + ' · enviada em ' + dt(I.atualizado) + (I.base_vtal ? ' · status V.tal de ' + isoBr(String(I.base_vtal).slice(0, 10)) : '') : '';
+  const sub = I ? 'Base: ' + I.arquivo + ' · arquivo de ' + dt(I.atualizado) + (I.base_vtal ? ' · status V.tal de ' + isoBr(String(I.base_vtal).slice(0, 10)) : '') : '';
   let h = bandTitle('ÁREA DE RISCO: CDOs COM BLOQUEIO', sub || 'Cruzamento das BAs com a planilha de área de risco', TCOL.purple);
   if (!R.ar) {
     el.innerHTML = h + noCols('As BAs ainda não foram cruzadas com a base de área de risco.<br>Coloque a planilha de área de risco na pasta <b>Area_de_Risco</b> do Drive: a partir da próxima planilha de hora em hora, o cruzamento aparece aqui.');
