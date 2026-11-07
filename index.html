@@ -1459,7 +1459,18 @@ async function syncAll(url, mode) {
   }
   return (csvNovo || ch) ? 'updated' : r;
 }
+/* contador de acessos: avisa o App da Web do Apps Script uma vez por abertura (código anônimo do aparelho) */
+const ACESSO_URL = ''; // endereço do App da Web (termina em /exec)
+function contarAcesso() {
+  if (!ACESSO_URL || !/github\.io$/.test(location.hostname)) return;
+  let v = '';
+  try { v = localStorage.getItem('datalens-aparelho') || ''; if (!v) { v = (crypto.randomUUID ? crypto.randomUUID() : Date.now().toString(36) + Math.random().toString(36).slice(2)); localStorage.setItem('datalens-aparelho', v); } }
+  catch (e) { v = 'x' + Math.random().toString(36).slice(2); }
+  const t = /Mobi|Android|iPhone|iPad/i.test(navigator.userAgent) ? 'm' : 'd';
+  try { new Image().src = ACESSO_URL + '?v=' + encodeURIComponent(v) + '&t=' + t + '&r=' + Date.now(); } catch (e) { }
+}
 async function bootSource() {
+  contarAcesso();
   const q = new URLSearchParams(location.search);
   let url = q.get('dados') || DATA_URL;
   if (!url || location.protocol === 'file:') return;
