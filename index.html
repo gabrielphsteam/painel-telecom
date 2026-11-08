@@ -1018,6 +1018,18 @@ function telKPIs() {
 const fmtDT = ms => fmtDate(ms) + ' ' + p2(new Date(ms).getUTCHours()) + ':' + p2(new Date(ms).getUTCMinutes());
 // A planilha sai do sistema alguns minutos antes da hora cheia (ex.: 08:55 = planilha das 09h): de :45 em diante conta como a hora seguinte
 const refHora = ms => { const m = new Date(ms).getUTCMinutes(); return m >= 45 ? ms + (60 - m) * 60000 : ms; };
+// Hora cheia em que a planilha foi enviada = última coluna do controle por hora (o script grava pela hora do envio: 08:00-08:59 -> 08h)
+function horaEnviada(ms) {
+  try {
+    const st = snapStore(), ds = Object.keys(st).sort(), d = ds[ds.length - 1]; if (!d) return null;
+    const sl = new Set(); Object.values(st[d]).forEach(c => Object.keys(c).forEach(k => /^\d\d:00$/.test(k) && sl.add(k)));
+    const l = [...sl].sort().pop(); if (!l) return null;
+    const r = refHora(ms), rd = new Date(r).toISOString().slice(0, 10);
+    if (rd !== d || Math.abs(+l.slice(0, 2) - new Date(r).getUTCHours()) > 1) return null; // controle de outra data/arquivo: usa a hora da extração
+    return { date: d, slot: l };
+  } catch (e) { return null; }
+}
+const fmtEnviada = ms => { const e = horaEnviada(ms); return e ? isoBr(e.date) + ' ' + e.slot : fmtDT(refHora(ms)); };
 const isoBr = iso => iso ? iso.split('-').reverse().join('/') : '';
 const heatCell = v => v >= 6 ? HEAT.red : v === 5 ? HEAT.orange : v === 4 ? HEAT.lorange : v === 3 ? HEAT.yellow : null;
 const heatCdo = v => v >= 3 ? HEAT.red : v === 2 ? HEAT.orange : null;
@@ -1188,7 +1200,7 @@ function renderPainel() {
   let ms = null; if (R.extr) for (const r of S.rows) { const t = r.__d && r.__d[R.extr]; if (t != null) { ms = t; break; } }
   const tile = (key, label, val, color, sub, navy) => `<div class="rounded-xl overflow-hidden border border-slate-200 dark:border-slate-700 cursor-pointer shadow-sm transition hover:shadow-md ${S.tel.naf === key && key ? 'ring-2 ring-offset-2 ring-indigo-500 dark:ring-offset-slate-950' : ''}" onclick="setNaf('${key}')" title="Clique para filtrar esta situação"><div class="text-white text-center text-xs font-bold tracking-wide py-1.5" style="background:${color}">${label}</div><div class="text-center py-3 bg-white dark:bg-slate-900" style="background-image:linear-gradient(${color}1a,${color}1a)"><div class="text-4xl font-extrabold ${navy ? 'text-slate-800 dark:text-slate-100' : ''}" style="${navy ? '' : 'color:' + color}">${val}</div><div class="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">${sub}</div></div></div>`;
   const pc = v => pct(v, c.total).toFixed(1).replace('.', ',') + '%';
-  let h = bandTitle('PAINEL OPERACIONAL DE MONITORAMENTO DE REPAROS', (ms ? 'Atualizado: ' + fmtDT(refHora(ms)) + '  ·  ' : '') + F.length.toLocaleString('pt-BR') + ' BAs no recorte atual' + (S.tel.openOnly ? ' (somente abertas)' : ''));
+  let h = bandTitle('PAINEL OPERACIONAL DE MONITORAMENTO DE REPAROS', (ms ? 'Atualizado: ' + fmtEnviada(ms) + '  ·  ' : '') + F.length.toLocaleString('pt-BR') + ' BAs no recorte atual' + (S.tel.openOnly ? ' (somente abertas)' : ''));
   h += `<div class="grid grid-cols-2 md:grid-cols-5 gap-3 mb-4">${tile('', 'TOTAL DE BAs', fmt(c.total), TCOL.navy, 'sem leitura NAF: ' + c.nd, true)}${tile('com', 'COM POTÊNCIA', fmt(c.com), '#00a651', pc(c.com))}${tile('sem', 'SEM POTÊNCIA', fmt(c.sem), '#d62828', pc(c.sem))}${tile('degr', 'DEGRADAÇÃO', fmt(c.degr), '#c08400', pc(c.degr) + ' · ONT &lt; ' + S.tel.thr + ' dBm')}${tile('risco', 'ÁREA DE RISCO', fmt(c.risco), TCOL.purple, arSub())}</div>`;
   // top 10
   h += `<div class="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-4">`;
@@ -1352,7 +1364,7 @@ function renderControle() {
   let h = `<div class="card p-4 mb-4"><div class="flex flex-wrap items-end gap-3">
     <div class="mr-auto max-w-xl"><div class="font-semibold">Controle de reparos por horário</div><div class="text-xs text-slate-500 dark:text-slate-400 mt-1">Carregue a extração, escolha o horário e clique em <b>Registrar snapshot</b>: o app guarda a contagem de BAs de reparo abertas por setor e operadora. A coluna F compara com o snapshot anterior: <span class="inline-block w-2.5 h-2.5 rounded-full align-middle" style="background:#d9482b"></span> subiu · <span class="inline-block w-2.5 h-2.5 rounded-full align-middle" style="background:#3f9b7a"></span> caiu · <span class="inline-block w-2.5 h-2.5 rounded-full align-middle" style="background:#f2c879"></span> igual. No painel publicado o registro é <b>automático</b>: a primeira planilha enviada em cada hora (07h às 21h) preenche a coluna daquela hora; as demais da mesma hora só atualizam o painel. O "Ontem 21hs" vem do 21:00 do dia anterior.</div></div>
     <div><label class="lbl">Data</label><input type="date" class="inp" value="${T.snapDate}" onchange="S.tel.snapDate=this.value;renderActive()"></div>
-    <div><label class="lbl">Horário</label><select class="inp" onchange="S.tel.snapSlot=this.value">${SLOTS.map(s => `<option value="${s}" ${s === T.snapSlot ? 'selected' : ''}>${s === 'ontem' ? 'ONTEM 21hs' : s}</option>`).join('')}</select></div>
+    <div><label class="lbl">Horário</label><select class="inp" onchange="S.tel.snapSlot=this.value;S.tel.slotManual=1">${SLOTS.map(s => `<option value="${s}" ${s === T.snapSlot ? 'selected' : ''}>${s === 'ontem' ? 'ONTEM 21hs' : s}</option>`).join('')}</select></div>
     <button class="btn btn-primary" onclick="registerSnap()">Registrar snapshot</button>
     <button class="btn" onclick="delSlot()">Apagar horário</button><button class="btn" onclick="delDay()">Apagar dia</button>
     <button class="btn" onclick="exportBackup()">Backup (.json)</button>
@@ -1436,7 +1448,9 @@ async function syncSnaps(first) {
   if (S.tel) {
     const st = snapStore();
     if (first && !st[S.tel.snapDate]) { const ds = Object.keys(st).sort(); if (ds.length) S.tel.snapDate = ds[ds.length - 1]; }
-    if (S.tab === 'controle') renderActive();
+    try { let ms = null; if (S.tel.roles.extr) for (const r of S.rows) { const t = r.__d && r.__d[S.tel.roles.extr]; if (t != null) { ms = t; break; } }
+      const e = ms != null && horaEnviada(ms); if (e && (first || !S.tel.slotManual)) { S.tel.snapDate = e.date; S.tel.snapSlot = e.slot; } } catch (e) { }
+    if (S.tab === 'controle' || S.tab === 'painel') renderActive();
   }
   return true;
 }
