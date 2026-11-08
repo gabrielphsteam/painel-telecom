@@ -1016,6 +1016,8 @@ function telKPIs() {
   ];
 }
 const fmtDT = ms => fmtDate(ms) + ' ' + p2(new Date(ms).getUTCHours()) + ':' + p2(new Date(ms).getUTCMinutes());
+// A planilha sai do sistema alguns minutos antes da hora cheia (ex.: 08:55 = planilha das 09h): de :45 em diante conta como a hora seguinte
+const refHora = ms => { const m = new Date(ms).getUTCMinutes(); return m >= 45 ? ms + (60 - m) * 60000 : ms; };
 const isoBr = iso => iso ? iso.split('-').reverse().join('/') : '';
 const heatCell = v => v >= 6 ? HEAT.red : v === 5 ? HEAT.orange : v === 4 ? HEAT.lorange : v === 3 ? HEAT.yellow : null;
 const heatCdo = v => v >= 3 ? HEAT.red : v === 2 ? HEAT.orange : null;
@@ -1031,7 +1033,7 @@ function initTelecom() {
     if (mc) { const rep = [...mc.counts.keys()].find(k => /^rep/i.test(k)); if (rep) S.filters = [{ col: roles.macro, op: 'eq', val: rep }]; }
     let ms = null;
     if (roles.extr) for (const r of S.rows) { const t = r.__d && r.__d[roles.extr]; if (t != null) { ms = t; break; } }
-    const d = new Date(ms != null ? ms : Date.now()), h = ms != null ? d.getUTCHours() : d.getHours();
+    const d = new Date(ms != null ? refHora(ms) : Date.now()), h = ms != null ? d.getUTCHours() : d.getHours();
     S.tel.snapDate = d.toISOString().slice(0, 10);
     S.tel.snapSlot = p2(Math.min(21, Math.max(7, h))) + ':00';
     S.tab = 'painel';
@@ -1186,7 +1188,7 @@ function renderPainel() {
   let ms = null; if (R.extr) for (const r of S.rows) { const t = r.__d && r.__d[R.extr]; if (t != null) { ms = t; break; } }
   const tile = (key, label, val, color, sub, navy) => `<div class="rounded-xl overflow-hidden border border-slate-200 dark:border-slate-700 cursor-pointer shadow-sm transition hover:shadow-md ${S.tel.naf === key && key ? 'ring-2 ring-offset-2 ring-indigo-500 dark:ring-offset-slate-950' : ''}" onclick="setNaf('${key}')" title="Clique para filtrar esta situação"><div class="text-white text-center text-xs font-bold tracking-wide py-1.5" style="background:${color}">${label}</div><div class="text-center py-3 bg-white dark:bg-slate-900" style="background-image:linear-gradient(${color}1a,${color}1a)"><div class="text-4xl font-extrabold ${navy ? 'text-slate-800 dark:text-slate-100' : ''}" style="${navy ? '' : 'color:' + color}">${val}</div><div class="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">${sub}</div></div></div>`;
   const pc = v => pct(v, c.total).toFixed(1).replace('.', ',') + '%';
-  let h = bandTitle('PAINEL OPERACIONAL DE MONITORAMENTO DE REPAROS', (ms ? 'Extração: ' + fmtDT(ms) + '  ·  ' : '') + F.length.toLocaleString('pt-BR') + ' BAs no recorte atual' + (S.tel.openOnly ? ' (somente abertas)' : ''));
+  let h = bandTitle('PAINEL OPERACIONAL DE MONITORAMENTO DE REPAROS', (ms ? 'Atualizado: ' + fmtDT(refHora(ms)) + '  ·  ' : '') + F.length.toLocaleString('pt-BR') + ' BAs no recorte atual' + (S.tel.openOnly ? ' (somente abertas)' : ''));
   h += `<div class="grid grid-cols-2 md:grid-cols-5 gap-3 mb-4">${tile('', 'TOTAL DE BAs', fmt(c.total), TCOL.navy, 'sem leitura NAF: ' + c.nd, true)}${tile('com', 'COM POTÊNCIA', fmt(c.com), '#00a651', pc(c.com))}${tile('sem', 'SEM POTÊNCIA', fmt(c.sem), '#d62828', pc(c.sem))}${tile('degr', 'DEGRADAÇÃO', fmt(c.degr), '#c08400', pc(c.degr) + ' · ONT &lt; ' + S.tel.thr + ' dBm')}${tile('risco', 'ÁREA DE RISCO', fmt(c.risco), TCOL.purple, arSub())}</div>`;
   // top 10
   h += `<div class="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-4">`;
