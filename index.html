@@ -1030,7 +1030,12 @@ function horaEnviada(ms) {
     return { date: d, slot: l };
   } catch (e) { return null; }
 }
-const fmtEnviada = ms => { const e = horaEnviada(ms); return e ? isoBr(e.date) + ' ' + e.slot : fmtDT(refHora(ms)); };
+// Horário que aparece no painel: o do último envio (ultima.json, gravado pelo script do Drive); sem ele, a hora da extração (de :45 em diante conta como a hora seguinte)
+const fmtEnviada = ms => {
+  const u = S.ultima && /^\d{4}-\d\d-\d\dT\d\d:\d\d/.test(S.ultima.enviado || '') ? S.ultima.enviado : null;
+  if (u) { const dx = Date.UTC(+u.slice(0, 4), +u.slice(5, 7) - 1, +u.slice(8, 10), +u.slice(11, 13), +u.slice(14, 16)); if (Math.abs(dx - ms) < 6 * 3600e3) return isoBr(u.slice(0, 10)) + ' ' + u.slice(11, 16); }
+  return fmtDT(refHora(ms));
+};
 const isoBr = iso => iso ? iso.split('-').reverse().join('/') : '';
 const heatCell = v => v >= 6 ? HEAT.red : v === 5 ? HEAT.orange : v === 4 ? HEAT.lorange : v === 3 ? HEAT.yellow : null;
 const heatCdo = v => v >= 3 ? HEAT.red : v === 2 ? HEAT.orange : null;
@@ -1435,6 +1440,13 @@ async function loadSnaps() {
     return true;
   } catch (e) { return false; }
 }
+async function loadUltima() {
+  try {
+    const r = await fetch('ultima.json?t=' + Date.now(), { cache: 'no-store' }); if (!r.ok) return;
+    const txt = await r.text(); if (S.ultimaSig === txt) return; S.ultimaSig = txt; S.ultima = JSON.parse(txt);
+    if (S.tel && S.tab === 'painel') renderActive();
+  } catch (e) { }
+}
 async function loadRiscoInfo() {
   try {
     const r = await fetch('risco_info.json?t=' + Date.now(), { cache: 'no-store' }); if (!r.ok) return;
@@ -1444,7 +1456,7 @@ async function loadRiscoInfo() {
 }
 async function syncSnaps(first) {
   if (location.protocol === 'file:') return false;
-  loadRiscoInfo();
+  loadRiscoInfo(); loadUltima();
   const ch = await loadSnaps(); if (!ch) return false;
   if (S.tel) {
     const st = snapStore();
