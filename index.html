@@ -26,6 +26,15 @@
   ::-webkit-scrollbar-thumb { background: #94a3b855; border-radius: 8px; }
   @media print { header, #filters, nav { display: none !important; } }
 </style>
+<style>.adm-only{display:none!important}html.is-admin .adm-only{display:inline-flex!important}html.is-admin .hidden-until-data.adm-only.hidden{display:none!important}</style>
+<script>
+/* modo administrador: Carregar arquivo / Publicar só aparecem para quem abriu o painel com a senha (?admin=SENHA). É só a interface; esses botões nunca mexem no site publicado, só no navegador de quem usa. */
+(async()=>{try{const q=new URLSearchParams(location.search).get('admin');
+ if(q==='off'){localStorage.removeItem('dl_adm');}
+ else if(q){const h=[...new Uint8Array(await crypto.subtle.digest('SHA-256',new TextEncoder().encode(q)))].map(b=>b.toString(16).padStart(2,'0')).join('');if(h==='510738e3eaf45fd4afdc223b8fca3b546b6a5ae92f13609b01a9b6f969e18c55')localStorage.setItem('dl_adm',h);}
+ if(q){history.replaceState(null,'',location.pathname+location.hash);}
+ if(localStorage.getItem('dl_adm')==='510738e3eaf45fd4afdc223b8fca3b546b6a5ae92f13609b01a9b6f969e18c55')document.documentElement.classList.add('is-admin');}catch(e){}})();
+</script>
 </head>
 <body class="bg-slate-50 text-slate-800 dark:bg-slate-950 dark:text-slate-200 min-h-screen antialiased" style="font-family: Inter, ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif">
 
@@ -41,12 +50,12 @@
       </div>
     </div>
     <div class="ml-auto flex items-center gap-2 flex-wrap">
-      <label class="btn btn-primary cursor-pointer">
+      <label class="btn btn-primary cursor-pointer adm-only">
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="M17 8l-5-5-5 5"/><path d="M12 3v12"/></svg>
         <span>Carregar arquivo</span>
         <input id="fileInput" type="file" accept=".xlsx,.xls,.csv,.tsv,.txt" class="hidden">
       </label>
-      <button id="btnPub" class="btn hidden-until-data" title="Gerar o arquivo de dados para publicar online, sem dados pessoais de clientes">⬆ Publicar</button>
+      <button id="btnPub" class="btn hidden-until-data adm-only" title="Gerar o arquivo de dados para publicar online, sem dados pessoais de clientes">⬆ Publicar</button>
       <button id="btnXlsx" class="btn hidden-until-data" title="Exportar dados filtrados para Excel">Excel</button>
       <button id="btnPdf" class="btn hidden-until-data" title="Exportar relatório em PDF">PDF</button>
       <button id="btnRefresh" class="btn hidden" title="Recarregar os dados publicados">🔄 Atualizar</button>
@@ -68,7 +77,7 @@
       <p class="mt-2 text-slate-500 dark:text-slate-400">Aceita <b>.xlsx</b>, <b>.xls</b> e <b>.csv</b> (separador ; , tab ou |). O dashboard é montado automaticamente a partir da estrutura dos dados e, se a planilha for de atividades/BAs de telecom (cd_setor, status_naf, olt, cdo...), o <b>Painel Telecom</b> é ligado sozinho. Tudo roda localmente no seu navegador, nenhum dado é enviado.</p>
       <div id="srcNote" class="hidden mt-4 text-sm text-amber-600 dark:text-amber-400"></div>
       <div class="mt-6 flex items-center justify-center gap-3 flex-wrap">
-        <label class="btn btn-primary cursor-pointer px-5 py-3">Selecionar arquivo<input id="fileInput2" type="file" accept=".xlsx,.xls,.csv,.tsv,.txt" class="hidden"></label>
+        <label class="btn btn-primary cursor-pointer px-5 py-3 adm-only">Selecionar arquivo<input id="fileInput2" type="file" accept=".xlsx,.xls,.csv,.tsv,.txt" class="hidden"></label>
         <button id="btnSample" class="btn px-5 py-3">Ver com dados de exemplo</button>
       </div>
     </div>
@@ -1658,7 +1667,7 @@ function downloadPublic() {
   const dz = $('#dropzone');
   ['dragenter', 'dragover'].forEach(ev => document.addEventListener(ev, e => { e.preventDefault(); dz.classList.add('border-indigo-500', 'bg-indigo-50/50'); }));
   ['dragleave', 'drop'].forEach(ev => document.addEventListener(ev, e => { e.preventDefault(); dz.classList.remove('border-indigo-500', 'bg-indigo-50/50'); }));
-  document.addEventListener('drop', e => { if (e.dataTransfer && e.dataTransfer.files.length) handleFile(e.dataTransfer.files[0]); });
+  document.addEventListener('drop', e => { if (!document.documentElement.classList.contains('is-admin')) return; if (e.dataTransfer && e.dataTransfer.files.length) handleFile(e.dataTransfer.files[0]); });
   bootSource();
   let rt; window.addEventListener('resize', () => { clearTimeout(rt); rt = setTimeout(() => Object.values(S.charts).forEach(c => c.resize()), 150); });
 })();
