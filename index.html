@@ -1284,10 +1284,10 @@ const r7Data = v => { if (!v) return ''; const [d, h] = String(v).split(' '); re
 const r7Horas = h => { h = +h; if (isNaN(h)) return ''; return h < 48 ? h + 'h' : Math.floor(h / 24) + 'd ' + (h % 24) + 'h'; };
 const pctTxt = (a, b) => b ? (a / b * 100).toFixed(1).replace('.', ',') + '%' : '-';
 /* tabela simples com cabeçalho colorido; cols: [{t, r (direita), w (nowrap)}], linhas já em HTML */
-function r7Tabela(titulo, cor, cols, linhas, sub, grupos) {
+function r7Tabela(titulo, cor, cols, linhas, sub, grupos, semRolagem) {
   return `<div class="rounded-xl overflow-hidden border border-slate-200 dark:border-slate-700 shadow-sm bg-white dark:bg-slate-900">
     <div class="text-white text-center font-extrabold tracking-wide py-2 text-sm" style="background:${cor}">${titulo}${sub ? `<div class="text-[11px] font-medium opacity-80">${sub}</div>` : ''}</div>
-    <div class="overflow-auto max-h-[30rem]"><table class="w-full text-xs"><thead class="sticky top-0 text-white" style="background:${cor}">${grupos ? `<tr>${grupos.map(g => `<th colspan="${g.n}" class="${g.t ? 'text-center border-b border-white/30' : ''} px-2 pt-1.5 pb-1 text-[11px] tracking-wide">${g.t}</th>`).join('')}</tr>` : ''}<tr>${cols.map(c => `<th class="${c.r ? 'text-center' : 'text-left'} px-2 py-1.5 whitespace-nowrap">${c.t}</th>`).join('')}</tr></thead>
+    <div class="${semRolagem ? '' : 'overflow-auto max-h-[30rem]'}"><table class="w-full text-xs"><thead class="${semRolagem ? '' : 'sticky top-0'} text-white" style="background:${cor}">${grupos ? `<tr>${grupos.map(g => `<th colspan="${g.n}" class="${g.t ? 'text-center border-b border-white/30' : ''} px-2 pt-1.5 pb-1 text-[11px] tracking-wide">${g.t}</th>`).join('')}</tr>` : ''}<tr>${cols.map(c => `<th class="${c.r ? 'text-center' : 'text-left'} px-2 py-1.5 whitespace-nowrap">${c.t}</th>`).join('')}</tr></thead>
     <tbody>${linhas.length ? linhas.join('') : `<tr><td colspan="${cols.length}" class="px-2 py-4 text-center text-slate-500">Sem dados no recorte</td></tr>`}</tbody></table></div></div>`;
 }
 const tdc = (v, o = {}) => `<td class="px-2 py-1 border-t border-slate-100 dark:border-slate-800 ${o.r ? 'text-center tabular-nums' : ''} ${o.b ? 'font-bold' : ''} ${o.w ? 'whitespace-nowrap' : ''}" ${o.st || ''} ${o.title ? `title="${esc(o.title)}"` : ''}>${v}</td>`;
@@ -1326,7 +1326,7 @@ function r7Abertos(R) {
   const rp = [...pv.entries()].sort((a, b) => b[1].t - a[1].t), mx = rp.length ? rp[0][1].t : 0;
   const lin = rp.map(([s, o]) => `<tr class="cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-800/60">${tdc(esc(s), { w: 1 }).replace('<td', `<td data-c="${esc(R.setor)}" data-v="${esc(s)}" onclick="reincPick(this)"`)}${R7_TIPOS.map(f => tdc(o[f] || '', { r: 1 }).replace('<td', `<td data-c="${esc(R.setor)}" data-v="${esc(s)}" data-f="${esc(f)}" onclick="reincPick(this)"`)).join('')}${tdc(o.t, { r: 1, b: 1, st: o.t >= mx * 0.85 && o.t >= 3 ? hs(HEAT.red) : '' }).replace('<td', `<td data-c="${esc(R.setor)}" data-v="${esc(s)}" onclick="reincPick(this)"`)}</tr>`);
   lin.push(`<tr class="font-bold cursor-pointer" style="background:#d92b1f;color:#fff"><td class="px-2 py-1.5" onclick="reincPick(this)">Total geral</td>${R7_TIPOS.map(f => `<td data-f="${f}" onclick="reincPick(this)" class="text-center px-2 py-1.5">${n(f)}</td>`).join('')}<td onclick="reincPick(this)" class="text-center px-2 py-1.5">${rows.length}</td></tr>`);
-  h += `<div class="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-4"><div class="lg:col-span-2">${r7Tabela('SETOR × REINCIDÊNCIA 7 DIAS', '#6b7280', [{ t: 'SETOR' }, { t: 'REPETIDA', r: 1 }, { t: 'INFÂNCIA', r: 1 }, { t: 'TOTAL', r: 1 }], lin)}</div>`;
+  h += `<div class="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-4"><div class="lg:col-span-2">${r7Tabela('SETOR × REINCIDÊNCIA 7 DIAS', '#6b7280', [{ t: 'SETOR' }, { t: 'REPETIDA', r: 1 }, { t: 'INFÂNCIA', r: 1 }, { t: 'TOTAL', r: 1 }], lin, '', null, true)}</div>`;
   h += chartCard('r_reinc', 'Reincidência 7 dias por setor', '', 'Empilhado por tipo', '', 'h-[30rem]') + `</div>`;
   S._r7chart = { sets: rp.map(x => x[0]), pv };
 
