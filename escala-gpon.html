@@ -190,6 +190,7 @@ footer{color:var(--muted);font-size:12px;text-align:center}
     </div>
     <div class="controls">
       <div class="seg" id="perSeg" role="group" aria-label="Período"></div>
+      <button class="btn" id="btnNext" type="button">Criar próximo período</button>
       <button class="btn" id="btnEdit" type="button" aria-pressed="false">Simular trocas</button>
       <button class="btn" id="btnUndo" type="button" disabled>Desfazer trocas</button>
       <button class="btn" id="btnCopy" type="button">Copiar para o Sheets</button>
@@ -223,6 +224,11 @@ footer{color:var(--muted);font-size:12px;text-align:center}
         <button class="chip" type="button" data-view="all" aria-pressed="true">Todos os dias</button>
         <button class="chip" type="button" data-view="wk" aria-pressed="false">Só sáb, dom e feriado</button>
         <span class="muted" id="editHint" style="font-size:12.5px;display:none">Clique numa célula para trocar. Dia útil: PL → HO → PE → F. Fim de semana/feriado: PI → PR → F. A auditoria refaz na hora.</span>
+      </div>
+      <div class="note warn" id="draftBar" style="display:none;gap:8px 12px;flex-wrap:wrap;align-items:center;margin-bottom:10px">
+        <span style="flex:1;min-width:220px"><b>Rascunho do próximo período.</b> Gere uma versão automática, ajuste à mão ou peça à IA, e baixe o Excel quando estiver pronto. Feriados nacionais já marcados; clique no dia para marcar ou desmarcar outro.</span>
+        <button class="btn primary" type="button" id="btnSolve">Gerar rascunho automático</button>
+        <button class="btn" type="button" id="btnDelDraft">Apagar rascunho</button>
       </div>
       <div class="gridbox"><table class="g" id="grid"></table></div>
       <p class="muted" style="font-size:12.5px;margin:8px 0 0">Clique no nome para ver o histórico do colaborador, ou no dia para ver quem está escalado. A contagem de presentes considera só técnicos (o supervisor fica fora).</p>
@@ -337,19 +343,26 @@ footer{color:var(--muted);font-size:12px;text-align:center}
     groups: { GLAUCO: 'atend', AURELIANO: 'atend', TAYNA: 'atend', JORGE: 'atend', ELIAS: 'atend', FERNANDO: 'atend', LENILTON: 'monit', WELLINGTON: 'monit', LEANDRO: 'plan', 'PAULO ENOQUE': 'plan', RHONIS: 'novato', GABRIEL: 'sup' },
     pairs: [{ a: 'LENILTON', b: 'WELLINGTON', days: { dom: true } }, { a: 'LEANDRO', b: 'PAULO ENOQUE', days: { dom: true } }, { a: 'PAULO ENOQUE', b: 'RHONIS', days: { dom: true } }],
     supCover: true,
+    folgasMin: 4, folgasMax: 7, folgaUtilMax: 2,
     estPorDia: 2, intMin: 1, presSemCor: 'definir', jornadaOn: true,
     fixed: [{ name: 'LEANDRO', date: '2026-11-14', status: 'PRESENTE' }]
   };
   const JOR = { PRES: 'Presencial', HO: 'Home office', EST: 'Plantão estendido 08–20h', INT: 'Plantão integral 08–20h', RED: 'Plantão reduzido 08–13h' };
-  const norm = t => String(t || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toUpperCase();
+  const _nc = new Map();
+  const norm = t => { const k = String(t || ''); let v = _nc.get(k); if (v === undefined) { v = k.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toUpperCase(); _nc.set(k, v); } return v; };
+  const _gc = new WeakMap();
   function groupOf(p, rules) {
-    const g = (rules || DEFAULT_RULES).groups || {}, n = norm(p.name);
+    const g = (rules || DEFAULT_RULES).groups || {}; let m = _gc.get(g); if (!m) { m = new Map(); _gc.set(g, m); } if (m.has(p.name)) return m.get(p.name); const v = groupOf2(p, g); m.set(p.name, v); return v;
+  }
+  function groupOf2(p, g) {
+    const n = norm(p.name);
     let best = null; for (const k of Object.keys(g)) if (n.includes(norm(k)) && (!best || norm(k).length > norm(best).length)) best = k;
     if (best) return g[best];
     return /supervisor/i.test(p.role || '') ? 'sup' : 'atend';
   }
-  function dow(iso) { const [y, m, d] = iso.split('-').map(Number); return new Date(Date.UTC(y, m - 1, d)).getUTCDay(); }
-  function addDays(iso, n) { const [y, m, d] = iso.split('-').map(Number); const t = new Date(Date.UTC(y, m - 1, d + n)); return t.toISOString().slice(0, 10); }
+  const _dw = new Map(), _ad = new Map();
+  function dow(iso) { let v = _dw.get(iso); if (v === undefined) { const [y, m, d] = iso.split('-').map(Number); v = new Date(Date.UTC(y, m - 1, d)).getUTCDay(); _dw.set(iso, v); } return v; }
+  function addDays(iso, n) { const k = iso + '|' + n; let v = _ad.get(k); if (v === undefined) { const [y, m, d] = iso.split('-').map(Number); v = new Date(Date.UTC(y, m - 1, d + n)).toISOString().slice(0, 10); _ad.set(k, v); } return v; }
   function fmt(iso) { const [, m, d] = iso.split('-'); return d + '/' + m; }
   function fmtW(iso) { return WD[dow(iso)] + ' ' + fmt(iso); }
   const isWork = s => s === 'PL' || s === 'PRESENTE';
@@ -610,6 +623,24 @@ footer{color:var(--muted);font-size:12px;text-align:center}
           people: [...new Set(und.map(x => x[0]))], dates: [] }, []);
     }
 
+    // Quantidade de folgas
+    days.forEach((d, di) => {
+      if (kind(d.date) !== 'util') return;
+      const f = people.map((p, pi) => grp(p) !== 'sup' && st(pi, di) === 'FOLGA' ? pi : -1).filter(x => x >= 0);
+      if (f.length > rules.folgaUtilMax)
+        add({ rule: 'folgas', sev: 'alerta', title: fmtW(d.date) + ': ' + f.length + ' de folga em dia útil (máx. ' + rules.folgaUtilMax + ')',
+          detail: 'Em ' + fmtW(d.date) + ' estão de folga ' + names(f) + '. Dia útil com mais de ' + rules.folgaUtilMax + ' técnicos de folga esvazia a sala.',
+          people: f, dates: [d.date] }, f.map(pi => [pi, di]), [di]);
+    });
+    people.forEach((p, pi) => {
+      const n = p.st.filter(x => x === 'FOLGA').length, scale = days.length / 31;
+      const lo = Math.round(rules.folgasMin * scale), hi = Math.round(rules.folgasMax * scale);
+      if (n < lo || n > hi)
+        add({ rule: 'folgas', sev: 'alerta', title: short(p.name) + ': ' + n + ' folgas no período (faixa ' + lo + ' a ' + hi + ')',
+          detail: p.name + ' tem ' + n + ' folgas em ' + days.length + ' dias. O normal da equipe é de ' + lo + ' a ' + hi + '.',
+          people: [pi], dates: [] }, []);
+    });
+
     // Consistência de códigos
     people.forEach((p, pi) => days.forEach((d, di) => {
       const s = st(pi, di), k = kind(d.date);
@@ -653,12 +684,113 @@ footer{color:var(--muted);font-size:12px;text-align:center}
 
 </script>
 <script>
+// ===== Gerador de período e rascunho automático =====
+(function (root) {
+  const E = root.Escala;
+  const FIXED_HOL = ['01-01', '04-21', '05-01', '09-07', '10-12', '11-02', '11-15', '11-20', '12-25'];
+  function easter(y) { const a = y % 19, b = Math.floor(y / 100), c = y % 100, d = Math.floor(b / 4), e = b % 4, f = Math.floor((b + 8) / 25), g = Math.floor((b - f + 1) / 3), h = (19 * a + b - d - g + 15) % 30, i = Math.floor(c / 4), k = c % 4, l = (32 + 2 * e + 2 * i - h - k) % 7, m = Math.floor((a + 11 * h + 22 * l) / 451), mo = Math.floor((h + l - 7 * m + 114) / 31), da = ((h + l - 7 * m + 114) % 31) + 1; return y + '-' + String(mo).padStart(2, '0') + '-' + String(da).padStart(2, '0'); }
+  function holidays(y) { const e = easter(y); return new Set(FIXED_HOL.map(md => y + '-' + md).concat([E.addDays(e, -48), E.addDays(e, -47), E.addDays(e, -2), E.addDays(e, 60)])); }
+  // próximo período: do dia seguinte ao fim até o mesmo dia do mês seguinte menos 1
+  function nextPeriod(last) {
+    const end = last.days[last.days.length - 1].date, start = E.addDays(end, 1);
+    const [y, m, d] = start.split('-').map(Number);
+    const t = new Date(Date.UTC(y, m, d - 1)); const stop = t.toISOString().slice(0, 10);
+    const days = []; for (let x = start; x <= stop; x = E.addDays(x, 1)) { const hs = holidays(+x.slice(0, 4)); days.push({ date: x, hol: hs.has(x) && E.dow(x) !== 0 && E.dow(x) !== 6 }); }
+    const MES = ['JANEIRO', 'FEVEREIRO', 'MARÇO', 'ABRIL', 'MAIO', 'JUNHO', 'JULHO', 'AGOSTO', 'SETEMBRO', 'OUTUBRO', 'NOVEMBRO', 'DEZEMBRO'];
+    const m1 = +start.slice(5, 7), m2 = +stop.slice(5, 7);
+    const people = last.people.map(p => ({ id: p.id, name: p.name, role: p.role, st: days.map(dd => (E.dow(dd.date) % 6 === 0 || dd.hol) ? 'FOLGA' : 'PL'), jr: days.map(dd => (E.dow(dd.date) % 6 === 0 || dd.hol) ? null : 'PRES') }));
+    return { title: 'ESCALA GPON - ' + MES[m1 - 1] + '/' + MES[m2 - 1] + ' (RASCUNHO)', days, people, generated: true };
+  }
+  // pontuação: erros pesam muito, alertas médio, equilíbrio leve
+  function score(res) {
+    let s = 0; res.issues.forEach(i => { s += i.sev === 'erro' ? 100 : i.sev === 'alerta' ? (i.rule === 'equil' ? 4 : 12) : 0; });
+    const techs = res.load.filter((l, i) => res.groupsOf[i] !== 'sup');
+    const sp = k => { const v = techs.map(l => l[k]); return Math.max(...v) - Math.min(...v); };
+    s += 2 * sp('EST') + 2 * sp('HO') + 3 * sp('total') + 2 * sp('INT');
+    const R = res.rules, n = res.load.length ? res.load[0].folgas + res.load[0].pl + res.load[0].sab + res.load[0].dom + res.load[0].fer : 31, scale = (res.counts.length || 31) / 31;
+    const lo = Math.round(R.folgasMin * scale), hi = Math.round(R.folgasMax * scale);
+    res.load.forEach((l, i) => { if (l.folgas > hi) s += 15 * (l.folgas - hi); if (l.folgas < lo) s += 15 * (lo - l.folgas); });
+    return s;
+  }
+  // busca local; chama onStep(progresso) e devolve {periods, res, score}
+  async function solve(periods, pIdx, rules, opts) {
+    opts = opts || {}; const ms = opts.ms || 6000, onStep = opts.onStep || (() => {});
+    const P = periods[pIdx], nd = P.days.length, np = P.people.length;
+    const kind = di => { const d = P.days[di]; return d.hol ? 'fer' : E.dow(d.date) === 6 ? 'sab' : E.dow(d.date) === 0 ? 'dom' : 'util'; };
+    const isSup = pi => E.groupOf(P.people[pi], rules) === 'sup';
+    const fixed = new Set((rules.fixed || []).map(f => { const pi = P.people.findIndex(p => E.norm(p.name).includes(E.norm(f.name))), di = P.days.findIndex(d => d.date === f.date); return pi + ':' + di; }));
+    const opts1 = (pi, di) => { const k = kind(di); if (isSup(pi)) return k === 'util' ? [['PL', null], ['FOLGA', null]] : [['PRESENTE', null], ['FOLGA', null]];
+      return k === 'util' ? [['PL', 'PRES'], ['PL', 'HO'], ['PL', 'EST'], ['FOLGA', null]] : [['PRESENTE', 'INT'], ['PRESENTE', 'RED'], ['FOLGA', null]]; };
+    let cur = E.audit(periods, pIdx, rules), cs = score(cur), best = cs, bestSt = P.people.map(p => [p.st.slice(), p.jr.slice()]);
+    const t0 = Date.now(); let it = 0, temp = 30;
+    while (Date.now() - t0 < ms) {
+      for (let b = 0; b < 40; b++) {
+        it++;
+        let pi, di;
+        const bad = cur.issues.filter(i => i.sev !== 'info' && (i.people.length || i.dates.length));
+        if (bad.length && Math.random() < 0.6) {
+          const is = bad[Math.floor(Math.random() * bad.length)];
+          const cand = is.dates.length ? is.dates.map(d => P.days.findIndex(x => x.date === d)).filter(x => x >= 0) : [];
+          di = cand.length ? cand[Math.floor(Math.random() * cand.length)] : Math.floor(Math.random() * nd);
+          pi = Math.random() < 0.6 && is.people.length ? is.people[Math.floor(Math.random() * is.people.length)] : Math.floor(Math.random() * np);
+          if (is.rule === 'consec' && is.dates.length) di = P.days.findIndex(x => x.date === is.dates[Math.floor(Math.random() * is.dates.length)]);
+          if (di < 0) di = Math.floor(Math.random() * nd);
+        } else { pi = Math.floor(Math.random() * np); di = Math.floor(Math.random() * nd); }
+        if (fixed.has(pi + ':' + di)) continue;
+        const p = P.people[pi], o = opts1(pi, di), now = [p.st[di], p.jr[di]];
+        const ch = o.filter(x => x[0] !== now[0] || x[1] !== now[1]); if (!ch.length) continue;
+        const nx = ch[Math.floor(Math.random() * ch.length)];
+        // às vezes troca com outra pessoa no mesmo dia (mantém contagens)
+        let pj = -1, nowj;
+        if (Math.random() < 0.5) { pj = Math.floor(Math.random() * np); if (pj === pi || isSup(pj) !== isSup(pi) || fixed.has(pj + ':' + di)) pj = -1; else { nowj = [P.people[pj].st[di], P.people[pj].jr[di]]; if (nowj[0] === now[0] && nowj[1] === now[1]) pj = -1; } }
+        if (pj >= 0) { p.st[di] = nowj[0]; p.jr[di] = nowj[1]; P.people[pj].st[di] = now[0]; P.people[pj].jr[di] = now[1]; }
+        else { p.st[di] = nx[0]; p.jr[di] = nx[1]; }
+        const r = E.audit(periods, pIdx, rules), s = score(r);
+        if (s <= cs || Math.random() < Math.exp((cs - s) / temp)) { cur = r; cs = s; if (s < best) { best = s; bestSt = P.people.map(q => [q.st.slice(), q.jr.slice()]); } }
+        else { p.st[di] = now[0]; p.jr[di] = now[1]; if (pj >= 0) { P.people[pj].st[di] = nowj[0]; P.people[pj].jr[di] = nowj[1]; } }
+      }
+      temp = Math.max(0.5, temp * 0.985);
+      onStep(Math.min(1, (Date.now() - t0) / ms), best);
+      await new Promise(r => setTimeout(r, 0));
+      if (best === 0) break;
+    }
+    P.people.forEach((q, i) => { q.st = bestSt[i][0]; q.jr = bestSt[i][1]; });
+    // polimento: melhor troca de 1 célula ou de 2 pessoas no mesmo dia, nos dias com problema
+    for (let pass = 0; pass < 6 && best > 0; pass++) {
+      const r0 = E.audit(periods, pIdx, rules);
+      const dset = new Set(); r0.issues.filter(i => i.sev !== 'info').forEach(i => i.dates.forEach(d => { const k = P.days.findIndex(x => x.date === d); if (k >= 0) { dset.add(k); if (k > 0) dset.add(k - 1); if (k < nd - 1) dset.add(k + 1); } }));
+      let mv = null, ms2 = best;
+      dset.forEach(di => {
+        for (let pi = 0; pi < np; pi++) {
+          if (fixed.has(pi + ':' + di)) continue; const p = P.people[pi], now = [p.st[di], p.jr[di]];
+          opts1(pi, di).forEach(o => { if (o[0] === now[0] && o[1] === now[1]) return; p.st[di] = o[0]; p.jr[di] = o[1];
+            const sc = score(E.audit(periods, pIdx, rules)); if (sc < ms2) { ms2 = sc; mv = [[pi, di, o]]; } p.st[di] = now[0]; p.jr[di] = now[1]; });
+          for (let pj = pi + 1; pj < np; pj++) {
+            if (fixed.has(pj + ':' + di) || isSup(pj) !== isSup(pi)) continue; const q = P.people[pj], nq = [q.st[di], q.jr[di]];
+            if (nq[0] === now[0] && nq[1] === now[1]) continue;
+            p.st[di] = nq[0]; p.jr[di] = nq[1]; q.st[di] = now[0]; q.jr[di] = now[1];
+            const sc = score(E.audit(periods, pIdx, rules)); if (sc < ms2) { ms2 = sc; mv = [[pi, di, nq], [pj, di, now]]; }
+            p.st[di] = now[0]; p.jr[di] = now[1]; q.st[di] = nq[0]; q.jr[di] = nq[1];
+          }
+        }
+      });
+      if (!mv) break;
+      mv.forEach(([pi, di, o]) => { P.people[pi].st[di] = o[0]; P.people[pi].jr[di] = o[1]; }); best = ms2;
+      onStep(1, best); await new Promise(r => setTimeout(r, 0));
+    }
+    return { res: E.audit(periods, pIdx, rules), score: best, iterations: it };
+  }
+  root.EscalaGen = { nextPeriod, solve, holidays, score };
+})(typeof window !== 'undefined' ? window : globalThis);
+
+</script>
+<script>
 const BASE = {"periods": [{"title": "ESCALA GPON - OUTUBRO/NOVEMBRO", "days": [{"date": "2026-10-14", "hol": false}, {"date": "2026-10-15", "hol": false}, {"date": "2026-10-16", "hol": false}, {"date": "2026-10-17", "hol": false}, {"date": "2026-10-18", "hol": false}, {"date": "2026-10-19", "hol": false}, {"date": "2026-10-20", "hol": false}, {"date": "2026-10-21", "hol": false}, {"date": "2026-10-22", "hol": false}, {"date": "2026-10-23", "hol": false}, {"date": "2026-10-24", "hol": false}, {"date": "2026-10-25", "hol": false}, {"date": "2026-10-26", "hol": false}, {"date": "2026-10-27", "hol": false}, {"date": "2026-10-28", "hol": false}, {"date": "2026-10-29", "hol": false}, {"date": "2026-10-30", "hol": false}, {"date": "2026-10-31", "hol": false}, {"date": "2026-11-01", "hol": false}, {"date": "2026-11-02", "hol": true}, {"date": "2026-11-03", "hol": false}, {"date": "2026-11-04", "hol": false}, {"date": "2026-11-05", "hol": false}, {"date": "2026-11-06", "hol": false}, {"date": "2026-11-07", "hol": false}, {"date": "2026-11-08", "hol": false}, {"date": "2026-11-09", "hol": false}, {"date": "2026-11-10", "hol": false}, {"date": "2026-11-11", "hol": false}, {"date": "2026-11-12", "hol": false}], "people": [{"id": "103064551", "name": "GLAUCO OLIVEIRA DOS SANTOS", "role": "GPON", "st": ["PL", "PL", "PL", "PRESENTE", "FOLGA", "PL", "PL", "PL", "PL", "PL", "FOLGA", "PRESENTE", "PL", "PL", "PL", "PL", "PL", "PRESENTE", "FOLGA", "PRESENTE", "PL", "PL", "PL", "PL", "PRESENTE", "FOLGA", "FOLGA", "PL", "PL", "PL"], "cor": ["amarelo", "azul", "azul", "laranja", "laranja", "azul", "azul", "amarelo", "azul", "azul", "laranja", "vermelho", "azul", "azul", "amarelo", "azul", "azul", "laranja", "laranja", "amarelo", "azul", "amarelo", "azul", "azul", "laranja", "laranja", "laranja", "azul", "amarelo", "azul"], "jr": ["EST", "PRES", "PRES", null, null, "PRES", "PRES", "EST", "PRES", "PRES", null, null, "PRES", "PRES", "EST", "PRES", "PRES", null, null, "INT", "PRES", "EST", "PRES", "PRES", null, null, null, "PRES", "EST", "PRES"]}, {"id": "103064023", "name": "AURELIANO CAMARGO", "role": "GPON", "st": ["PL", "PL", "PL", "FOLGA", "PRESENTE", "PL", "PL", "PL", "PL", "PL", "PRESENTE", "FOLGA", "FOLGA", "PL", "PL", "PL", "PL", "PRESENTE", "FOLGA", "PRESENTE", "PL", "PL", "PL", "PL", "FOLGA", "PRESENTE", "PL", "PL", "PL", "PL"], "cor": ["verde", "azul", "azul", "laranja", "laranja", "amarelo", "azul", "verde", "azul", "azul", "laranja", "laranja", "laranja", "azul", "verde", "azul", "azul", "laranja", "laranja", "laranja", "azul", "verde", "azul", "azul", "laranja", "amarelo", "amarelo", "azul", "verde", "azul"], "jr": ["HO", "PRES", "PRES", null, null, "EST", "PRES", "HO", "PRES", "PRES", null, null, null, "PRES", "HO", "PRES", "PRES", null, null, null, "PRES", "HO", "PRES", "PRES", null, "INT", "EST", "PRES", "HO", "PRES"]}, {"id": "103064521", "name": "LENILTON ALVES DUARTE", "role": "GPON", "st": ["PL", "PL", "PL", "PRESENTE", "FOLGA", "PL", "PL", "PL", "PL", "PL", "PRESENTE", "PRESENTE", "PL", "PL", "PL", "PL", "PL", "PRESENTE", "FOLGA", "FOLGA", "PL", "PL", "PL", "PL", "FOLGA", "PRESENTE", "PL", "PL", "PL", "PL"], "cor": ["azul", "verde", "azul", "laranja", "laranja", "azul", "amarelo", "azul", "verde", "azul", "laranja", "vermelho", "azul", "amarelo", "azul", "verde", "azul", "laranja", "laranja", "laranja", "amarelo", "azul", "verde", "azul", "laranja", "laranja", "azul", "amarelo", "azul", "verde"], "jr": ["PRES", "HO", "PRES", null, null, "PRES", "EST", "PRES", "HO", "PRES", null, null, "PRES", "EST", "PRES", "HO", "PRES", null, null, null, "EST", "PRES", "HO", "PRES", null, null, "PRES", "EST", "PRES", "HO"]}, {"id": "103060883", "name": "TAYNA LIMA PEÇANHA", "role": "GPON", "st": ["PL", "PL", "PL", "PRESENTE", "FOLGA", "PL", "PL", "PL", "PL", "PL", "FOLGA", "PRESENTE", "PL", "PL", "PL", "PL", "PL", "FOLGA", "FOLGA", "PRESENTE", "PL", "PL", "PL", "PL", "PRESENTE", "FOLGA", "PL", "PL", "PL", "PL"], "cor": ["verde", "azul", "verde", "laranja", "laranja", "amarelo", "azul", "verde", "azul", "verde", "laranja", "verde", "amarelo", "verde", "azul", "azul", "verde", "laranja", "laranja", "laranja", "azul", "verde", "azul", "verde", "amarelo", "laranja", "amarelo", "azul", "verde", "azul"], "jr": ["HO", "PRES", "HO", null, null, "EST", "PRES", "HO", "PRES", "HO", null, "RED", "EST", "HO", "PRES", "PRES", "HO", null, null, null, "PRES", "HO", "PRES", "HO", "INT", null, "EST", "PRES", "HO", "PRES"]}, {"id": "103053992", "name": "JORGE PIRES DA CONCEIÇÃO", "role": "GPON", "st": ["PL", "PL", "PL", "PRESENTE", "FOLGA", "FOLGA", "PL", "PL", "PL", "PL", "PRESENTE", "FOLGA", "PL", "PL", "PL", "PL", "PL", "FOLGA", "PRESENTE", "PRESENTE", "PL", "PL", "PL", "PL", "PRESENTE", "FOLGA", "PL", "PL", "PL", "PL"], "cor": ["azul", "amarelo", "azul", "laranja", "laranja", "laranja", "azul", "azul", "amarelo", "azul", "laranja", "laranja", "amarelo", "verde", "azul", "amarelo", "azul", "laranja", "amarelo", "laranja", "azul", "azul", "amarelo", "azul", "laranja", "laranja", "azul", "azul", "azul", "amarelo"], "jr": ["PRES", "EST", "PRES", null, null, null, "PRES", "PRES", "EST", "PRES", null, null, "EST", "HO", "PRES", "EST", "PRES", null, "INT", null, "PRES", "PRES", "EST", "PRES", null, null, "PRES", "PRES", "PRES", "EST"]}, {"id": "103064540", "name": "WELLINGTON MACEDO LOURENCO", "role": "GPON", "st": ["PL", "PL", "PL", "FOLGA", "PRESENTE", "PL", "PL", "PL", "PL", "PL", "FOLGA", "FOLGA", "PL", "PL", "PL", "PL", "PL", "PRESENTE", "PRESENTE", "FOLGA", "PL", "PL", "PL", "PL", "PRESENTE", "FOLGA", "PL", "PL", "PL", "PL"], "cor": ["azul", "amarelo", "verde", "laranja", "amarelo", "verde", "azul", "azul", "amarelo", "azul", "laranja", "laranja", "verde", "azul", "azul", "amarelo", "azul", "laranja", "laranja", "laranja", "azul", "azul", "amarelo", "azul", "laranja", "laranja", "verde", "azul", "azul", "amarelo"], "jr": ["PRES", "EST", "HO", null, "INT", "HO", "PRES", "PRES", "EST", "PRES", null, null, "HO", "PRES", "PRES", "EST", "PRES", null, null, null, "PRES", "PRES", "EST", "PRES", null, null, "HO", "PRES", "PRES", "EST"]}, {"id": "103064997", "name": "ELIAS MANOEL NASCIMENTO", "role": "GPON", "st": ["PL", "PL", "PL", "FOLGA", "PRESENTE", "PL", "PL", "PL", "PL", "PL", "PRESENTE", "FOLGA", "PL", "PL", "PL", "PL", "PL", "FOLGA", "FOLGA", "PRESENTE", "PL", "PL", "PL", "PL", "PRESENTE", "FOLGA", "PL", "PL", "PL", "PL"], "cor": ["azul", "azul", "amarelo", "laranja", "laranja", "azul", "verde", "azul", "azul", "amarelo", "amarelo", "laranja", "azul", "verde", "azul", "azul", "amarelo", "laranja", "laranja", "laranja", "verde", "azul", "azul", "amarelo", "laranja", "laranja", "azul", "verde", "azul", "azul"], "jr": ["PRES", "PRES", "EST", null, null, "PRES", "HO", "PRES", "PRES", "EST", "INT", null, "PRES", "HO", "PRES", "PRES", "EST", null, null, null, "HO", "PRES", "PRES", "EST", null, null, "PRES", "HO", "PRES", "PRES"]}, {"id": "103065178", "name": "FERNANDO SOARES MESQUITA", "role": "GPON", "st": ["PL", "PL", "PL", "PRESENTE", "FOLGA", "FOLGA", "PL", "PL", "PL", "PL", "PRESENTE", "PRESENTE", "PL", "PL", "PL", "PL", "PL", "PRESENTE", "PRESENTE", "FOLGA", "PL", "PL", "PL", "PL", "FOLGA", "PRESENTE", "PL", "PL", "PL", "PL"], "cor": ["amarelo", "verde", "azul", "laranja", "laranja", "laranja", "azul", "amarelo", "azul", "azul", "laranja", "verde", "azul", "azul", "amarelo", "verde", "azul", "amarelo", "laranja", "laranja", "azul", "amarelo", "azul", "azul", "laranja", "laranja", "azul", "azul", "amarelo", "azul"], "jr": ["EST", "HO", "PRES", null, null, null, "PRES", "EST", "PRES", "PRES", null, "RED", "PRES", "PRES", "EST", "HO", "PRES", "INT", null, null, "PRES", "EST", "PRES", "PRES", null, null, "PRES", "PRES", "EST", "PRES"]}, {"id": "103066030", "name": "LEANDRO HONORIO DE FIGUEIREDO", "role": "GPON", "st": ["PL", "PL", "PL", "PRESENTE", "FOLGA", "PL", "PL", "PL", "PL", "PL", "PRESENTE", "FOLGA", "PL", "PL", "PL", "PL", "PL", "FOLGA", "PRESENTE", "FOLGA", "PL", "PL", "PL", "PL", "FOLGA", "FOLGA", "PL", "PL", "PL", "PL"], "cor": ["azul", "azul", "verde", "amarelo", "laranja", "azul", "amarelo", "azul", "azul", "verde", "laranja", "laranja", "azul", "amarelo", "azul", "azul", "verde", "laranja", "laranja", "laranja", "amarelo", "azul", "azul", "verde", "laranja", "laranja", "azul", "amarelo", "azul", "azul"], "jr": ["PRES", "PRES", "HO", "INT", null, "PRES", "EST", "PRES", "PRES", "HO", null, null, "PRES", "EST", "PRES", "PRES", "HO", null, null, null, "EST", "PRES", "PRES", "HO", null, null, "PRES", "EST", "PRES", "PRES"]}, {"id": "103043815", "name": "PAULO ENOQUE CASADO LIMA FERREIRA", "role": "GPON", "st": ["PL", "PL", "PL", "PRESENTE", "PRESENTE", "PL", "PL", "PL", "PL", "PL", "FOLGA", "FOLGA", "PL", "PL", "PL", "PL", "PL", "PRESENTE", "FOLGA", "PRESENTE", "PL", "PL", "PL", "PL", "PRESENTE", "FOLGA", "PL", "PL", "PL", "PL"], "cor": ["azul", "azul", "amarelo", "laranja", "laranja", "verde", "azul", "azul", "azul", "amarelo", "laranja", "laranja", "verde", "azul", "azul", "azul", "amarelo", "laranja", "laranja", "laranja", "azul", "azul", "azul", "amarelo", "laranja", "laranja", "verde", "azul", "azul", "azul"], "jr": ["PRES", "PRES", "EST", null, null, "HO", "PRES", "PRES", "PRES", "EST", null, null, "HO", "PRES", "PRES", "PRES", "EST", null, null, null, "PRES", "PRES", "PRES", "EST", null, null, "HO", "PRES", "PRES", "PRES"]}, {"id": "103066142", "name": "RHONIS DOS SANTOS BARBOSA DE AMORIM", "role": "GPON", "st": ["PL", "PL", "PL", "PRESENTE", "FOLGA", "PL", "PL", "PL", "PL", "PL", "PRESENTE", "FOLGA", "FOLGA", "PL", "PL", "PL", "PL", "PRESENTE", "FOLGA", "PRESENTE", "PL", "PL", "PL", "PL", "PRESENTE", "FOLGA", "PL", "PL", "PL", "PL"], "cor": ["azul", "azul", "azul", "laranja", "laranja", "verde", "azul", "azul", "azul", "azul", "laranja", "laranja", "laranja", "azul", "azul", "azul", "azul", "laranja", "laranja", "laranja", "azul", "azul", "azul", "azul", "amarelo", "laranja", "verde", "azul", "azul", "azul"], "jr": ["PRES", "PRES", "PRES", null, null, "HO", "PRES", "PRES", "PRES", "PRES", null, null, null, "PRES", "PRES", "PRES", "PRES", null, null, null, "PRES", "PRES", "PRES", "PRES", "INT", null, "HO", "PRES", "PRES", "PRES"]}, {"id": "103065107", "name": "Sup Gabriel de Souza Paschoa", "role": "Supervisor", "st": ["PL", "PL", "PL", "FOLGA", "FOLGA", "PL", "PL", "PL", "PL", "PL", "PRESENTE", "PRESENTE", "PL", "PL", "PL", "PL", "PL", "PRESENTE", "FOLGA", "PRESENTE", "PL", "PL", "PL", "PL", "PRESENTE", "FOLGA", "PL", "PL", "PL", "PL"], "cor": ["cinza", "cinza", "cinza", "cinza", "cinza", "cinza", "cinza", "cinza", "cinza", "cinza", "cinza", "cinza", "cinza", "cinza", "cinza", "cinza", "cinza", "cinza", "cinza", "cinza", "cinza", "cinza", "cinza", "cinza", "cinza", "cinza", "cinza", "cinza", "cinza", "cinza"], "jr": [null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null]}]}, {"title": "ESCALA GPON - NOVEMBRO/DEZEMBRO", "days": [{"date": "2026-11-13", "hol": false}, {"date": "2026-11-14", "hol": false}, {"date": "2026-11-15", "hol": false}, {"date": "2026-11-16", "hol": false}, {"date": "2026-11-17", "hol": false}, {"date": "2026-11-18", "hol": false}, {"date": "2026-11-19", "hol": false}, {"date": "2026-11-20", "hol": true}, {"date": "2026-11-21", "hol": false}, {"date": "2026-11-22", "hol": false}, {"date": "2026-11-23", "hol": false}, {"date": "2026-11-24", "hol": false}, {"date": "2026-11-25", "hol": false}, {"date": "2026-11-26", "hol": false}, {"date": "2026-11-27", "hol": false}, {"date": "2026-11-28", "hol": false}, {"date": "2026-11-29", "hol": false}, {"date": "2026-11-30", "hol": false}, {"date": "2026-12-01", "hol": false}, {"date": "2026-12-02", "hol": false}, {"date": "2026-12-03", "hol": false}, {"date": "2026-12-04", "hol": false}, {"date": "2026-12-05", "hol": false}, {"date": "2026-12-06", "hol": false}, {"date": "2026-12-07", "hol": false}, {"date": "2026-12-08", "hol": false}, {"date": "2026-12-09", "hol": false}, {"date": "2026-12-10", "hol": false}, {"date": "2026-12-11", "hol": false}, {"date": "2026-12-12", "hol": false}, {"date": "2026-12-13", "hol": false}], "people": [{"id": "103064551", "name": "GLAUCO OLIVEIRA DOS SANTOS", "role": "GPON", "st": ["PL", "PRESENTE", "FOLGA", "PL", "PL", "PL", "PL", "FOLGA", "PRESENTE", "PRESENTE", "PL", "PL", "PL", "PL", "PL", "PRESENTE", "FOLGA", "PL", "PL", "PL", "PL", "PL", "FOLGA", "PRESENTE", "PL", "PL", "PL", "PL", "PL", "PRESENTE", "PRESENTE"], "cor": ["amarelo", "laranja", "laranja", "azul", "azul", "amarelo", "azul", "laranja", "laranja", "laranja", "azul", "azul", "amarelo", "azul", "azul", "amarelo", "laranja", "azul", "azul", "amarelo", "azul", "azul", "laranja", "laranja", "azul", "azul", "amarelo", "azul", "azul", "laranja", "laranja"], "jr": ["EST", null, null, "PRES", "PRES", "EST", "PRES", null, null, null, "PRES", "PRES", "EST", "PRES", "PRES", "INT", null, "PRES", "PRES", "EST", "PRES", "PRES", null, null, "PRES", "PRES", "EST", "PRES", "PRES", null, null]}, {"id": "103064023", "name": "AURELIANO CAMARGO", "role": "GPON", "st": ["PL", "PRESENTE", "FOLGA", "PL", "PL", "PL", "PL", "PRESENTE", "PRESENTE", "FOLGA", "PL", "PL", "PL", "PL", "PL", "PRESENTE", "PRESENTE", "PL", "PL", "PL", "PL", "PL", "PRESENTE", "FOLGA", "PL", "PL", "PL", "PL", "PL", "FOLGA", "FOLGA"], "cor": ["verde", "laranja", "laranja", "azul", "amarelo", "azul", "verde", "amarelo", "laranja", "laranja", "azul", "amarelo", "azul", "verde", "azul", "laranja", "laranja", "azul", "amarelo", "azul", "verde", "azul", "laranja", "laranja", "azul", "amarelo", "azul", "verde", "azul", "laranja", "laranja"], "jr": ["HO", null, null, "PRES", "EST", "PRES", "HO", "INT", null, null, "PRES", "EST", "PRES", "HO", "PRES", null, null, "PRES", "EST", "PRES", "HO", "PRES", null, null, "PRES", "EST", "PRES", "HO", "PRES", null, null]}, {"id": "103064521", "name": "LENILTON ALVES DUARTE", "role": "GPON", "st": ["PL", "PRESENTE", "FOLGA", "PL", "PL", "PL", "PL", "PRESENTE", "FOLGA", "FOLGA", "PL", "PL", "PL", "PL", "PL", "PRESENTE", "FOLGA", "PL", "PL", "PL", "PL", "PL", "PRESENTE", "PRESENTE", "PL", "PL", "PL", "PL", "PL", "FOLGA", "PRESENTE"], "cor": ["azul", "laranja", "laranja", "azul", "azul", "verde", "azul", "laranja", "laranja", "laranja", "azul", "azul", "verde", "azul", "amarelo", "laranja", "laranja", "azul", "azul", "verde", "azul", "amarelo", "laranja", "laranja", "azul", "azul", "verde", "azul", "amarelo", "laranja", "amarelo"], "jr": ["PRES", null, null, "PRES", "PRES", "HO", "PRES", null, null, null, "PRES", "PRES", "HO", "PRES", "EST", null, null, "PRES", "PRES", "HO", "PRES", "EST", null, null, "PRES", "PRES", "HO", "PRES", "EST", null, "INT"]}, {"id": "103060883", "name": "TAYNA LIMA PEÇANHA", "role": "GPON", "st": ["PL", "PRESENTE", "FOLGA", "FOLGA", "PL", "PL", "PL", "FOLGA", "PRESENTE", "PRESENTE", "PL", "PL", "PL", "PL", "PL", "PRESENTE", "FOLGA", "PL", "PL", "PL", "PL", "PL", "PRESENTE", "FOLGA", "PL", "PL", "PL", "PL", "PL", "FOLGA", "FOLGA"], "cor": ["verde", "laranja", "laranja", "laranja", "verde", "azul", "amarelo", "laranja", "laranja", "amarelo", "azul", "verde", "azul", "amarelo", "azul", "laranja", "laranja", "azul", "verde", "azul", "amarelo", "azul", "amarelo", "laranja", "azul", "verde", "azul", "amarelo", "azul", "laranja", "laranja"], "jr": ["HO", null, null, null, "HO", "PRES", "EST", null, null, "INT", "PRES", "HO", "PRES", "EST", "PRES", null, null, "PRES", "HO", "PRES", "EST", "PRES", "INT", null, "PRES", "HO", "PRES", "EST", "PRES", null, null]}, {"id": "103053992", "name": "JORGE PIRES DA CONCEIÇÃO", "role": "GPON", "st": ["PL", "PRESENTE", "FOLGA", "PL", "PL", "PL", "PL", "PRESENTE", "FOLGA", "FOLGA", "PL", "PL", "PL", "PL", "PL", "FOLGA", "PRESENTE", "PL", "PL", "PL", "PL", "PL", "PRESENTE", "PRESENTE", "PL", "PL", "PL", "PL", "PL", "PRESENTE", "FOLGA"], "cor": ["azul", "laranja", "laranja", "azul", "azul", "azul", "amarelo", "laranja", "laranja", "laranja", "azul", "azul", "azul", "amarelo", "azul", "laranja", "amarelo", "azul", "azul", "azul", "amarelo", "azul", "laranja", "laranja", "azul", "azul", "azul", "amarelo", "azul", "laranja", "laranja"], "jr": ["PRES", null, null, "PRES", "PRES", "PRES", "EST", null, null, null, "PRES", "PRES", "PRES", "EST", "PRES", null, "INT", "PRES", "PRES", "PRES", "EST", "PRES", null, null, "PRES", "PRES", "PRES", "EST", "PRES", null, null]}, {"id": "103064540", "name": "WELLINGTON MACEDO LOURENCO", "role": "GPON", "st": ["PL", "FOLGA", "PRESENTE", "PL", "PL", "PL", "PL", "PRESENTE", "FOLGA", "PRESENTE", "PL", "PL", "PL", "PL", "PL", "PRESENTE", "PRESENTE", "PL", "PL", "PL", "PL", "PL", "FOLGA", "FOLGA", "PL", "PL", "PL", "PL", "PL", "PRESENTE", "FOLGA"], "cor": ["azul", "laranja", "amarelo", "amarelo", "azul", "azul", "verde", "laranja", "laranja", "laranja", "amarelo", "azul", "azul", "verde", "azul", "laranja", "laranja", "amarelo", "azul", "azul", "verde", "azul", "laranja", "laranja", "amarelo", "azul", "azul", "verde", "azul", "laranja", "laranja"], "jr": ["PRES", null, "INT", "EST", "PRES", "PRES", "HO", null, null, null, "EST", "PRES", "PRES", "HO", "PRES", null, null, "EST", "PRES", "PRES", "HO", "PRES", null, null, "EST", "PRES", "PRES", "HO", "PRES", null, null]}, {"id": "103064997", "name": "ELIAS MANOEL NASCIMENTO", "role": "GPON", "st": ["PL", "PRESENTE", "PRESENTE", "PL", "PL", "PL", "PL", "FOLGA", "PRESENTE", "FOLGA", "PL", "PL", "PL", "PL", "PL", "FOLGA", "FOLGA", "PL", "PL", "PL", "PL", "PL", "PRESENTE", "FOLGA", "PL", "PL", "PL", "PL", "PL", "PRESENTE", "PRESENTE"], "cor": ["azul", "amarelo", "laranja", "azul", "amarelo", "azul", "azul", "laranja", "laranja", "laranja", "azul", "amarelo", "azul", "azul", "verde", "laranja", "laranja", "azul", "amarelo", "azul", "azul", "verde", "laranja", "laranja", "azul", "amarelo", "azul", "azul", "verde", "amarelo", "laranja"], "jr": ["PRES", "INT", null, "PRES", "EST", "PRES", "PRES", null, null, null, "PRES", "EST", "PRES", "PRES", "HO", null, null, "PRES", "EST", "PRES", "PRES", "HO", null, null, "PRES", "EST", "PRES", "PRES", "HO", "INT", null]}, {"id": "103065178", "name": "FERNANDO SOARES MESQUITA", "role": "GPON", "st": ["PL", "FOLGA", "PRESENTE", "PL", "PL", "PL", "PL", "PRESENTE", "PRESENTE", "FOLGA", "PL", "PL", "PL", "PL", "PL", "PRESENTE", "FOLGA", "FOLGA", "PL", "PL", "PL", "PL", "PRESENTE", "FOLGA", "PL", "PL", "PL", "PL", "PL", "PRESENTE", "FOLGA"], "cor": ["amarelo", "laranja", "laranja", "azul", "azul", "amarelo", "azul", "laranja", "amarelo", "laranja", "azul", "azul", "amarelo", "verde", "azul", "laranja", "laranja", "laranja", "azul", "amarelo", "verde", "azul", "laranja", "laranja", "azul", "azul", "amarelo", "verde", "azul", "laranja", "laranja"], "jr": ["EST", null, null, "PRES", "PRES", "EST", "PRES", null, "INT", null, "PRES", "PRES", "EST", "HO", "PRES", null, null, null, "PRES", "EST", "HO", "PRES", null, null, "PRES", "PRES", "EST", "HO", "PRES", null, null]}, {"id": "103066030", "name": "LEANDRO HONORIO DE FIGUEIREDO", "role": "GPON", "st": ["PL", "PRESENTE", "FOLGA", "PL", "PL", "PL", "PL", "PRESENTE", "PRESENTE", "FOLGA", "FOLGA", "PL", "PL", "PL", "PL", "PRESENTE", "FOLGA", "PL", "PL", "PL", "PL", "PL", "PRESENTE", "FOLGA", "PL", "PL", "PL", "PL", "PL", "PRESENTE", "FOLGA"], "cor": ["azul", "laranja", "laranja", "amarelo", "verde", "azul", "azul", "laranja", "laranja", "laranja", "laranja", "verde", "azul", "azul", "azul", "laranja", "laranja", "amarelo", "verde", "azul", "azul", "azul", "amarelo", "laranja", "amarelo", "verde", "azul", "azul", "azul", "laranja", "laranja"], "jr": ["PRES", null, null, "EST", "HO", "PRES", "PRES", null, null, null, null, "HO", "PRES", "PRES", "PRES", null, null, "EST", "HO", "PRES", "PRES", "PRES", "INT", null, "EST", "HO", "PRES", "PRES", "PRES", null, null]}, {"id": "103043815", "name": "PAULO ENOQUE CASADO LIMA FERREIRA", "role": "GPON", "st": ["PL", "PRESENTE", "FOLGA", "PL", "PL", "PL", "PL", "FOLGA", "PRESENTE", "PRESENTE", "PL", "PL", "PL", "PL", "PL", "PRESENTE", "FOLGA", "PL", "PL", "PL", "PL", "PL", "PRESENTE", "FOLGA", "FOLGA", "PL", "PL", "PL", "PL", "PRESENTE", "FOLGA"], "cor": ["azul", "laranja", "laranja", "verde", "azul", "azul", "verde", "laranja", "laranja", "laranja", "verde", "azul", "azul", "azul", "amarelo", "laranja", "laranja", "verde", "azul", "azul", "azul", "amarelo", "laranja", "laranja", "laranja", "azul", "azul", "azul", "amarelo", "amarelo", "laranja"], "jr": ["PRES", null, null, "HO", "PRES", "PRES", "HO", null, null, null, "HO", "PRES", "PRES", "PRES", "EST", null, null, "HO", "PRES", "PRES", "PRES", "EST", null, null, null, "PRES", "PRES", "PRES", "EST", "INT", null]}, {"id": "103066142", "name": "RHONIS DOS SANTOS BARBOSA DE AMORIM", "role": "GPON", "st": ["PL", "PRESENTE", "FOLGA", "PL", "PL", "PL", "PL", "PRESENTE", "PRESENTE", "FOLGA", "PL", "PL", "PL", "PL", "PL", "FOLGA", "FOLGA", "PL", "PL", "PL", "PL", "PL", "PRESENTE", "FOLGA", "PL", "PL", "PL", "PL", "PL", "PRESENTE", "FOLGA"], "cor": ["azul", "laranja", "laranja", "verde", "azul", "azul", "azul", "laranja", "laranja", "laranja", "verde", "azul", "azul", "azul", "azul", "laranja", "laranja", "verde", "azul", "azul", "azul", "azul", "laranja", "laranja", "verde", "azul", "azul", "azul", "azul", "laranja", "laranja"], "jr": ["PRES", null, null, "HO", "PRES", "PRES", "PRES", null, null, null, "HO", "PRES", "PRES", "PRES", "PRES", null, null, "HO", "PRES", "PRES", "PRES", "PRES", null, null, "HO", "PRES", "PRES", "PRES", "PRES", null, null]}, {"id": "103065107", "name": "Sup Gabriel de Souza Paschoa", "role": "Supervisor", "st": ["PL", "FOLGA", "FOLGA", "PL", "PL", "PL", "PL", "PRESENTE", "FOLGA", "PRESENTE", "PL", "PL", "PL", "PL", "PL", "FOLGA", "PRESENTE", "PL", "PL", "PL", "PL", "PL", "PRESENTE", "PRESENTE", "PL", "PL", "PL", "PL", "PL", "FOLGA", "PRESENTE"], "cor": ["cinza", "cinza", "cinza", "cinza", "cinza", "cinza", "cinza", "cinza", "cinza", "cinza", "cinza", "cinza", "cinza", "cinza", "cinza", "cinza", "cinza", "cinza", "cinza", "cinza", "cinza", "cinza", "cinza", "cinza", "cinza", "cinza", "cinza", "cinza", "cinza", "cinza", "cinza"], "jr": [null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null]}]}]};
 const E = window.Escala;
 const $ = s => document.querySelector(s);
 const store = { get(k, d) { try { const v = localStorage.getItem('escalaGpon.' + k); return v ? JSON.parse(v) : d; } catch (e) { return d; } },
                set(k, v) { try { localStorage.setItem('escalaGpon.' + k, JSON.stringify(v)); } catch (e) {} } };
-const RULE_NAMES = { consec: 'Dias seguidos', sab: 'Sábado', dom: 'Domingo', fer: 'Feriado', folgaSD: 'Folga Sáb/Dom', folgaDS: 'Folga Dom/Seg', casada: 'Folgas casadas', par: 'Duplas', sup: 'Cobertura Planilhas', pontual: 'Regra pontual', jornada: 'Jornadas', codigo: 'Códigos', equil: 'Equilíbrio' };
+const RULE_NAMES = { consec: 'Dias seguidos', sab: 'Sábado', dom: 'Domingo', fer: 'Feriado', folgaSD: 'Folga Sáb/Dom', folgaDS: 'Folga Dom/Seg', casada: 'Folgas casadas', par: 'Duplas', sup: 'Cobertura Planilhas', pontual: 'Regra pontual', folgas: 'Quantidade de folgas', jornada: 'Jornadas', codigo: 'Códigos', equil: 'Equilíbrio' };
 const GCOL = { atend: '#0b6e8e', monit: '#7b5ea7', plan: '#1f8a5b', novato: '#b7791f', sup: '#5d6b77' };
 const MES = ['janeiro','fevereiro','março','abril','maio','junho','julho','agosto','setembro','outubro','novembro','dezembro'];
 
@@ -666,11 +798,19 @@ let state = {
   base: JSON.parse(JSON.stringify(BASE.periods)),
   periods: null, p: BASE.periods.length - 1,
   rules: Object.assign(JSON.parse(JSON.stringify(E.DEFAULT_RULES)), store.get('rules2', {})),
-  edits: store.get('edits', {}), editing: false, view: 'all', ruleFilter: 'todas', focus: null, ai: store.get('ai', 'claude'), res: null, chat: [], proposal: null
+  edits: store.get('edits', {}), holOv: store.get('holov', {}), editing: false, view: 'all', ruleFilter: 'todas', focus: null, ai: store.get('ai', 'claude'), res: null, chat: [], proposal: null
 };
 
+(function restoreGen() {
+  const gen = store.get('gen', []), lastEnd = () => { const L = state.base[state.base.length - 1]; return L.days[L.days.length - 1].date; };
+  gen.sort((a, b) => a.days[0].date < b.days[0].date ? -1 : 1).forEach(g => { if (g.days[0].date > lastEnd()) state.base.push(g); });
+  state.p = state.base.findIndex(P => !P.generated) >= 0 ? state.base.map(P => !!P.generated).lastIndexOf(false) : state.base.length - 1;
+  const want = store.get('period', null); if (want) { const i = state.base.findIndex(P => P.days[0].date === want); if (i >= 0) state.p = i; }
+})();
+function saveGen() { store.set('gen', state.base.filter(P => P.generated)); }
 function applyEdits() {
   state.periods = JSON.parse(JSON.stringify(state.base));
+  state.periods.forEach(per => per.days.forEach(d => { if (d.date in state.holOv) d.hol = state.holOv[d.date]; }));
   state.periods.forEach((per, pi) => per.people.forEach((p, i) => per.days.forEach((d, di) => {
     const k = pi + '|' + (p.id || p.name) + '|' + d.date;
     if (state.edits[k]) { const [st, jr] = state.edits[k].split(':'); p.st[di] = st; p.jr = p.jr || p.st.map(() => null); p.jr[di] = jr || null; }
@@ -710,8 +850,11 @@ function renderHeader() {
   const P = per();
   $('#ttl').textContent = 'Escala GPON · ' + periodLabel(P);
   $('#sub').textContent = P.people.length + ' colaboradores · ' + P.days.length + ' dias · ' + (P.title || '');
+  $('#draftBar').style.display = P.generated ? 'flex' : 'none';
+  const nx = state.base.findIndex(Q => Q.days[0].date > P.days[P.days.length - 1].date);
+  $('#btnNext').textContent = nx >= 0 ? 'Ir para o próximo período' : 'Criar próximo período';
   const seg = $('#perSeg'); seg.innerHTML = '';
-  state.periods.forEach((Q, i) => { const b = document.createElement('button'); b.type = 'button'; b.textContent = periodLabel(Q); b.setAttribute('aria-pressed', i === state.p); b.onclick = () => { state.p = i; state.focus = null; render(); }; seg.appendChild(b); });
+  state.periods.forEach((Q, i) => { const b = document.createElement('button'); b.type = 'button'; b.textContent = periodLabel(Q) + (Q.generated ? ' · rascunho' : ''); b.setAttribute('aria-pressed', i === state.p); b.onclick = () => { state.p = i; state.focus = null; store.set('period', Q.days[0].date); state.proposal = null; render(); }; seg.appendChild(b); });
 }
 
 function renderKpis() {
@@ -871,6 +1014,7 @@ function renderRules() {
     <div class="rg"><b>Fadiga</b>${num('maxConsec', 'máximo de dias seguidos trabalhando (PL ou presente). Conta o fim do período anterior.')}</div>
     <div class="rg"><b>Sábados e domingos</b>${num('satQty', 'técnicos operando todo sábado')}${num('sunAtend', 'do Atendimento todo domingo')}${num('sunMonit', 'do Monitoramento todo domingo')}<span class="muted" style="font-size:12px">Planilhas e novato ficam fora do domingo; Gabriel cobre Planilhas.</span></div>
     <div class="rg"><b>Feriados</b>${num('holPct', '% da equipe técnica presente')}${num('holAtend', 'do Atendimento (usual)')}${num('holMonit', 'do Monitoramento (usual)')}${num('holPlan', 'de Planilhas, intercalando Leandro e Paulo')}</div>
+    <div class="rg"><b>Quantidade de folgas</b>${num('folgasMin', 'folgas no mínimo por pessoa (período de 31 dias)')}${num('folgasMax', 'folgas no máximo por pessoa')}${num('folgaUtilMax', 'técnicos de folga no máximo por dia útil')}</div>
     <div class="rg"><b>Folgas casadas</b>${num('folgaSabDom', 'Sáb+Dom (100%) por fim de semana')}${num('folgaDomSeg', 'Dom+Seg (estendida) por fim de semana')}${num('casadaMin', 'mínimo por colaborador no período')}${num('casada100Max', 'máximo de Sáb+Dom por colaborador')}</div>
     <div class="rg"><b>Duplas</b>${pairs}<span class="muted" style="font-size:12px">Glauco e Aureliano: liberados.</span></div>
     <div class="rg"><b>Espelhamento e regras pontuais</b><label><input type="checkbox" id="r_sup" ${R.supCover ? 'checked' : ''}> Gabriel entra quando Leandro e Paulo não estão atuando</label>${fixed}
@@ -907,7 +1051,8 @@ function dayModal(di) {
   const by = s => P.people.map((p, pi) => [p, pi]).filter(([p, pi]) => p.st[di] === s).map(([p]) => esc(E.short(p.name)) + (E.isTech(p) ? '' : ' <span class="muted">(sup.)</span>')).join(', ') || '<span class="muted">ninguém</span>';
   const iss = (r.colFlags[di] || []).map(n => r.issues[n]).concat(r.issues.filter(i => i.dates.includes(d.date) && !(r.colFlags[di] || []).some(n => r.issues[n] === i)));
   const uniq = [...new Set(iss)];
-  openModal(`<div><button class="btn x" type="button" data-close>Fechar</button><h2 id="mTitle" style="text-transform:none;font-size:18px">${E.fmtW(d.date)}${k === 'fer' ? ' · Feriado' : ''}</h2><span class="muted">${k === 'sab' ? 'Meta: ' + r.rules.satQty + ' técnicos presentes' : k === 'dom' ? 'Meta: ' + r.rules.sunQty + ' técnicos presentes' : k === 'fer' ? 'Feriado' : 'Dia útil'}</span></div>
+  openModal(`<div><button class="btn x" type="button" data-close>Fechar</button><h2 id="mTitle" style="text-transform:none;font-size:18px">${E.fmtW(d.date)}${k === 'fer' ? ' · Feriado' : ''}</h2><span class="muted">${k === 'sab' ? 'Meta: ' + r.rules.satQty + ' técnicos presentes' : k === 'dom' ? 'Meta: ' + (r.rules.sunAtend + r.rules.sunMonit) + ' técnicos presentes' : k === 'fer' ? 'Feriado' : 'Dia útil'}</span>
+    ${E.dow(d.date) % 6 !== 0 ? `<div style="margin-top:8px"><button class="btn" type="button" data-holtoggle="${di}">${d.hol ? 'Desmarcar feriado' : 'Marcar como feriado'}</button></div>` : ''}</div>
     <table class="t"><tr><th>Status</th><th>Quem</th></tr>
     ${k === 'util' ? `<tr><td><span class="sw" style="background:var(--pl)"></span>PL</td><td>${by('PL')}</td></tr>` : `<tr><td><span class="sw" style="background:var(--pre)"></span>Presente (${r.counts[di].PRESENTE} téc.)</td><td>${by('PRESENTE')}</td></tr>`}
     ${(() => { const c = r.jcount[di], nm = l => l.map(pi => esc(E.short(P.people[pi].name))).join(', ') || '<span class="muted">ninguém</span>';
@@ -934,6 +1079,11 @@ document.addEventListener('click', e => {
     if (next === orig) delete state.edits[key]; else state.edits[key] = next;
     store.set('edits', state.edits); state.focus = null; render(); return;
   }
+  const ht = t.closest('[data-holtoggle]');
+  if (ht) { const di = +ht.dataset.holtoggle, P = per(), d = P.days[di], v = !d.hol;
+    if (P.generated) { const B = state.base[state.p]; B.days[di].hol = v; B.people.forEach(p => { p.st[di] = v ? 'FOLGA' : 'PL'; p.jr[di] = v ? null : 'PRES'; }); saveGen(); }
+    else { state.holOv[d.date] = v; store.set('holov', state.holOv); }
+    closeModal(); render(); toast(E.fmtW(d.date) + (v ? ' marcado como feriado.' : ' voltou a ser dia útil.')); return; }
   const pb = t.closest('[data-person]'); if (pb) return personModal(+pb.dataset.person);
   const dh = t.closest('[data-day]'); if (dh) return dayModal(+dh.dataset.day);
   const ib = t.closest('[data-iss]');
@@ -942,7 +1092,9 @@ document.addEventListener('click', e => {
   const vw = t.closest('[data-view]'); if (vw) { state.view = vw.dataset.view; document.querySelectorAll('[data-view]').forEach(b => b.setAttribute('aria-pressed', b === vw)); renderGrid(); return; }
   const wk = t.closest('[data-wk]'); if (wk) { state.view = 'wk'; document.querySelectorAll('[data-view]').forEach(b => b.setAttribute('aria-pressed', b.dataset.view === 'wk')); state.focus = null; renderGrid(); const h = document.querySelector(`#grid [data-day="${wk.dataset.wk}"]`); if (h) { $('#gridCard').scrollIntoView({ behavior: 'smooth' }); h.scrollIntoView({ block: 'nearest', inline: 'center' }); h.style.outline = '2px solid var(--accent)'; } return; }
   const ai = t.closest('[data-ai]'); if (ai) { state.ai = ai.dataset.ai; store.set('ai', state.ai); syncAi(); return; }
-  const q = t.closest('[data-q]'); if (q) { $('#aiQ').value = QUICK[q.dataset.q]; return; }
+  const q = t.closest('[data-q]');
+  if (q) { if (q.dataset.q === 'proximo') { if (per().generated) { $('#aiQ').value = QUICK.preencher; } else { const P = per(), nx = state.base.findIndex(Q => Q.days[0].date > P.days[P.days.length - 1].date); if (nx >= 0) { state.p = nx; render(); $('#aiQ').value = QUICK.preencher; toast('Abri o rascunho do próximo período. Clique em Perguntar.'); } else { $('#btnNext').click(); $('#aiQ').value = QUICK.preencher; } } return; }
+    $('#aiQ').value = QUICK[q.dataset.q]; return; }
 });
 document.addEventListener('keydown', e => { if (e.key === 'Escape') closeModal(); if ((e.key === 'Enter' || e.key === ' ') && e.target.matches('[data-day],.kpi.click')) { e.preventDefault(); e.target.click(); } });
 const tip = $('#tip');
@@ -954,6 +1106,42 @@ document.addEventListener('mouseover', e => {
 });
 document.addEventListener('mousemove', e => { if (tip.style.display === 'block') { const x = Math.min(e.clientX + 14, window.innerWidth - 290); tip.style.left = x + 'px'; tip.style.top = (e.clientY + 16) + 'px'; } });
 
+// ---------- próximo período ----------
+$('#btnNext').onclick = () => {
+  const P = per(), nx = state.base.findIndex(Q => Q.days[0].date > P.days[P.days.length - 1].date);
+  if (nx >= 0) { state.p = nx; store.set('period', state.base[nx].days[0].date); state.focus = null; state.proposal = null; render(); return; }
+  const last = state.periods[state.base.length - 1];
+  const np = EscalaGen.nextPeriod(last);
+  state.base.push(np); saveGen(); state.p = state.base.length - 1; store.set('period', np.days[0].date); state.focus = null; state.proposal = null; render();
+  openModal(`<div><button class="btn x" type="button" data-close>Fechar</button><h2 id="mTitle" style="text-transform:none;font-size:18px">Período ${periodLabel(np)} criado</h2></div>
+    <p>Feriados marcados: ${np.days.filter(d => d.hol).map(d => E.fmtW(d.date)).join(', ') || 'nenhum em dia útil'}. Se a empresa folga em outro dia (ponto facultativo, feriado municipal), clique no dia na grade para marcar.</p>
+    <p>A grade começa com todos em PL nos dias úteis e de folga nos fins de semana. O rascunho automático testa milhares de combinações nas suas regras, levando em conta os dias seguidos que cada um traz deste período, e leva uns 15 segundos.</p>
+    <div class="row"><button class="btn primary" type="button" id="mSolve">Gerar rascunho automático</button><button class="btn" type="button" data-close>Prefiro montar com a IA ou à mão</button></div>`);
+  $('#mSolve').onclick = () => { closeModal(); runSolve(); };
+};
+async function runSolve() {
+  const P = per(); if (!P.generated) return;
+  if (nEdits() && !window._solveOk) { window._solveOk = true; }
+  const btn = $('#btnSolve'); btn.disabled = true;
+  openModal(`<div><h2 id="mTitle" style="text-transform:none;font-size:18px">Montando o rascunho…</h2></div><div style="height:10px;background:var(--surface-2);border-radius:6px;overflow:hidden"><div id="solveBar" style="height:100%;width:0;background:var(--accent);transition:width .2s"></div></div><p class="muted" id="solveTxt">Testando combinações nas regras da escala.</p>`);
+  try {
+    const periods = JSON.parse(JSON.stringify(state.periods)), pIdx = state.p;
+    const t = await EscalaGen.solve(periods, pIdx, state.rules, { ms: 15000, onStep: (f, best) => { const b = $('#solveBar'); if (b) b.style.width = Math.round(f * 100) + '%'; const tx = $('#solveTxt'); if (tx) tx.textContent = 'Testando combinações… pontuação de problemas: ' + best; } });
+    const B = state.base[pIdx];
+    B.people.forEach((p, i) => { p.st = periods[pIdx].people[i].st.slice(); p.jr = periods[pIdx].people[i].jr.slice(); });
+    Object.keys(state.edits).filter(k => k.startsWith(pIdx + '|')).forEach(k => delete state.edits[k]); store.set('edits', state.edits);
+    saveGen(); closeModal(); render();
+    const ne = t.res.issues.filter(i => i.sev === 'erro').length;
+    toast(ne ? 'Rascunho pronto com ' + ne + ' erro(s). Peça à IA "Montar a melhor escala" para terminar.' : 'Rascunho pronto sem erros. Confira e ajuste o que quiser.');
+  } catch (e) { closeModal(); toast('Não consegui montar o rascunho: ' + (e.message || e)); }
+  btn.disabled = false;
+}
+$('#btnSolve').onclick = () => runSolve();
+$('#btnDelDraft').onclick = () => {
+  const P = per(); if (!P.generated) return;
+  openModal(`<div><h2 id="mTitle" style="text-transform:none;font-size:18px">Apagar o rascunho ${periodLabel(P)}?</h2></div><p>As alterações deste período somem. Os períodos da planilha não são afetados.</p><div class="row"><button class="btn primary" type="button" id="mDel">Apagar</button><button class="btn" type="button" data-close>Cancelar</button></div>`);
+  $('#mDel').onclick = () => { const i = state.p; Object.keys(state.edits).filter(k => k.startsWith(i + '|')).forEach(k => delete state.edits[k]); store.set('edits', state.edits); state.base.splice(i, 1); saveGen(); state.p = state.base.length - 1; store.set('period', null); closeModal(); render(); };
+};
 $('#btnEdit').onclick = () => { state.editing = !state.editing; $('#btnEdit').classList.toggle('on', state.editing); $('#btnEdit').setAttribute('aria-pressed', state.editing); $('#btnEdit').textContent = state.editing ? 'Simulação ligada' : 'Simular trocas'; $('#editHint').style.display = state.editing ? 'inline' : 'none'; renderGrid(); };
 $('#btnUndo').onclick = () => { state.edits = {}; store.set('edits', {}); render(); toast('Trocas desfeitas. Escala igual à planilha.'); };
 $('#btnCopy').onclick = async () => {
@@ -1150,7 +1338,8 @@ $('#fileIn').onchange = async e => {
     }
     if (!periods.length) { toast('Não achei a linha "COLABORADORES" em nenhuma aba.'); return; }
     periods.sort((a, b) => a.days[0].date < b.days[0].date ? -1 : 1);
-    state.base = periods; state.p = periods.length - 1; state.edits = {}; store.set('edits', {}); state.focus = null; render();
+    const keep = state.base.filter(Q => Q.generated && Q.days[0].date > periods[periods.length - 1].days[periods[periods.length - 1].days.length - 1].date);
+    state.base = periods.concat(keep); saveGen(); state.p = periods.length - 1; state.edits = {}; store.set('edits', {}); state.focus = null; render();
     toast('Planilha carregada: ' + periods.length + ' período(s)' + (colors ? ', com as cores de jornada.' : '. Não consegui ler as cores; as jornadas ficam como presencial.'));
   } catch (err) { toast('Não consegui ler o arquivo: ' + (err.message || err)); }
   e.target.value = '';
@@ -1161,6 +1350,7 @@ const QUICK = {
   melhor: 'Encontre o conjunto de trocas que zera (ou mais reduz) os erros da auditoria, testando cada combinação antes de sugerir.',
   erros: 'Explique cada erro da auditoria em linguagem simples, do mais grave para o menos grave, dizendo quem, qual dia e por que é problema para a sala.',
   equilibrio: 'Analise o equilíbrio: sábados, domingos, feriados e folgas casadas por pessoa. Proponha trocas que deixem a escala mais justa sem criar erros, testando antes.',
+  preencher: 'Esta é a escala do próximo período (rascunho). Monte a melhor escala completa para ele: corrija todos os erros e alertas testando com testar_trocas, respeite os dias seguidos que cada um traz do período anterior, distribua de forma justa plantões estendidos, integrais, home office e folgas casadas, e no fim chame propor_trocas com todas as mudanças para eu aplicar.',
   proximo: 'Sugira os sábados, domingos e feriados do próximo período (4 a 5 fins de semana) respeitando todas as regras, o revezamento de folgas casadas e a sequência de dias que cada um traz deste período. Entregue em tabela.'
 };
 function rulesText(R) {
@@ -1187,6 +1377,7 @@ REGRAS:
 5. Espelhamento: ${R.supCover ? 'sempre que Leandro e Paulo Enoque não estiverem atuando, Gabriel (supervisor) precisa estar trabalhando no lugar deles.' : 'desligado.'}
 6. Fadiga: máximo absoluto de ${R.maxConsec} dias seguidos trabalhando (conta a sequência que vem do período anterior). Ao bater o limite, folga simples ou casada.
 7. Por fim de semana: exatamente ${R.folgaSabDom} folgas casadas 100% (técnico de FOLGA sábado e domingo) e exatamente ${R.folgaDomSeg} folga casada estendida (FOLGA domingo e segunda) — não mais, para não esvaziar a segunda.
+8b. Cada pessoa tem de ${R.folgasMin} a ${R.folgasMax} folgas no período (31 dias), e no máximo ${R.folgaUtilMax} técnicos de folga no mesmo dia útil.
 8. Cada colaborador precisa de pelo menos ${R.casadaMin} folga casada no período; ninguém passa de ${R.casada100Max} folgas Sáb+Dom enquanto outro tem zero.
 9. Regras pontuais: ${R.fixed.map(f => f.name + ' ' + f.status + ' em ' + E.fmt(f.date)).join('; ') || 'nenhuma'}.
 10. Jornadas: ${R.jornadaOn ? 'em todo dia útil exatamente ' + R.estPorDia + ' técnicos em plantão estendido (PE, 08–20h); em todo sábado, domingo e feriado pelo menos ' + R.intMin + ' em plantão integral (PI, 08–20h), para a sala ficar coberta até 20h. Distribua PE, PI e home office de forma justa entre os técnicos, e evite PE logo antes de um fim de semana trabalhado.' : 'cobertura até 20h não está sendo conferida.'} Ao sugerir trocas, diga sempre o código da jornada (PL, HO, PE, PI, PR ou FOLGA).`;
@@ -1200,7 +1391,7 @@ function buildPrompt(q, withTools) {
 
 ${rulesText(R)}
 
-PERÍODO: ${periodLabel(P)}${nEdits() ? ' (já com ' + nEdits() + ' troca(s) simuladas pelo Gabriel)' : ''}
+PERÍODO: ${periodLabel(P)}${P.generated ? ' (RASCUNHO do próximo período: ainda não está na planilha, pode mudar tudo)' : ''}${nEdits() ? ' (já com ' + nEdits() + ' troca(s) simuladas pelo Gabriel)' : ''}
 CONTINUIDADE: ${carry || 'ninguém chega com sequência do período anterior'}
 
 ESCALA (separada por ;):
