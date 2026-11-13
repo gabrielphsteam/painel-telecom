@@ -260,7 +260,7 @@ footer{color:var(--muted);font-size:12px;text-align:center}
               <option value="gemini-2.5-pro">gemini-2.5-pro</option>
             </select>
           </div>
-          <div class="note" id="gNote">A chave fica só neste navegador. Gere a sua em <a href="https://aistudio.google.com/app/apikey" target="_blank" rel="noopener">aistudio.google.com</a>. Se aparecer erro de conexão, use <b>Copiar para o Gemini</b> e cole em <a href="https://gemini.google.com/app" target="_blank" rel="noopener">gemini.google.com</a>.</div>
+          <div class="note" id="gNote">O Gemini testa as trocas nas regras do painel antes de sugerir. A chave fica só neste navegador. Gere a sua em <a href="https://aistudio.google.com/app/apikey" target="_blank" rel="noopener">aistudio.google.com</a>. Se aparecer erro de conexão, use <b>Copiar para o Gemini</b> e cole em <a href="https://gemini.google.com/app" target="_blank" rel="noopener">gemini.google.com</a>.</div>
         </div>
         <div id="claudeWrap" style="display:none;gap:8px"><div id="claudeCfg" class="note"></div>
           <div class="row" id="cKeyRow" style="display:none">
@@ -288,7 +288,7 @@ footer{color:var(--muted);font-size:12px;text-align:center}
         </div>
         <div id="proposal" style="margin-top:10px"></div>
       </div>
-      <div><div class="out" id="aiOut"><p class="muted">O Claude conhece as funções da sala, as regras e a escala atual. Ele testa as trocas no mesmo verificador deste painel antes de sugerir, e a proposta final aparece com um botão para aplicar na grade como simulação.</p></div></div>
+      <div><div class="out" id="aiOut"><p class="muted">A IA conhece as funções da sala, as regras e a escala atual. Ela testa as trocas no mesmo verificador deste painel antes de sugerir, e a proposta final aparece com um botão para aplicar na grade como simulação.</p></div></div>
     </div>
   </section>
 
@@ -1028,6 +1028,49 @@ async function claudeApi(msgs, signal, onProgress) {
   }
   return { text, truncated: false };
 }
+function gSchema(x) {
+  if (Array.isArray(x)) return x.map(gSchema);
+  if (x && typeof x === 'object') { const o = {}; for (const k in x) o[k] = k === 'type' ? String(x[k]).toUpperCase() : gSchema(x[k]); return o; }
+  return x;
+}
+async function geminiApi(contents, signal, onProgress) {
+  const key = $('#gKey').value.trim(); store.set('gkey', key);
+  if (!key) throw { message: 'Cole sua chave da API do Gemini (começa com AIza) no campo acima, ou use "Copiar para o Gemini".' };
+  const tools = [{ functionDeclarations: TOOLS.map(t => ({ name: t.name, description: t.description, parameters: gSchema(t.inputSchema) })) }];
+  let text = '', tests = 0;
+  for (let step = 0; step < 14; step++) {
+    let r;
+    try {
+      r = await fetch('https://generativelanguage.googleapis.com/v1beta/models/' + $('#gModel').value + ':generateContent', {
+        method: 'POST', signal, headers: { 'Content-Type': 'application/json', 'x-goog-api-key': key },
+        body: JSON.stringify({ contents, tools, generationConfig: { temperature: 0.3 } })
+      });
+    } catch (netErr) {
+      if (netErr.name === 'AbortError') throw netErr;
+      throw { blocked: true, message: 'O navegador bloqueou a conexão direta com o Gemini. Dentro do claude.ai a página não pode falar com outros sites; abra pelo site do GitHub.' };
+    }
+    const j = await r.json().catch(() => ({}));
+    if (!r.ok) throw { message: 'O Gemini recusou: ' + ((j.error && j.error.message) || r.status) + (r.status === 400 && /API key/i.test(JSON.stringify(j)) ? ' A chave parece inválida.' : r.status === 429 ? ' Limite de uso atingido; espere um minuto.' : '') };
+    const cand = (j.candidates || [])[0];
+    if (!cand || !cand.content) { if (!text) text = 'O Gemini não devolveu resposta' + (cand && cand.finishReason ? ' (' + cand.finishReason + ')' : '') + '. Tente de novo.'; break; }
+    contents.push(cand.content);
+    const parts = cand.content.parts || [];
+    const txt = parts.filter(p => p.text && !p.thought).map(p => p.text).join('');
+    if (txt) text = (text ? text + '\n\n' : '') + txt;
+    const calls = parts.filter(p => p.functionCall);
+    if (!calls.length) break;
+    contents.push({ role: 'user', parts: calls.map(c => {
+      const tool = TOOLS.find(t => t.name === c.functionCall.name);
+      if (c.functionCall.name === 'testar_trocas') tests++;
+      let response;
+      try { response = tool ? tool.execute(c.functionCall.args || {}) : { erro: 'ferramenta desconhecida' }; }
+      catch (e) { response = { erro: String(e.message || e) }; }
+      return { functionResponse: { name: c.functionCall.name, response } };
+    }) });
+    onProgress((text ? text + '\n\n' : '') + '*Testando trocas no verificador (' + tests + ' teste(s))…*');
+  }
+  return { text };
+}
 // ----- ferramentas que o Claude usa -----
 function resolveSwaps(trocas) {
   const P = per(), out = [], erros = [];
@@ -1084,7 +1127,7 @@ function renderProposal() {
   const box = $('#proposal'), pr = state.proposal;
   if (!pr || pr.p !== state.p) { box.innerHTML = ''; return; }
   const P = per();
-  box.innerHTML = `<div class="note" style="display:grid;gap:8px"><b>Proposta do Claude: ${pr.swaps.length} troca(s) · ${pr.erros} erro(s) depois${pr.resumo ? ' · ' + esc(pr.resumo) : ''}</b>
+  box.innerHTML = `<div class="note" style="display:grid;gap:8px"><b>Proposta da IA: ${pr.swaps.length} troca(s) · ${pr.erros} erro(s) depois${pr.resumo ? ' · ' + esc(pr.resumo) : ''}</b>
     <div class="tbox"><table class="t"><tr><th>Quem</th><th>Dia</th><th>De → para</th></tr>${pr.swaps.map(s => `<tr><td>${esc(E.short(P.people[s.pi].name))}</td><td>${E.fmtW(P.days[s.di].date)}</td><td class="num">${abbr(P.people[s.pi].st[s.di])} → ${abbr(s.st)}</td></tr>`).join('')}</table></div>
     <div class="row"><button class="btn primary" type="button" id="prApply">Aplicar na grade (simulação)</button><button class="btn" type="button" id="prDrop">Descartar</button></div></div>`;
   $('#prApply').onclick = () => {
@@ -1102,7 +1145,7 @@ function syncAi() {
   $('#claudeWrap').style.display = state.ai === 'claude' ? 'grid' : 'none';
   $('#cKeyRow').style.display = sampleChecked && !sampleFn ? 'flex' : 'none';
   $('#aiCopy').style.display = state.ai === 'gemini' ? '' : 'none';
-  $('#aiNew').style.display = state.ai === 'claude' ? '' : 'none';
+
   $('#claudeCfg').innerHTML = sampleChecked && !sampleFn
     ? 'Neste site o Claude usa uma chave da API, que fica só neste navegador. Gere em <a href="https://console.anthropic.com/settings/keys" target="_blank" rel="noopener">console.anthropic.com</a>. A API é cobrada por uso e é separada da assinatura do claude.ai (cada análise costuma custar centavos). Ele continua testando as trocas antes de sugerir.'
     : 'O Claude roda aqui no painel, sem chave, e testa as trocas nas mesmas regras antes de sugerir. Na primeira pergunta o navegador pede sua autorização. A conversa continua: dá para pedir ajustes ("e se o Jorge não puder no dia 29?").';
@@ -1139,26 +1182,16 @@ $('#aiSend').onclick = async () => {
       state.chat.push({ role: 'assistant', content: res.text || '(sem texto)' });
       out.innerHTML = chatHtml() + (res.truncated ? '<p class="muted">(resposta cortada)</p>' : '');
     } else {
-      out.innerHTML = '<p class="muted">Analisando a escala…</p>';
-      const key = $('#gKey').value.trim(); store.set('gkey', key);
-      if (!key) throw { message: 'Cole sua chave da API do Gemini no campo acima, ou use "Copiar para o Gemini".' };
-      let r;
-      try {
-        r = await fetch('https://generativelanguage.googleapis.com/v1beta/models/' + $('#gModel').value + ':generateContent', {
-          method: 'POST', signal: aborter.signal, headers: { 'Content-Type': 'application/json', 'x-goog-api-key': key },
-          body: JSON.stringify({ contents: [{ role: 'user', parts: [{ text: buildPrompt(q, false) }] }], generationConfig: { temperature: 0.3 } })
-        });
-      } catch (netErr) {
-        if (netErr.name === 'AbortError') throw netErr;
-        throw { blocked: true, message: 'O navegador bloqueou a conexão direta com o Gemini. Dentro do claude.ai a página não pode falar com outros sites.' };
-      }
-      const j = await r.json().catch(() => ({}));
-      if (!r.ok) throw { message: 'O Gemini recusou: ' + ((j.error && j.error.message) || r.status) + '. Confira a chave e o modelo.' };
-      const txt = ((j.candidates || [])[0] || {}).content ? j.candidates[0].content.parts.map(p => p.text || '').join('') : '';
-      out.innerHTML = txt ? md(txt) : '<p class="muted">O Gemini não devolveu texto. Tente de novo.</p>';
+      const contents = state.chat.map(m => ({ role: m.role === 'user' ? 'user' : 'model', parts: [{ text: m.role === 'user' ? m.q : m.content }] }));
+      contents.push({ role: 'user', parts: [{ text: buildPrompt(q, true) + (state.chat.length ? '\n\n(Isto continua a conversa acima; a escala e a auditoria mostradas aqui são as atuais.)' : '') }] });
+      state.chat.push({ role: 'user', q });
+      out.innerHTML = chatHtml(''); out.scrollTop = out.scrollHeight;
+      const res = await geminiApi(contents, aborter.signal, t => { out.innerHTML = chatHtml(t); });
+      state.chat.push({ role: 'assistant', content: res.text || '(sem texto)' });
+      out.innerHTML = chatHtml();
     }
   } catch (err) {
-    if (state.ai === 'claude' && state.chat.length && state.chat[state.chat.length - 1].role === 'user') state.chat.pop();
+    if (state.chat.length && state.chat[state.chat.length - 1].role === 'user') state.chat.pop();
     if (err && err.name === 'AbortError') out.innerHTML = chatHtml() + '<p class="muted">Análise interrompida.</p>';
     else if (err && err.code === 'not_granted') out.innerHTML = '<p>O uso do Claude não foi autorizado. Autorize quando o navegador pedir, ou use o Gemini.</p>';
     else if (err && err.code === 'rate_limited') out.innerHTML = '<p>Muitas perguntas seguidas. Espere um minuto e tente de novo.</p>';
