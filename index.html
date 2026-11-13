@@ -1284,10 +1284,10 @@ const r7Data = v => { if (!v) return ''; const [d, h] = String(v).split(' '); re
 const r7Horas = h => { h = +h; if (isNaN(h)) return ''; return h < 48 ? h + 'h' : Math.floor(h / 24) + 'd ' + (h % 24) + 'h'; };
 const pctTxt = (a, b) => b ? (a / b * 100).toFixed(1).replace('.', ',') + '%' : '-';
 /* tabela simples com cabeçalho colorido; cols: [{t, r (direita), w (nowrap)}], linhas já em HTML */
-function r7Tabela(titulo, cor, cols, linhas, sub) {
+function r7Tabela(titulo, cor, cols, linhas, sub, grupos) {
   return `<div class="rounded-xl overflow-hidden border border-slate-200 dark:border-slate-700 shadow-sm bg-white dark:bg-slate-900">
     <div class="text-white text-center font-extrabold tracking-wide py-2 text-sm" style="background:${cor}">${titulo}${sub ? `<div class="text-[11px] font-medium opacity-80">${sub}</div>` : ''}</div>
-    <div class="overflow-auto max-h-[30rem]"><table class="w-full text-xs"><thead class="sticky top-0 text-white" style="background:${cor}"><tr>${cols.map(c => `<th class="${c.r ? 'text-center' : 'text-left'} px-2 py-1.5 whitespace-nowrap">${c.t}</th>`).join('')}</tr></thead>
+    <div class="overflow-auto max-h-[30rem]"><table class="w-full text-xs"><thead class="sticky top-0 text-white" style="background:${cor}">${grupos ? `<tr>${grupos.map(g => `<th colspan="${g.n}" class="${g.t ? 'text-center border-b border-white/30' : ''} px-2 pt-1.5 pb-1 text-[11px] tracking-wide">${g.t}</th>`).join('')}</tr>` : ''}<tr>${cols.map(c => `<th class="${c.r ? 'text-center' : 'text-left'} px-2 py-1.5 whitespace-nowrap">${c.t}</th>`).join('')}</tr></thead>
     <tbody>${linhas.length ? linhas.join('') : `<tr><td colspan="${cols.length}" class="px-2 py-4 text-center text-slate-500">Sem dados no recorte</td></tr>`}</tbody></table></div></div>`;
 }
 const tdc = (v, o = {}) => `<td class="px-2 py-1 border-t border-slate-100 dark:border-slate-800 ${o.r ? 'text-center tabular-nums' : ''} ${o.b ? 'font-bold' : ''} ${o.w ? 'whitespace-nowrap' : ''}" ${o.st || ''} ${o.title ? `title="${esc(o.title)}"` : ''}>${v}</td>`;
@@ -1377,18 +1377,21 @@ function r7Oficial(R) {
     put(AR, 'r'); put(AG, 'g');
     return [...m.entries()].sort((a, b) => (b[1].ri + b[1].gi) - (a[1].ri + a[1].gi) || b[1].rb - a[1].rb);
   };
-  const corP = (i, b) => { const p = b ? i / b * 100 : 0; return i && p >= 10 ? hs(HEAT.red) : i && p >= 6 ? hs(HEAT.orange) : i ? hs(HEAT.yellow) : ''; };
-  const linGr = L => L.map(([g, o]) => `<tr>${tdc(esc(trunc(g, 34)), { title: g, w: 1 })}${tdc(o.ri || '', { r: 1, b: 1 })}${tdc(fmt(o.rb), { r: 1 })}${tdc(pctTxt(o.ri, o.rb), { r: 1, st: corP(o.ri, o.rb) })}${tdc(o.gi || '', { r: 1, b: 1 })}${tdc(fmt(o.gb), { r: 1 })}${tdc(pctTxt(o.gi, o.gb), { r: 1, st: corP(o.gi, o.gb) })}</tr>`);
-  const colsGr = a => [{ t: a }, { t: 'REPET.', r: 1 }, { t: 'BASE', r: 1 }, { t: '%', r: 1 }, { t: 'INFÂN.', r: 1 }, { t: 'BASE', r: 1 }, { t: '%', r: 1 }];
-  h += `<div class="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-4">${r7Tabela('POR SETOR', '#6b7280', colsGr('SETOR'), linGr(porGrupo('setor', '(sem setor)')))}`;
-  h += `<div class="grid grid-cols-1 gap-4">${r7Tabela('POR SUPERVISOR', TCOL.navy, colsGr('SUPERVISOR'), linGr(porGrupo('sup', '(fora do HC)')), 'supervisor do técnico que fez o reparo/instalação')}${r7Tabela('POR COORDENADOR', TCOL.purple, colsGr('COORDENADOR'), linGr(porGrupo('coord', '(fora do HC)')))}</div></div>`;
+  const corP = (i, b) => { const p = b ? i / b * 100 : 0; return i && p >= 10 ? 'style="color:#dc2626;font-weight:800"' : i && p >= 6 ? 'style="color:#ea580c;font-weight:700"' : i ? '' : 'style="color:#94a3b8"'; };
+  const baseT = v => `<span class="text-slate-400">${v}</span>`;
+  const sepL = ' border-l border-slate-200 dark:border-slate-700';
+  const linGr = L => L.map(([g, o]) => `<tr>${tdc(esc(trunc(g, 34)), { title: g, w: 1 })}${tdc(o.ri || '', { r: 1, b: 1 })}${tdc(baseT(fmt(o.rb)), { r: 1 })}${tdc(pctTxt(o.ri, o.rb), { r: 1, st: corP(o.ri, o.rb) })}${tdc(o.gi || '', { r: 1, b: 1 }).replace('<td class="', '<td class="' + sepL + ' ')}${tdc(baseT(fmt(o.gb)), { r: 1 })}${tdc(pctTxt(o.gi, o.gb), { r: 1, st: corP(o.gi, o.gb) })}</tr>`);
+  const colsGr = a => [{ t: a }, { t: 'CASOS', r: 1 }, { t: 'BASE', r: 1 }, { t: '%', r: 1 }, { t: 'CASOS', r: 1 }, { t: 'BASE', r: 1 }, { t: '%', r: 1 }];
+  const grGr = [{ t: '', n: 1 }, { t: 'REPETIDA', n: 3 }, { t: 'INFÂNCIA', n: 3 }];
+  h += `<div class="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-4">${r7Tabela('POR SETOR', '#6b7280', colsGr('SETOR'), linGr(porGrupo('setor', '(sem setor)')), '', grGr)}`;
+  h += `<div class="grid grid-cols-1 gap-4">${r7Tabela('POR SUPERVISOR', TCOL.navy, colsGr('SUPERVISOR'), linGr(porGrupo('sup', '(fora do HC)')), 'supervisor do técnico que fez o reparo/instalação', grGr)}${r7Tabela('POR COORDENADOR', TCOL.purple, colsGr('COORDENADOR'), linGr(porGrupo('coord', '(fora do HC)')), '', grGr)}</div></div>`;
 
   // técnicos ofensores
   const tm = new Map(), putT = (L, lado) => L.forEach(a => { const mat = a[ia('mat')]; if (!mat) return; const o = tm.get(mat) || { n: a[ia('colab')] || mat, s: a[ia('sup')], rb: 0, ri: 0, gb: 0, gi: 0 }; o[lado + 'b'] += a[ia('base')]; o[lado + 'i'] += a[ia('ind')]; tm.set(mat, o); });
   putT(AR, 'r'); putT(AG, 'g');
   const tl = [...tm.values()].filter(o => o.ri + o.gi > 0).sort((a, b) => (b.ri + b.gi) - (a.ri + a.gi) || (b.ri / (b.rb || 1)) - (a.ri / (a.rb || 1)));
-  const linT = tl.slice(0, 80).map(o => `<tr>${tdc(esc(trunc(o.n, 32)), { title: o.n, w: 1 })}${tdc(esc(trunc(o.s || '-', 26)), { title: o.s || '', w: 1 })}${tdc(o.ri || '', { r: 1, b: 1 })}${tdc(o.rb ? fmt(o.rb) : '', { r: 1 })}${tdc(o.rb ? pctTxt(o.ri, o.rb) : '', { r: 1, st: corP(o.ri, o.rb) })}${tdc(o.gi || '', { r: 1, b: 1 })}${tdc(o.gb ? fmt(o.gb) : '', { r: 1 })}${tdc(o.gb ? pctTxt(o.gi, o.gb) : '', { r: 1, st: corP(o.gi, o.gb) })}</tr>`);
-  h += `<div class="mb-4">${r7Tabela('TÉCNICOS COM REPETIDA / INFÂNCIA NO MÊS', TCOL.brown, [{ t: 'TÉCNICO' }, { t: 'SUPERVISOR' }, { t: 'REPET.', r: 1 }, { t: 'REPAROS', r: 1 }, { t: '%', r: 1 }, { t: 'INFÂN.', r: 1 }, { t: 'INSTAL.', r: 1 }, { t: '%', r: 1 }], linT, 'técnico responsável = quem encerrou o reparo ou fez a instalação que voltou')}</div>`;
+  const linT = tl.slice(0, 80).map(o => `<tr>${tdc(esc(trunc(o.n, 32)), { title: o.n, w: 1 })}${tdc(esc(trunc(o.s || '-', 26)), { title: o.s || '', w: 1 })}${tdc(o.ri || '', { r: 1, b: 1 })}${tdc(o.rb ? baseT(fmt(o.rb)) : '', { r: 1 })}${tdc(o.rb ? pctTxt(o.ri, o.rb) : '', { r: 1, st: corP(o.ri, o.rb) })}${tdc(o.gi || '', { r: 1, b: 1 }).replace('<td class="', '<td class="' + sepL + ' ')}${tdc(o.gb ? baseT(fmt(o.gb)) : '', { r: 1 })}${tdc(o.gb ? pctTxt(o.gi, o.gb) : '', { r: 1, st: corP(o.gi, o.gb) })}</tr>`);
+  h += `<div class="mb-4">${r7Tabela('TÉCNICOS COM REPETIDA / INFÂNCIA NO MÊS', TCOL.brown, [{ t: 'TÉCNICO' }, { t: 'SUPERVISOR' }, { t: 'CASOS', r: 1 }, { t: 'REPAROS', r: 1 }, { t: '%', r: 1 }, { t: 'CASOS', r: 1 }, { t: 'INSTAL.', r: 1 }, { t: '%', r: 1 }], linT, 'técnico responsável = quem encerrou o reparo ou fez a instalação que voltou', [{ t: '', n: 2 }, { t: 'REPETIDA', n: 3 }, { t: 'INFÂNCIA', n: 3 }])}</div>`;
 
   // casos do mês
   const casos = SR.map(a => ['REPETIDA 7D', a]).concat(SG.map(a => ['INFANCIA 7D', a])).sort((x, y) => String(y[1][ic('prox_data')]).localeCompare(String(x[1][ic('prox_data')])));
