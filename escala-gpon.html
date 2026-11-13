@@ -183,6 +183,7 @@ footer{color:var(--muted);font-size:12px;text-align:center}
       <button class="btn" id="btnEdit" type="button" aria-pressed="false">Simular trocas</button>
       <button class="btn" id="btnUndo" type="button" disabled>Desfazer trocas</button>
       <button class="btn" id="btnCopy" type="button">Copiar para o Sheets</button>
+      <button class="btn primary" id="btnXlsx" type="button">Baixar Excel</button>
       <label class="btn" for="fileIn">Carregar planilha .xlsx</label>
       <input type="file" id="fileIn" accept=".xlsx,.xls" hidden>
     </div>
@@ -300,6 +301,7 @@ footer{color:var(--muted);font-size:12px;text-align:center}
 <div class="toast" id="toast"></div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.4.0/exceljs.min.js"></script>
 <script>
 // ===== Motor de regras da Escala GPON =====
 (function (root) {
@@ -868,6 +870,76 @@ $('#btnCopy').onclick = async () => {
   catch (e) { openModal(`<div><button class="btn x" type="button" data-close>Fechar</button><h2 id="mTitle">Copiar para o Sheets</h2></div><p>Selecione tudo abaixo (Ctrl+A) e copie. No Sheets, clique na 1ª célula de status do 1º colaborador e cole.</p><textarea class="copybox" readonly>${esc(tsv)}</textarea>`); const ta = $('#modal textarea'); ta.focus(); ta.select(); }
 };
 $('#ov').addEventListener('click', e => { if (e.target.id === 'ov') closeModal(); });
+// ---------- exportar Excel ----------
+async function exportXlsx() {
+  if (!window.ExcelJS) { toast('Não consegui carregar o gerador de Excel. Recarregue a página e tente de novo.'); return; }
+  const P = per(), r = state.res, n = P.days.length;
+  const wb = new ExcelJS.Workbook(); wb.creator = 'Painel Escala GPON';
+  const C = { ink: 'FF14212B', pl: 'FFE7EBEF', plT: 'FF3D4B57', pre: 'FF0B6E8E', fol: 'FFF6E6C4', folT: 'FF7A5410', wk: 'FFE9EEF3', fer: 'FFD6EAF1', line: 'FFB8C2CB', sub: 'FF5D6B77' };
+  const fill = a => ({ type: 'pattern', pattern: 'solid', fgColor: { argb: a } });
+  const bd = { top: { style: 'thin', color: { argb: C.line } }, left: { style: 'thin', color: { argb: C.line } }, bottom: { style: 'thin', color: { argb: C.line } }, right: { style: 'thin', color: { argb: C.line } } };
+  const mid = { vertical: 'middle', horizontal: 'center', wrapText: true };
+  const ws = wb.addWorksheet('ESCALA', { views: [{ state: 'frozen', xSplit: 2, ySplit: 4 }], pageSetup: { orientation: 'landscape', fitToPage: true, fitToWidth: 1, fitToHeight: 0, paperSize: 9 } });
+  ws.columns = [{ width: 36 }, { width: 16 }].concat(P.days.map(() => ({ width: 10.5 })));
+  ws.mergeCells(1, 1, 1, n + 2); const t = ws.getCell(1, 1);
+  t.value = 'ESCALA GPON · ' + periodLabel(P); t.font = { name: 'Calibri', size: 16, bold: true, color: { argb: 'FFFFFFFF' } }; t.fill = fill(C.ink); t.alignment = { vertical: 'middle', horizontal: 'left', indent: 1 }; ws.getRow(1).height = 28;
+  ws.mergeCells(2, 1, 2, n + 2); const lg = ws.getCell(2, 1);
+  lg.value = 'PL = plantão em dia útil   ·   PRESENTE = trabalha em sábado, domingo ou feriado   ·   FOLGA = folga'; lg.font = { size: 10, italic: true, color: { argb: C.sub } }; lg.alignment = { vertical: 'middle', horizontal: 'left', indent: 1 };
+  ['COLABORADORES', 'FUNÇÃO'].forEach((h, i) => { ws.mergeCells(3, i + 1, 4, i + 1); const c = ws.getCell(3, i + 1); c.value = h; c.font = { bold: true, color: { argb: 'FFFFFFFF' } }; c.fill = fill(C.ink); c.alignment = { vertical: 'middle', horizontal: i ? 'center' : 'left', indent: i ? 0 : 1 }; c.border = bd; });
+  P.days.forEach((d, di) => {
+    const k = r.kind(d.date), col = di + 3, bg = k === 'fer' ? C.fer : k !== 'util' ? C.wk : 'FFFFFFFF';
+    const a = ws.getCell(3, col), b = ws.getCell(4, col);
+    a.value = E.WD[E.dow(d.date)].toUpperCase() + (k === 'fer' ? ' · FERIADO' : ''); b.value = E.fmt(d.date);
+    [a, b].forEach(c => { c.fill = fill(bg); c.alignment = mid; c.border = bd; c.font = { bold: true, size: k === 'fer' && c === a ? 8 : 10, color: { argb: C.ink } }; });
+  });
+  ws.getRow(3).height = 26;
+  const order = { atend: 0, monit: 1, plan: 2, novato: 3, sup: 4 };
+  P.people.map((p, pi) => pi).sort((a, b) => order[r.groupsOf[a]] - order[r.groupsOf[b]] || a - b).forEach(pi => {
+    const p = P.people[pi], row = ws.addRow([p.name.replace(/^Sup\s+/i, '').trim().toUpperCase(), E.GROUPS[r.groupsOf[pi]].toUpperCase()].concat(p.st.map(s => s || '')));
+    row.height = 20;
+    row.eachCell({ includeEmpty: true }, (c, col) => {
+      c.border = bd;
+      if (col <= 2) { c.font = { bold: col === 1, size: 10 }; c.alignment = { vertical: 'middle', horizontal: col === 1 ? 'left' : 'center', indent: col === 1 ? 1 : 0 }; return; }
+      const v = c.value; c.alignment = mid;
+      if (v === 'PRESENTE') { c.fill = fill(C.pre); c.font = { bold: true, size: 9, color: { argb: 'FFFFFFFF' } }; }
+      else if (v === 'FOLGA') { c.fill = fill(C.fol); c.font = { bold: true, size: 9, color: { argb: C.folT } }; }
+      else { c.fill = fill(C.pl); c.font = { size: 9, color: { argb: C.plT } }; }
+    });
+  });
+  [['TÉCNICOS TRABALHANDO', di => r.counts[di].PRESENTE + r.counts[di].PL], ['TÉCNICOS DE FOLGA', di => r.counts[di].FOLGA]].forEach(([lab, f]) => {
+    const row = ws.addRow([lab, ''].concat(P.days.map((d, di) => f(di)))); row.height = 20;
+    row.eachCell({ includeEmpty: true }, (c, col) => { c.border = bd; c.fill = fill(C.wk); c.font = { bold: true, size: 10 }; c.alignment = col === 1 ? { vertical: 'middle', horizontal: 'left', indent: 1 } : mid; });
+  });
+  const names = list => list.map(pi => E.short(P.people[pi].name)).join(', ') || '—';
+  const ws2 = wb.addWorksheet('RESUMO', { pageSetup: { orientation: 'landscape', fitToPage: true, fitToWidth: 1, fitToHeight: 0, paperSize: 9 } });
+  ws2.columns = [{ width: 20 }, { width: 44 }, { width: 44 }, { width: 38 }, { width: 38 }];
+  ws2.mergeCells('A1:E1'); const h1 = ws2.getCell('A1'); h1.value = 'FINS DE SEMANA E FERIADOS · ' + periodLabel(P); h1.font = { size: 14, bold: true, color: { argb: 'FFFFFFFF' } }; h1.fill = fill(C.ink); h1.alignment = { vertical: 'middle', indent: 1 }; ws2.getRow(1).height = 26;
+  const hdr = ws2.addRow(['Dia', 'Quem trabalha', 'Atendimento / Monitoramento / Planilhas', 'Folga Sáb + Dom', 'Folga Dom + Seg']);
+  hdr.eachCell(c => { c.font = { bold: true }; c.fill = fill(C.wk); c.border = bd; c.alignment = mid; });
+  const rows = []; r.weekends.forEach(w => rows.push({ date: w.sat, w })); P.days.forEach((d, di) => { if (d.hol) rows.push({ date: d.date, hol: di }); });
+  rows.sort((a, b) => a.date < b.date ? -1 : 1);
+  const S = P.people.findIndex((p, i) => r.groupsOf[i] === 'sup');
+  rows.forEach(x => {
+    const add = (label, di, extra) => { const ps = r.presBy(di), supOn = S >= 0 && P.people[S].st[di] === 'PRESENTE';
+      const pl = ps.plan.map(pi => E.short(P.people[pi].name)).concat(supOn ? ['Gabriel (sup.)'] : []).join(', ') || '—';
+      return [label, names(ps.all) + (supOn ? ', Gabriel (sup.)' : ''), 'Atend.: ' + names(ps.atend) + ' | Monit.: ' + names(ps.monit) + ' | Planilhas: ' + pl].concat(extra); };
+    if (x.w) { const w = x.w; ws2.addRow(add('Sáb ' + E.fmt(w.sat), w.di, [names(w.sd), w.monKnown ? names(w.dsg) : 'segunda fora da escala'])); ws2.addRow(add('Dom ' + E.fmt(w.sun), w.si, ['', ''])); }
+    else ws2.addRow(add('FERIADO ' + E.fmtW(x.date), x.hol, ['', '']));
+  });
+  ws2.eachRow((row, i) => { if (i > 2) row.eachCell({ includeEmpty: true }, c => { c.border = bd; c.alignment = { vertical: 'middle', wrapText: true, indent: 1 }; c.font = { size: 10 }; }); });
+  ws2.addRow([]);
+  const gt = ws2.addRow(['Folgas casadas']); gt.getCell(1).font = { bold: true, size: 12 };
+  const ch = ws2.addRow(['Colaborador', 'Função', 'Sáb + Dom', 'Dom + Seg', 'Quando']); ch.eachCell(c => { c.font = { bold: true }; c.fill = fill(C.wk); c.border = bd; c.alignment = mid; });
+  P.people.forEach((p, pi) => { const c = r.casadas[pi]; const row = ws2.addRow([E.short(p.name), E.GROUPS[r.groupsOf[pi]], c.c100, c.ext, c.list.join(', ') || '—']); row.eachCell(cc => { cc.border = bd; cc.font = { size: 10 }; cc.alignment = { vertical: 'middle', indent: 1 }; }); });
+  const buf = await wb.xlsx.writeBuffer();
+  const blob = new Blob([buf], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+  const nm = 'Escala_GPON_' + E.fmt(P.days[0].date).replace('/', '-') + '_a_' + E.fmt(P.days[n - 1].date).replace('/', '-') + '.xlsx';
+  const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = nm; document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(a.href), 4000);
+  toast('Excel gerado: ' + nm + (nEdits() ? ' (com as suas trocas)' : ''));
+}
+$('#btnXlsx').onclick = () => exportXlsx().catch(e => toast('Não consegui gerar o Excel: ' + (e.message || e)));
+
 $('#rulesForm').addEventListener('change', e => {
   const t = e.target, R = state.rules;
   if (t.dataset.r) R[t.dataset.r] = Math.max(0, parseInt(t.value || '0', 10));
