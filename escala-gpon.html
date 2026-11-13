@@ -1050,6 +1050,12 @@ async function geminiApi(contents, signal, onProgress) {
       throw { blocked: true, message: 'O navegador bloqueou a conexão direta com o Gemini. Dentro do claude.ai a página não pode falar com outros sites; abra pelo site do GitHub.' };
     }
     const j = await r.json().catch(() => ({}));
+    if (!r.ok && /no longer available|not found|not supported/i.test(JSON.stringify(j)) && step < 8) {
+      const sel = $('#gModel'), cur = sel.value, bad = store.get('gbad', []); if (!bad.includes(cur)) bad.push(cur); store.set('gbad', bad);
+      const next = [...sel.options].map(o => o.value).filter(v => !bad.includes(v)).sort((a, b) => verOf(b) - verOf(a) || (/flash/.test(b) ? 1 : 0) - (/flash/.test(a) ? 1 : 0))[0];
+      [...sel.options].filter(o => o.value === cur).forEach(o => o.remove());
+      if (next) { sel.value = next; store.set('gmodel', next); onProgress((text ? text + '\n\n' : '') + '*O modelo ' + cur + ' não está disponível. Trocando para ' + next + '…*'); continue; }
+    }
     if (!r.ok) throw { message: 'O Gemini recusou: ' + ((j.error && j.error.message) || r.status) + (/no longer available|not found/i.test(JSON.stringify(j)) ? ' Escolha outro modelo na lista ao lado da chave.' : r.status === 400 && /API key/i.test(JSON.stringify(j)) ? ' A chave parece inválida.' : r.status === 429 ? ' Limite de uso atingido; espere um minuto.' : '') };
     const cand = (j.candidates || [])[0];
     if (!cand || !cand.content) { if (!text) text = 'O Gemini não devolveu resposta' + (cand && cand.finishReason ? ' (' + cand.finishReason + ')' : '') + '. Tente de novo.'; break; }
@@ -1161,6 +1167,8 @@ async function loadGeminiModels(quiet) {
     const r = await fetch('https://generativelanguage.googleapis.com/v1beta/models?pageSize=200', { headers: { 'x-goog-api-key': key } });
     const j = await r.json(); if (!r.ok) throw new Error((j.error && j.error.message) || r.status);
     const ok = (j.models || []).filter(m => (m.supportedGenerationMethods || []).includes('generateContent') && /^models\/gemini-[\d.]+-(pro|flash)(-preview)?$/.test(m.name)).map(m => m.name.replace('models/', ''));
+    const bad = store.get('gbad', []);
+    let cand = ok.filter(n => verOf(n) >= 3 && !bad.includes(n)); if (cand.length) ok.splice(0, ok.length, ...cand);
     if (!ok.length) return;
     ok.sort((a, b) => verOf(b) - verOf(a) || (/flash/.test(b) ? 1 : 0) - (/flash/.test(a) ? 1 : 0));
     const sel = $('#gModel'), saved = store.get('gmodel', '');
@@ -1172,7 +1180,7 @@ async function loadGeminiModels(quiet) {
 }
 $('#gKey').onchange = () => { store.set('gkey', $('#gKey').value.trim()); loadGeminiModels(false); };
 $('#gModel').onchange = () => store.set('gmodel', $('#gModel').value);
-{ const sm = store.get('gmodel', ''); if (sm && ![...$('#gModel').options].some(o => o.value === sm)) $('#gModel').add(new Option(sm, sm)); if (sm) $('#gModel').value = sm; }
+{ const sm = store.get('gmodel', ''); if (sm && ![...$('#gModel').options].some(o => o.value === sm) && verOf(sm) >= 3) $('#gModel').add(new Option(sm, sm)); if (sm && verOf(sm) >= 3) $('#gModel').value = sm; else store.set('gmodel', $('#gModel').value); }
 loadGeminiModels(true);
 function setBusy(b) { $('#aiSend').disabled = b; $('#aiStop').disabled = !b; $('#aiSend').textContent = b ? 'Analisando…' : 'Perguntar'; }
 $('#aiStop').onclick = () => { if (aborter) aborter.abort(); };
