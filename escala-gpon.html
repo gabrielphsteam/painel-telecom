@@ -262,7 +262,16 @@ footer{color:var(--muted);font-size:12px;text-align:center}
           </div>
           <div class="note" id="gNote">A chave fica só neste navegador. Gere a sua em <a href="https://aistudio.google.com/app/apikey" target="_blank" rel="noopener">aistudio.google.com</a>. Se aparecer erro de conexão, use <b>Copiar para o Gemini</b> e cole em <a href="https://gemini.google.com/app" target="_blank" rel="noopener">gemini.google.com</a>.</div>
         </div>
-        <div id="claudeCfg" class="note" style="display:none"></div>
+        <div id="claudeWrap" style="display:none;gap:8px"><div id="claudeCfg" class="note"></div>
+          <div class="row" id="cKeyRow" style="display:none">
+            <label for="cKey" style="font-size:12.5px" class="muted">Chave da API do Claude</label>
+            <input type="password" id="cKey" placeholder="sk-ant-…" style="flex:1;min-width:160px" autocomplete="off">
+            <select id="cModel" aria-label="Modelo Claude">
+              <option value="claude-sonnet-5-5">Claude Sonnet 5.5</option>
+              <option value="claude-opus-5-5">Claude Opus 5.5</option>
+              <option value="claude-haiku-5-5">Claude Haiku 5.5</option>
+            </select>
+          </div></div>
         <div class="qp" id="quick">
           <button class="chip" type="button" data-q="melhor">Montar a melhor escala</button>
           <button class="chip" type="button" data-q="erros">Explicar os erros</button>
@@ -987,6 +996,38 @@ function md(s) {
   });
   flushT(); if (inList) h += '</ul>'; return h;
 }
+async function claudeApi(msgs, signal, onProgress) {
+  const key = $('#cKey').value.trim(); store.set('ckey', key);
+  if (!key) throw { message: 'Cole sua chave da API do Claude (sk-ant-…) no campo acima. Sem chave, use o Gemini.' };
+  const tools = TOOLS.map(t => ({ name: t.name, description: t.description, input_schema: t.inputSchema }));
+  const conv = msgs.map(m => ({ role: m.role, content: m.content }));
+  let text = '', tests = 0;
+  for (let step = 0; step < 14; step++) {
+    let r;
+    try {
+      r = await fetch('https://api.anthropic.com/v1/messages', {
+        method: 'POST', signal,
+        headers: { 'content-type': 'application/json', 'x-api-key': key, 'anthropic-version': '2023-06-01', 'anthropic-dangerous-direct-browser-access': 'true' },
+        body: JSON.stringify({ model: $('#cModel').value, max_tokens: 8000, tools, messages: conv })
+      });
+    } catch (netErr) { if (netErr.name === 'AbortError') throw netErr; throw { message: 'Não consegui falar com a API do Claude. Confira a internet e tente de novo.' }; }
+    const j = await r.json().catch(() => ({}));
+    if (!r.ok) throw { message: 'A API do Claude recusou: ' + ((j.error && j.error.message) || r.status) + (r.status === 401 ? '. A chave parece inválida.' : r.status === 400 && /credit/i.test(JSON.stringify(j)) ? '. Falta crédito na conta da API.' : '') };
+    conv.push({ role: 'assistant', content: j.content });
+    const txt = (j.content || []).filter(b => b.type === 'text').map(b => b.text).join('\n');
+    if (txt) text = (text ? text + '\n\n' : '') + txt;
+    if (j.stop_reason !== 'tool_use') break;
+    const results = (j.content || []).filter(b => b.type === 'tool_use').map(b => {
+      const tool = TOOLS.find(t => t.name === b.name);
+      if (b.name === 'testar_trocas') tests++;
+      try { return { type: 'tool_result', tool_use_id: b.id, content: JSON.stringify(tool.execute(b.input)) }; }
+      catch (e) { return { type: 'tool_result', tool_use_id: b.id, content: String(e.message || e), is_error: true }; }
+    });
+    conv.push({ role: 'user', content: results });
+    onProgress((text ? text + '\n\n' : '') + '*Testando trocas no verificador (' + tests + ' teste(s))…*');
+  }
+  return { text, truncated: false };
+}
 // ----- ferramentas que o Claude usa -----
 function resolveSwaps(trocas) {
   const P = per(), out = [], erros = [];
@@ -1054,17 +1095,21 @@ function renderProposal() {
   $('#prDrop').onclick = () => { state.proposal = null; renderProposal(); };
 }
 let sampleFn = null, aborter = null, sampleChecked = false;
-(async () => { try { if (window.claude && window.claude.use) sampleFn = await window.claude.use('sample'); } catch (e) { sampleFn = null; } sampleChecked = true; if (!sampleFn && state.ai === 'claude') state.ai = 'gemini'; syncAi(); })();
+(async () => { try { if (window.claude && window.claude.use) sampleFn = await window.claude.use('sample'); } catch (e) { sampleFn = null; } sampleChecked = true; syncAi(); })();
 function syncAi() {
   document.querySelectorAll('[data-ai]').forEach(b => b.setAttribute('aria-pressed', b.dataset.ai === state.ai));
   $('#geminiCfg').style.display = state.ai === 'gemini' ? 'grid' : 'none';
-  $('#claudeCfg').style.display = state.ai === 'claude' ? 'block' : 'none';
+  $('#claudeWrap').style.display = state.ai === 'claude' ? 'grid' : 'none';
+  $('#cKeyRow').style.display = sampleChecked && !sampleFn ? 'flex' : 'none';
   $('#aiCopy').style.display = state.ai === 'gemini' ? '' : 'none';
   $('#aiNew').style.display = state.ai === 'claude' ? '' : 'none';
-  $('#claudeCfg').innerHTML = state.ai === 'claude' && sampleChecked && !sampleFn
-    ? 'O Claude embutido funciona com o painel aberto no claude.ai. Aqui fora dele, use o Gemini.'
+  $('#claudeCfg').innerHTML = sampleChecked && !sampleFn
+    ? 'Neste site o Claude usa uma chave da API, que fica só neste navegador. Gere em <a href="https://console.anthropic.com/settings/keys" target="_blank" rel="noopener">console.anthropic.com</a>. A API é cobrada por uso e é separada da assinatura do claude.ai (cada análise costuma custar centavos). Ele continua testando as trocas antes de sugerir.'
     : 'O Claude roda aqui no painel, sem chave, e testa as trocas nas mesmas regras antes de sugerir. Na primeira pergunta o navegador pede sua autorização. A conversa continua: dá para pedir ajustes ("e se o Jorge não puder no dia 29?").';
 }
+$('#cKey').value = store.get('ckey', ''); $('#cModel').value = store.get('cmodel', 'claude-sonnet-5-5');
+$('#cKey').onchange = () => store.set('ckey', $('#cKey').value.trim());
+$('#cModel').onchange = () => store.set('cmodel', $('#cModel').value);
 $('#gKey').value = store.get('gkey', ''); $('#gModel').value = store.get('gmodel', 'gemini-2.5-flash');
 $('#gKey').onchange = () => store.set('gkey', $('#gKey').value.trim());
 $('#gModel').onchange = () => store.set('gmodel', $('#gModel').value);
@@ -1084,12 +1129,13 @@ $('#aiSend').onclick = async () => {
   aborter = new AbortController(); setBusy(true);
   try {
     if (state.ai === 'claude') {
-      if (!sampleFn) throw { message: 'O Claude embutido funciona com o painel aberto no claude.ai.' };
       const msgs = state.chat.map(m => ({ role: m.role, content: m.role === 'user' ? m.q : m.content }));
       msgs.push({ role: 'user', content: buildPrompt(q, true) + (state.chat.length ? '\n\n(Isto continua a conversa acima; a escala e a auditoria mostradas aqui são as atuais.)' : '') });
       state.chat.push({ role: 'user', q });
       out.innerHTML = chatHtml(''); out.scrollTop = out.scrollHeight;
-      const res = await sampleFn(msgs, { signal: aborter.signal, modelTier: 'complex', cache: false, tools: TOOLS, onText: ({ text }) => { out.innerHTML = chatHtml(text); } });
+      const res = sampleFn
+        ? await sampleFn(msgs, { signal: aborter.signal, modelTier: 'complex', cache: false, tools: TOOLS, onText: ({ text }) => { out.innerHTML = chatHtml(text); } })
+        : await claudeApi(msgs, aborter.signal, t => { out.innerHTML = chatHtml(t); });
       state.chat.push({ role: 'assistant', content: res.text || '(sem texto)' });
       out.innerHTML = chatHtml() + (res.truncated ? '<p class="muted">(resposta cortada)</p>' : '');
     } else {
