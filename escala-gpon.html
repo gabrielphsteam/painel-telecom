@@ -1,0 +1,1126 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Painel Escala GPON</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;600;700;800&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+/* Layout: cabeçalho de período → números-chave → grade da escala (esq.) + auditoria (dir.) → equilíbrio e fins de semana → regras → assistente IA */
+:root{
+  --bg:#f3f5f7; --surface:#ffffff; --surface-2:#eef1f4; --ink:#14212b; --muted:#5d6b77; --line:#d9dfe5;
+  --accent:#0b6e8e; --accent-ink:#ffffff; --accent-soft:#d6eaf1;
+  --pl:#e7ebef; --pl-ink:#3d4b57; --pre:#0b6e8e; --pre-ink:#ffffff; --fol:#f6e6c4; --fol-ink:#7a5410;
+  --err:#c4362b; --err-soft:#fbe3e0; --warn:#b7791f; --warn-soft:#fbefd9; --ok:#1f8a5b; --ok-soft:#dcf2e7; --info:#4a6378; --info-soft:#e3eaf0;
+  --wk:#e9eef3;
+  --display:"Archivo", "Helvetica Neue", Arial, sans-serif; --body:"IBM Plex Sans", "Segoe UI", Arial, sans-serif; --mono:"IBM Plex Mono", ui-monospace, Consolas, monospace;
+  color-scheme:light;
+}
+@media (prefers-color-scheme: dark){ :root:not([data-theme="light"]){
+  --bg:#0e161c; --surface:#152029; --surface-2:#1b2a35; --ink:#e3eaef; --muted:#93a3b0; --line:#2a3a47;
+  --accent:#4fb3d4; --accent-ink:#06222c; --accent-soft:#173847;
+  --pl:#22313d; --pl-ink:#b7c4ce; --pre:#2f8fb0; --pre-ink:#ffffff; --fol:#4a3a1a; --fol-ink:#f3d9a1;
+  --err:#ff7a6b; --err-soft:#43211e; --warn:#f0b357; --warn-soft:#3d2e14; --ok:#5fd19a; --ok-soft:#173a2a; --info:#9db4c6; --info-soft:#22313d;
+  --wk:#1a2833; color-scheme:dark; } }
+:root[data-theme="dark"]{
+  --bg:#0e161c; --surface:#152029; --surface-2:#1b2a35; --ink:#e3eaef; --muted:#93a3b0; --line:#2a3a47;
+  --accent:#4fb3d4; --accent-ink:#06222c; --accent-soft:#173847;
+  --pl:#22313d; --pl-ink:#b7c4ce; --pre:#2f8fb0; --pre-ink:#ffffff; --fol:#4a3a1a; --fol-ink:#f3d9a1;
+  --err:#ff7a6b; --err-soft:#43211e; --warn:#f0b357; --warn-soft:#3d2e14; --ok:#5fd19a; --ok-soft:#173a2a; --info:#9db4c6; --info-soft:#22313d;
+  --wk:#1a2833; color-scheme:dark; }
+*{box-sizing:border-box}
+html,body{margin:0}
+body{background:var(--bg);color:var(--ink);font:14px/1.45 var(--body);}
+button,input,select,textarea{font:inherit;color:inherit}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.wrap{max-width:1500px;margin:0 auto;padding:18px 20px 40px;display:grid;gap:18px}
+h1,h2,h3{font-family:var(--display);margin:0;text-wrap:balance;letter-spacing:-.01em}
+h1{font-size:22px;font-weight:800}
+h2{font-size:15px;font-weight:700;text-transform:uppercase;letter-spacing:.04em}
+.muted{color:var(--muted)}
+.num{font-family:var(--mono);font-variant-numeric:tabular-nums}
+/* topo */
+.top{display:flex;flex-wrap:wrap;gap:12px 20px;align-items:center;justify-content:space-between}
+.brand{display:flex;gap:12px;align-items:center}
+.brand .mark{min-width:38px;height:38px;padding:0 8px;border-radius:9px;background:var(--accent);color:var(--accent-ink);display:grid;place-items:center;font:800 13px var(--display)}
+.brand small{display:block;color:var(--muted);font-size:12.5px}
+.controls{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.seg{display:inline-flex;border:1px solid var(--line);border-radius:8px;overflow:hidden;background:var(--surface)}
+.seg button{border:0;background:none;padding:7px 12px;cursor:pointer;font-weight:500}
+.seg button[aria-pressed="true"]{background:var(--accent);color:var(--accent-ink)}
+.btn{border:1px solid var(--line);background:var(--surface);padding:7px 12px;border-radius:8px;cursor:pointer;font-weight:500;display:inline-flex;gap:6px;align-items:center}
+.btn:hover{border-color:var(--accent)}
+.btn.primary{background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}
+.btn.on{background:var(--warn-soft);border-color:var(--warn);color:var(--ink)}
+.btn:disabled{opacity:.5;cursor:default}
+/* KPIs */
+.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px}
+.kpi{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:12px 14px;border-top:3px solid var(--line);cursor:default}
+.kpi.click{cursor:pointer}
+.kpi .v{font:700 26px/1.1 var(--mono);font-variant-numeric:tabular-nums}
+.kpi .l{font-size:12px;color:var(--muted);text-transform:uppercase;letter-spacing:.04em}
+.kpi .s{font-size:12.5px;color:var(--muted);margin-top:2px}
+.kpi.good{border-top-color:var(--ok)} .kpi.bad{border-top-color:var(--err)} .kpi.mid{border-top-color:var(--warn)}
+/* painéis */
+.main{display:grid;grid-template-columns:minmax(0,1fr) 360px;gap:18px;align-items:start}
+@media (max-width:1100px){.main{grid-template-columns:1fr}}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:14px;min-width:0}
+.card-h{display:flex;flex-wrap:wrap;gap:8px 14px;align-items:center;justify-content:space-between;margin-bottom:10px}
+.legend{display:flex;flex-wrap:wrap;gap:10px;font-size:12.5px;color:var(--muted);align-items:center}
+.sw{display:inline-block;width:20px;height:16px;border-radius:4px;vertical-align:-3px;margin-right:4px;font:600 10px/16px var(--mono);text-align:center}
+/* grade */
+.gridbox{overflow-x:auto;border:1px solid var(--line);border-radius:8px}
+table.g{border-collapse:separate;border-spacing:0;font-size:12.5px;min-width:100%}
+.g th,.g td{padding:0;border-bottom:1px solid var(--line);text-align:center;white-space:nowrap}
+.g thead th{position:sticky;top:0;background:var(--surface);z-index:2;font-weight:600}
+.g .nm{position:sticky;left:0;background:var(--surface);z-index:1;text-align:left;padding:4px 10px;min-width:170px;max-width:210px;border-right:1px solid var(--line)}
+.g thead .nm{z-index:3}
+.g .nm button{all:unset;cursor:pointer;display:block;font-weight:500;overflow:hidden;text-overflow:ellipsis;max-width:190px}
+.g .nm button:hover{color:var(--accent);text-decoration:underline}
+.g .nm .role{font-size:11px;color:var(--muted)}
+.dh{cursor:pointer;padding:4px 0 !important;min-width:30px}
+.dh .d{font:600 12.5px var(--mono)} .dh .w{font-size:10.5px;color:var(--muted);text-transform:uppercase}
+.dh:hover{background:var(--surface-2)}
+.dh.wk{background:var(--wk)} .dh.fer{background:var(--accent-soft)}
+.dh .tag{display:block;font:700 9px var(--body);color:var(--accent);letter-spacing:.05em}
+.dh.today .d{color:var(--accent);text-decoration:underline}
+.c{padding:3px 2px !important}
+.c.wk{background:var(--wk)}
+.cell{display:grid;place-items:center;width:28px;height:24px;margin:0 auto;border-radius:5px;font:600 11px var(--mono);border:0;cursor:default;position:relative}
+.cell.PL{background:var(--pl);color:var(--pl-ink)}
+.cell.PRESENTE{background:var(--pre);color:var(--pre-ink)}
+.cell.FOLGA{background:var(--fol);color:var(--fol-ink)}
+.cell.x{background:var(--surface-2);color:var(--muted)}
+.cell.bad{box-shadow:0 0 0 2px var(--err)}
+.cell.warn{box-shadow:0 0 0 2px var(--warn)}
+.cell.edited::after{content:"";position:absolute;top:-3px;right:-3px;width:7px;height:7px;border-radius:50%;background:var(--warn);border:1.5px solid var(--surface)}
+.editing .cell{cursor:pointer}
+.editing .cell:hover{transform:scale(1.08)}
+.dim .cell:not(.hl){opacity:.28}
+.cell.hl{box-shadow:0 0 0 2.5px var(--err),0 0 0 5px var(--err-soft)}
+tr.rowhl .nm{background:var(--err-soft)}
+.g tfoot td{font:600 11.5px var(--mono);padding:4px 0;background:var(--surface-2)}
+.g tfoot .nm{background:var(--surface-2);font:600 12px var(--body)}
+.cnt{display:inline-block;min-width:22px;border-radius:4px;padding:1px 3px}
+.cnt.ok{background:var(--ok-soft);color:var(--ok)} .cnt.bad{background:var(--err-soft);color:var(--err)}
+/* auditoria */
+.filters{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:10px}
+.chip{border:1px solid var(--line);background:var(--surface);border-radius:999px;padding:3px 10px;font-size:12px;cursor:pointer}
+.chip[aria-pressed="true"]{background:var(--ink);color:var(--surface);border-color:var(--ink)}
+.issues{display:grid;gap:6px;max-height:640px;overflow:auto;padding-right:2px}
+.iss{all:unset;display:grid;grid-template-columns:4px 1fr;gap:10px;background:var(--surface-2);border-radius:8px;padding:8px 10px 8px 0;cursor:pointer}
+.iss:hover{outline:1px solid var(--accent)}
+.iss[aria-pressed="true"]{outline:2px solid var(--err)}
+.iss .bar{border-radius:0 4px 4px 0}
+.iss.erro .bar{background:var(--err)} .iss.alerta .bar{background:var(--warn)} .iss.info .bar{background:var(--info)}
+.iss b{display:block;font-weight:600;font-size:13px}
+.iss span{font-size:12.5px;color:var(--muted)}
+.pill{display:inline-block;font:600 10.5px var(--body);text-transform:uppercase;letter-spacing:.05em;border-radius:999px;padding:1px 7px;margin-right:6px}
+.pill.erro{background:var(--err-soft);color:var(--err)} .pill.alerta{background:var(--warn-soft);color:var(--warn)} .pill.info{background:var(--info-soft);color:var(--info)} .pill.ok{background:var(--ok-soft);color:var(--ok)}
+.empty{padding:20px;text-align:center;color:var(--ok);font-weight:600;background:var(--ok-soft);border-radius:8px}
+/* seções inferiores */
+.two{display:grid;grid-template-columns:repeat(auto-fit,minmax(420px,1fr));gap:18px}
+@media (max-width:520px){.two{grid-template-columns:1fr}}
+.bars svg{display:block;width:100%}
+.bars text{fill:var(--muted);font:11.5px var(--body)}
+.bars .lbl{fill:var(--ink);font:500 12px var(--body)}
+.bars .val{fill:var(--ink);font:600 11.5px var(--mono)}
+.bars .row{cursor:pointer} .bars .row:hover .lbl{fill:var(--accent)}
+table.t{width:100%;border-collapse:collapse;font-size:13px}
+.t th{text-align:left;font-size:11.5px;color:var(--muted);text-transform:uppercase;letter-spacing:.04em;font-weight:600;padding:6px 8px;border-bottom:1px solid var(--line)}
+.t td{padding:7px 8px;border-bottom:1px solid var(--line);vertical-align:top}
+.t tr.clk{cursor:pointer} .t tr.clk:hover td{background:var(--surface-2)}
+.tbox{overflow-x:auto}
+/* regras */
+details.rules summary{cursor:pointer;font:700 15px var(--display);text-transform:uppercase;letter-spacing:.04em;list-style:none;display:flex;justify-content:space-between;align-items:center}
+details.rules summary::-webkit-details-marker{display:none}
+details.rules summary::after{content:"Editar ▾";font:500 13px var(--body);text-transform:none;letter-spacing:0;color:var(--accent)}
+details.rules[open] summary::after{content:"Fechar ▴"}
+.rgrid{display:grid;align-items:start;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:12px;margin-top:14px}
+.rg{background:var(--surface-2);border-radius:8px;padding:10px 12px;display:grid;gap:6px}
+.rg label{font-size:12.5px;color:var(--muted)}
+.rg input[type=number]{width:70px;padding:5px 8px;border:1px solid var(--line);border-radius:6px;background:var(--surface)}
+.rg .ck{display:flex;gap:12px;flex-wrap:wrap;font-size:13px}
+.rg b{font-size:13px}
+/* IA */
+.ai{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.3fr);gap:16px}
+@media (max-width:900px){.ai{grid-template-columns:1fr}}
+.ai textarea{width:100%;min-height:96px;border:1px solid var(--line);border-radius:8px;padding:10px;background:var(--surface);resize:vertical}
+.ai input[type=password],.ai input[type=text],.ai select{border:1px solid var(--line);border-radius:6px;padding:6px 8px;background:var(--surface);min-width:0}
+.qp{display:flex;flex-wrap:wrap;gap:6px;margin:8px 0}
+.out{background:var(--surface-2);border-radius:10px;padding:14px 16px;min-height:220px;max-height:560px;overflow:auto;white-space:normal;font-size:13.5px}
+.out h3,.out h4{font:700 14px var(--display);margin:12px 0 4px}
+.out ul{margin:4px 0;padding-left:20px} .out p{margin:6px 0}
+.out code{font-family:var(--mono);font-size:12.5px}
+.note{font-size:12.5px;color:var(--muted);background:var(--surface-2);border-radius:8px;padding:8px 10px}
+.note.warn{background:var(--warn-soft);color:var(--ink)}
+.row{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+/* modal */
+.ov{position:fixed;inset:0;background:rgba(10,20,28,.45);display:none;align-items:flex-start;justify-content:center;padding:40px 16px;z-index:50;overflow:auto}
+.ov.open{display:flex}
+.modal{background:var(--surface);border-radius:14px;max-width:720px;width:100%;padding:18px 20px;border:1px solid var(--line);display:grid;gap:12px}
+.modal .x{float:right}
+.strip{display:flex;gap:2px;flex-wrap:wrap}
+.strip .cell{width:22px;height:22px;font-size:10px}
+.tip{position:fixed;pointer-events:none;background:var(--ink);color:var(--surface);font-size:12px;padding:6px 9px;border-radius:6px;max-width:280px;z-index:60;display:none;line-height:1.35}
+.toast{position:fixed;bottom:18px;left:50%;transform:translateX(-50%);background:var(--ink);color:var(--surface);padding:8px 14px;border-radius:8px;font-size:13px;display:none;z-index:70}
+.copybox{width:100%;min-height:120px;font:12px var(--mono);border:1px solid var(--line);border-radius:8px;padding:8px;background:var(--surface-2)}
+footer{color:var(--muted);font-size:12px;text-align:center}
+@media (prefers-reduced-motion: reduce){*{transition:none !important}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="top">
+    <div class="brand">
+      <div class="mark">GPON</div>
+      <div><h1 id="ttl">Escala GPON</h1><small id="sub">Auditoria das regras da escala</small></div>
+    </div>
+    <div class="controls">
+      <div class="seg" id="perSeg" role="group" aria-label="Período"></div>
+      <button class="btn" id="btnEdit" type="button" aria-pressed="false">Simular trocas</button>
+      <button class="btn" id="btnUndo" type="button" disabled>Desfazer trocas</button>
+      <button class="btn" id="btnCopy" type="button">Copiar para o Sheets</button>
+      <label class="btn" for="fileIn">Carregar planilha .xlsx</label>
+      <input type="file" id="fileIn" accept=".xlsx,.xls" hidden>
+    </div>
+  </header>
+
+  <section class="kpis" id="kpis" aria-label="Resumo"></section>
+
+  <div class="main">
+    <section class="card" id="gridCard">
+      <div class="card-h">
+        <h2>Escala do período</h2>
+        <div class="legend">
+          <span><span class="sw" style="background:var(--pl);color:var(--pl-ink)">PL</span>Plantão</span>
+          <span><span class="sw" style="background:var(--pre);color:var(--pre-ink)">P</span>Presente</span>
+          <span><span class="sw" style="background:var(--fol);color:var(--fol-ink)">F</span>Folga</span>
+          <span><span class="sw" style="box-shadow:0 0 0 2px var(--err)"></span>Quebra regra</span>
+          <span><span class="sw" style="box-shadow:0 0 0 2px var(--warn)"></span>Atenção</span>
+        </div>
+      </div>
+      <div class="filters" role="group" aria-label="Mostrar colunas">
+        <button class="chip" type="button" data-view="all" aria-pressed="true">Todos os dias</button>
+        <button class="chip" type="button" data-view="wk" aria-pressed="false">Só sáb, dom e feriado</button>
+        <span class="muted" id="editHint" style="font-size:12.5px;display:none">Clique numa célula para trocar: PL → P → F. A auditoria refaz na hora.</span>
+      </div>
+      <div class="gridbox"><table class="g" id="grid"></table></div>
+      <p class="muted" style="font-size:12.5px;margin:8px 0 0">Clique no nome para ver o histórico do colaborador, ou no dia para ver quem está escalado. A contagem de presentes considera só técnicos (o supervisor fica fora).</p>
+    </section>
+
+    <aside class="card" id="auditCard">
+      <div class="card-h"><h2>Auditoria</h2><span class="muted num" id="auditCount"></span></div>
+      <div class="filters" id="ruleChips" role="group" aria-label="Filtrar por regra"></div>
+      <div class="issues" id="issues"></div>
+    </aside>
+  </div>
+
+  <div class="two">
+    <section class="card">
+      <div class="card-h"><h2>Equilíbrio de plantões</h2><span class="legend"><span><span class="sw" style="background:var(--pre)"></span>Sábado</span><span><span class="sw" style="background:#7a9fb5"></span>Domingo</span><span><span class="sw" style="background:var(--warn)"></span>Feriado</span></span></div>
+      <div class="bars" id="bars"></div>
+      <p class="muted" style="font-size:12.5px;margin:6px 0 0" id="barsNote"></p>
+    </section>
+    <section class="card">
+      <div class="card-h"><h2>Folgas casadas</h2><span class="muted" style="font-size:12.5px">Meta: ao menos 1 por pessoa, no máximo 2 de Sáb+Dom</span></div>
+      <div class="tbox"><table class="t" id="casTable"></table></div>
+    </section>
+  </div>
+  <section class="card">
+    <div class="card-h"><h2>Fins de semana e feriados</h2><span class="muted" style="font-size:12.5px">Clique numa linha para ver na grade</span></div>
+    <div class="tbox"><table class="t" id="wkTable"></table></div>
+  </section>
+
+  <section class="card">
+    <details class="rules" id="rulesBox">
+      <summary>Regras aplicadas</summary>
+      <div class="rgrid" id="rulesForm"></div>
+      <div class="row" style="margin-top:12px"><button class="btn" type="button" id="rulesReset">Voltar às regras padrão</button><span class="muted" style="font-size:12.5px">Mudanças aqui refazem a auditoria na hora e ficam salvas neste navegador.</span></div>
+    </details>
+  </section>
+
+  <section class="card" id="aiCard">
+    <div class="card-h"><h2>Assistente IA</h2>
+      <div class="seg" role="group" aria-label="Escolher IA">
+        <button type="button" data-ai="claude" aria-pressed="true">Claude</button>
+        <button type="button" data-ai="gemini" aria-pressed="false">Gemini</button>
+      </div>
+    </div>
+    <div class="ai">
+      <div>
+        <div id="geminiCfg" style="display:grid;gap:8px">
+          <div class="row">
+            <label for="gKey" style="font-size:12.5px" class="muted">Chave da API do Gemini</label>
+            <input type="password" id="gKey" placeholder="AIza…" style="flex:1;min-width:160px" autocomplete="off">
+            <select id="gModel" aria-label="Modelo Gemini">
+              <option value="gemini-2.5-flash">gemini-2.5-flash</option>
+              <option value="gemini-2.5-pro">gemini-2.5-pro</option>
+            </select>
+          </div>
+          <div class="note" id="gNote">A chave fica só neste navegador. Gere a sua em <a href="https://aistudio.google.com/app/apikey" target="_blank" rel="noopener">aistudio.google.com</a>. Se aparecer erro de conexão, use <b>Copiar para o Gemini</b> e cole em <a href="https://gemini.google.com/app" target="_blank" rel="noopener">gemini.google.com</a>.</div>
+        </div>
+        <div id="claudeCfg" class="note" style="display:none"></div>
+        <div class="qp" id="quick">
+          <button class="chip" type="button" data-q="melhor">Montar a melhor escala</button>
+          <button class="chip" type="button" data-q="erros">Explicar os erros</button>
+          <button class="chip" type="button" data-q="equilibrio">Equilibrar plantões e folgas</button>
+          <button class="chip" type="button" data-q="proximo">Planejar o próximo período</button>
+        </div>
+        <label for="aiQ" class="muted" style="font-size:12.5px">Pergunta (a escala, as regras e a auditoria vão junto automaticamente)</label>
+        <textarea id="aiQ">Encontre o conjunto de trocas que zera (ou mais reduz) os erros da auditoria, testando cada combinação antes de sugerir.</textarea>
+        <div class="row" style="margin-top:8px">
+          <button class="btn primary" type="button" id="aiSend">Perguntar</button>
+          <button class="btn" type="button" id="aiCopy">Copiar para o Gemini</button>
+          <button class="btn" type="button" id="aiStop" disabled>Parar</button>
+          <button class="btn" type="button" id="aiNew">Nova conversa</button>
+        </div>
+        <div id="proposal" style="margin-top:10px"></div>
+      </div>
+      <div><div class="out" id="aiOut"><p class="muted">O Claude conhece as funções da sala, as regras e a escala atual. Ele testa as trocas no mesmo verificador deste painel antes de sugerir, e a proposta final aparece com um botão para aplicar na grade como simulação.</p></div></div>
+    </div>
+  </section>
+
+  <footer>Painel Escala GPON · TEL Telecom · Supervisão Gabriel de Souza Paschoa</footer>
+</div>
+
+<div class="ov" id="ov" role="dialog" aria-modal="true" aria-labelledby="mTitle"><div class="modal" id="modal"></div></div>
+<div class="tip" id="tip"></div>
+<div class="toast" id="toast"></div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script>
+// ===== Motor de regras da Escala GPON =====
+(function (root) {
+  const WD = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
+  const GROUPS = { atend: 'Atendimento', monit: 'Monitoramento', plan: 'Planilhas', novato: 'Novato', sup: 'Supervisor' };
+  const DEFAULT_RULES = {
+    maxConsec: 8,
+    satQty: 8,
+    sunAtend: 2, sunMonit: 1,
+    holPct: 50, holAtend: 3, holMonit: 1, holPlan: 1,
+    folgaSabDom: 2, folgaDomSeg: 1,
+    casadaMin: 1, casada100Max: 2,
+    groups: { GLAUCO: 'atend', AURELIANO: 'atend', TAYNA: 'atend', JORGE: 'atend', ELIAS: 'atend', FERNANDO: 'atend', LENILTON: 'monit', WELLINGTON: 'monit', LEANDRO: 'plan', 'PAULO ENOQUE': 'plan', RHONIS: 'novato', GABRIEL: 'sup' },
+    pairs: [{ a: 'LENILTON', b: 'WELLINGTON', days: { dom: true } }, { a: 'LEANDRO', b: 'PAULO ENOQUE', days: { dom: true } }, { a: 'PAULO ENOQUE', b: 'RHONIS', days: { dom: true } }],
+    supCover: true,
+    fixed: [{ name: 'LEANDRO', date: '2026-11-14', status: 'PRESENTE' }]
+  };
+  const norm = t => String(t || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toUpperCase();
+  function groupOf(p, rules) {
+    const g = (rules || DEFAULT_RULES).groups || {}, n = norm(p.name);
+    let best = null; for (const k of Object.keys(g)) if (n.includes(norm(k)) && (!best || norm(k).length > norm(best).length)) best = k;
+    if (best) return g[best];
+    return /supervisor/i.test(p.role || '') ? 'sup' : 'atend';
+  }
+  function dow(iso) { const [y, m, d] = iso.split('-').map(Number); return new Date(Date.UTC(y, m - 1, d)).getUTCDay(); }
+  function addDays(iso, n) { const [y, m, d] = iso.split('-').map(Number); const t = new Date(Date.UTC(y, m - 1, d + n)); return t.toISOString().slice(0, 10); }
+  function fmt(iso) { const [, m, d] = iso.split('-'); return d + '/' + m; }
+  function fmtW(iso) { return WD[dow(iso)] + ' ' + fmt(iso); }
+  const isWork = s => s === 'PL' || s === 'PRESENTE';
+  let _rules = null;
+  const isTech = p => groupOf(p, _rules) !== 'sup';
+  const findIdx = (people, key) => people.findIndex(p => norm(p.name).includes(norm(key)));
+  const short = n => { const w = n.replace(/^Sup\s+/i, '').trim().split(/\s+/); return w[0][0] + w[0].slice(1).toLowerCase() + (w.length > 1 ? ' ' + w[w.length - 1][0] + '.' : ''); };
+
+  // Junta todos os períodos numa linha do tempo por colaborador (o período mais novo prevalece)
+  function timeline(periods) {
+    const map = {};
+    periods.forEach(per => per.people.forEach(p => {
+      const k = String(p.id || p.name);
+      map[k] = map[k] || {};
+      per.days.forEach((d, i) => { if (p.st[i] != null) map[k][d.date] = p.st[i]; });
+    }));
+    return map;
+  }
+
+  function audit(periods, pIdx, rules) {
+    rules = Object.assign({}, DEFAULT_RULES, rules || {}); _rules = rules;
+    const grp = p => groupOf(p, rules);
+    const per = periods[pIdx];
+    const days = per.days, people = per.people;
+    const dayIdx = {}; days.forEach((d, i) => dayIdx[d.date] = i);
+    const hol = new Set(days.filter(d => d.hol).map(d => d.date));
+    const kind = iso => hol.has(iso) ? 'fer' : dow(iso) === 6 ? 'sab' : dow(iso) === 0 ? 'dom' : 'util';
+    const tl = timeline(periods);
+    const issues = [];
+    const cellFlags = {}; // "pi:di" -> [issue idx]
+    const colFlags = {};  // di -> [issue idx]
+    const add = (iss, cells, cols) => {
+      const n = issues.length; issues.push(iss);
+      (cells || []).forEach(([pi, di]) => { const k = pi + ':' + di; (cellFlags[k] = cellFlags[k] || []).push(n); });
+      (cols || []).forEach(di => (colFlags[di] = colFlags[di] || []).push(n));
+    };
+    const st = (pi, di) => people[pi].st[di];
+
+    // R1 – dias consecutivos (usa histórico de períodos anteriores)
+    const streakInfo = {};
+    people.forEach((p, pi) => {
+      const k = String(p.id || p.name), t = tl[k] || {};
+      const dates = Object.keys(t).sort();
+      let run = [], best = 0;
+      const flush = () => {
+        if (run.length > best) best = run.length;
+        if (run.length > rules.maxConsec) {
+          const inPer = run.filter(d => d in dayIdx);
+          if (inPer.length) {
+            const over = run.slice(rules.maxConsec).filter(d => d in dayIdx);
+            add({ rule: 'consec', sev: 'erro', title: run.length + ' dias seguidos – ' + short(p.name),
+              detail: p.name + ' trabalha de ' + fmtW(run[0]) + ' a ' + fmtW(run[run.length - 1]) + ' (' + run.length + ' dias). Limite: ' + rules.maxConsec + '. Dias excedentes: ' + over.map(fmt).join(', ') + '.',
+              people: [pi], dates: run.filter(d => d in dayIdx) },
+              (over.length ? over : inPer).map(d => [pi, dayIdx[d]]));
+          }
+        }
+        run = [];
+      };
+      let prev = null;
+      dates.forEach(d => {
+        if (prev && addDays(prev, 1) !== d) flush();
+        if (isWork(t[d])) run.push(d); else flush();
+        prev = d;
+      });
+      flush();
+      // maior sequência dentro do período
+      let cur = 0, mx = 0, startCarry = 0;
+      const first = days[0].date;
+      for (let b = 1; b < 30; b++) { const d = addDays(first, -b); if (isWork(t[d])) startCarry++; else break; }
+      days.forEach((d, di) => { if (isWork(p.st[di])) { cur = (di === 0 ? startCarry : cur) + 1; } else cur = 0; if (cur > mx) mx = cur; });
+      streakInfo[pi] = { max: mx, carry: startCarry };
+    });
+
+    // contagens por dia (técnicos)
+    const counts = days.map((d, di) => {
+      const c = { PRESENTE: 0, FOLGA: 0, PL: 0, sup: null };
+      people.forEach((p, pi) => { const s = st(pi, di); if (isTech(p)) { if (s in c) c[s]++; } else c.sup = s; });
+      return c;
+    });
+
+    const names = list => list.map(pi => short(people[pi].name)).join(', ') || 'ninguém';
+    const presBy = di => { const o = { atend: [], monit: [], plan: [], novato: [], all: [] }; people.forEach((p, pi) => { const g = grp(p); if (g !== 'sup' && st(pi, di) === 'PRESENTE') { o[g].push(pi); o.all.push(pi); } }); return o; };
+    const nTech = people.filter(p => grp(p) !== 'sup').length;
+    const holMin = Math.floor(nTech * rules.holPct / 100), holMax = Math.ceil(nTech * rules.holPct / 100);
+    // R2 – sábado: quantidade
+    days.forEach((d, di) => {
+      const k = kind(d.date), pr = presBy(di);
+      if (k === 'sab') {
+        const n = pr.all.length, target = rules.satQty;
+        if (n !== target)
+          add({ rule: 'sab', sev: 'erro', title: fmtW(d.date) + ': ' + n + ' presentes (meta ' + target + ')',
+            detail: 'Sábado ' + fmt(d.date) + ' tem ' + n + ' técnicos PRESENTE; a regra pede exatamente ' + target + '. ' + (n > target ? 'Sobram ' + (n - target) + '.' : 'Faltam ' + (target - n) + '.') + ' Presentes: ' + names(pr.all) + '.',
+            people: pr.all, dates: [d.date] }, [], [di]);
+      }
+      // R3 – domingo: 3 = 2 Atendimento + 1 Monitoramento
+      if (k === 'dom') {
+        const n = pr.all.length, target = rules.sunAtend + rules.sunMonit, extra = pr.plan.concat(pr.novato);
+        const okComp = pr.atend.length === rules.sunAtend && pr.monit.length === rules.sunMonit && !extra.length;
+        if (!okComp) {
+          const parts = [];
+          if (n !== target) parts.push(n + ' técnicos PRESENTE (meta ' + target + ')');
+          if (pr.atend.length !== rules.sunAtend) parts.push(pr.atend.length + ' do Atendimento (meta ' + rules.sunAtend + ')');
+          if (pr.monit.length !== rules.sunMonit) parts.push(pr.monit.length + ' do Monitoramento (meta ' + rules.sunMonit + ')');
+          if (extra.length) parts.push(names(extra) + ' fora da composição do domingo');
+          add({ rule: 'dom', sev: 'erro', title: fmtW(d.date) + ': ' + n + ' presentes · ' + pr.atend.length + ' Atend + ' + pr.monit.length + ' Monit' + (extra.length ? ' + ' + extra.length + ' outro(s)' : ''),
+            detail: 'Domingo ' + fmt(d.date) + ': ' + parts.join('; ') + '. A regra pede ' + rules.sunAtend + ' do Atendimento e ' + rules.sunMonit + ' do Monitoramento. Atendimento: ' + names(pr.atend) + '. Monitoramento: ' + names(pr.monit) + '.',
+            people: pr.all, dates: [d.date] }, extra.map(pi => [pi, di]), [di]);
+        }
+      }
+      // Feriado: metade da equipe, composição 3/1/1
+      if (k === 'fer') {
+        const n = pr.all.length;
+        if (n < holMin || n > holMax)
+          add({ rule: 'fer', sev: 'erro', title: fmtW(d.date) + ' (feriado): ' + n + ' presentes (meta ' + (holMin === holMax ? holMin : holMin + ' a ' + holMax) + ')',
+            detail: 'No feriado ' + fmt(d.date) + ' a regra é metade da equipe (' + rules.holPct + '% de ' + nTech + ' técnicos = ' + (holMin === holMax ? holMin : holMin + ' a ' + holMax) + '). Estão PRESENTE ' + n + ': ' + names(pr.all) + '.',
+            people: pr.all, dates: [d.date] }, [], [di]);
+        if (pr.atend.length !== rules.holAtend || pr.monit.length !== rules.holMonit || pr.plan.length !== rules.holPlan)
+          add({ rule: 'fer', sev: 'alerta', title: fmtW(d.date) + ' (feriado): composição ' + pr.atend.length + '/' + pr.monit.length + '/' + pr.plan.length + ' (usual ' + rules.holAtend + '/' + rules.holMonit + '/' + rules.holPlan + ')',
+            detail: 'Composição usual do feriado: ' + rules.holAtend + ' Atendimento, ' + rules.holMonit + ' Monitoramento e ' + rules.holPlan + ' Planilhas. Em ' + fmt(d.date) + ': Atendimento ' + names(pr.atend) + '; Monitoramento ' + names(pr.monit) + '; Planilhas ' + names(pr.plan) + (pr.novato.length ? '; Novato ' + names(pr.novato) : '') + '.',
+            people: pr.all, dates: [d.date] }, [], [di]);
+      }
+    });
+    // Feriado: Leandro e Paulo se revezam (olha também feriados de períodos anteriores)
+    (function () {
+      const plan = people.map((p, pi) => grp(p) === 'plan' ? pi : -1).filter(x => x >= 0);
+      const allHol = [];
+      periods.forEach(P2 => P2.days.forEach((d, i) => { if (d.hol) allHol.push({ date: d.date, P: P2, i }); }));
+      allHol.sort((x, y) => x.date < y.date ? -1 : 1);
+      let prevWho = null, prevDate = null;
+      allHol.forEach(h => {
+        const who = h.P.people.filter(p => grp(p) === 'plan' && p.st[h.i] === 'PRESENTE').map(p => norm(p.name).split(' ')[0]).sort().join('+');
+        if (h.date in dayIdx && prevWho && who && who === prevWho && who.indexOf('+') < 0)
+          add({ rule: 'fer', sev: 'alerta', title: 'Planilhas sem revezamento no feriado ' + fmt(h.date),
+            detail: 'Quem cobre Planilhas em feriado deve intercalar entre Leandro e Paulo Enoque. ' + who + ' trabalhou no feriado ' + fmt(prevDate) + ' e de novo em ' + fmt(h.date) + '.',
+            people: plan, dates: [h.date] }, plan.filter(pi => st(pi, dayIdx[h.date]) === 'PRESENTE').map(pi => [pi, dayIdx[h.date]]));
+        if (who) { prevWho = who; prevDate = h.date; }
+      });
+    })();
+
+    // R4 – folgas por fim de semana
+    const weekends = [];
+    days.forEach((d, di) => {
+      if (dow(d.date) !== 6) return;
+      const sun = addDays(d.date, 1), mon = addDays(d.date, 2);
+      if (!(sun in dayIdx)) return;
+      const si = dayIdx[sun], mi = dayIdx[mon];
+      const sd = [], dsg = [];
+      people.forEach((p, pi) => {
+        if (!isTech(p)) return;
+        if (st(pi, di) === 'FOLGA' && st(pi, si) === 'FOLGA') sd.push(pi);
+        if (mi != null && st(pi, si) === 'FOLGA' && st(pi, mi) === 'FOLGA') dsg.push(pi);
+      });
+      const w = { sat: d.date, sun, mon, di, si, mi, sd, dsg, monKnown: mi != null };
+      weekends.push(w);
+      if (sd.length !== rules.folgaSabDom)
+        add({ rule: 'folgaSD', sev: 'erro', title: 'Fim de semana ' + fmt(d.date) + ': ' + sd.length + ' folga(s) Sáb/Dom (meta ' + rules.folgaSabDom + ')',
+          detail: 'Técnicos com FOLGA no sábado ' + fmt(d.date) + ' e no domingo ' + fmt(sun) + ': ' + (sd.length ? sd.map(pi => short(people[pi].name)).join(', ') : 'nenhum') + '. A regra pede ' + rules.folgaSabDom + '.',
+          people: sd, dates: [d.date, sun] }, sd.flatMap(pi => [[pi, di], [pi, si]]), [di, si]);
+      if (mi == null)
+        add({ rule: 'folgaDS', sev: 'info', title: 'Fim de semana ' + fmt(d.date) + ': segunda ' + fmt(mon) + ' fora da escala',
+          detail: 'Não dá para conferir a folga Dom/Seg porque a segunda ' + fmt(mon) + ' está no próximo período. Garanta 1 técnico de FOLGA no domingo ' + fmt(sun) + ' e na segunda ' + fmt(mon) + '.',
+          people: [], dates: [sun] }, [], [si]);
+      else if (dsg.length !== rules.folgaDomSeg)
+        add({ rule: 'folgaDS', sev: 'erro', title: 'Fim de semana ' + fmt(d.date) + ': ' + dsg.length + ' folga(s) Dom/Seg (meta ' + rules.folgaDomSeg + ')',
+          detail: 'Técnicos com FOLGA no domingo ' + fmt(sun) + ' e na segunda ' + fmt(mon) + ': ' + (dsg.length ? dsg.map(pi => short(people[pi].name)).join(', ') : 'nenhum') + '. A regra pede ' + rules.folgaDomSeg + '.',
+          people: dsg, dates: [sun, mon] }, dsg.flatMap(pi => [[pi, si], [pi, mi]]), [si, mi]);
+    });
+
+    // Folgas casadas por colaborador
+    const casadas = people.map((p, pi) => {
+      const o = { c100: 0, ext: 0, list: [] };
+      weekends.forEach(w => {
+        if (st(pi, w.di) === 'FOLGA' && st(pi, w.si) === 'FOLGA') { o.c100++; o.list.push(fmt(w.sat) + '+' + fmt(w.sun)); }
+        if (w.monKnown && st(pi, w.si) === 'FOLGA' && st(pi, w.mi) === 'FOLGA') { o.ext++; o.list.push(fmt(w.sun) + '+' + fmt(w.mon)); }
+      });
+      o.total = o.c100 + o.ext; return o;
+    });
+    people.forEach((p, pi) => {
+      const c = casadas[pi];
+      if (c.total < rules.casadaMin)
+        add({ rule: 'casada', sev: 'erro', title: short(p.name) + ' sem folga casada no período',
+          detail: p.name + ' não tem nenhuma folga casada (Sáb+Dom ou Dom+Seg) em ' + fmt(days[0].date) + '–' + fmt(days[days.length - 1].date) + '. Todos precisam de pelo menos ' + rules.casadaMin + '.',
+          people: [pi], dates: [] }, []);
+      if (c.c100 > rules.casada100Max)
+        add({ rule: 'casada', sev: 'alerta', title: short(p.name) + ' acumula ' + c.c100 + ' folgas casadas 100%',
+          detail: p.name + ' tem ' + c.c100 + ' folgas Sáb+Dom (' + c.list.join(', ') + '). O máximo combinado é ' + rules.casada100Max + ', para não faltar para outros.',
+          people: [pi], dates: [] }, []);
+    });
+
+    // Duplas que não trabalham juntas
+    (rules.pairs || []).forEach(pr => {
+      const A = findIdx(people, pr.a), B = findIdx(people, pr.b);
+      if (A < 0 || B < 0) return;
+      days.forEach((d, di) => {
+        const k = kind(d.date);
+        if (!(pr.days || {})[k]) return;
+        if (isWork(st(A, di)) && isWork(st(B, di)))
+          add({ rule: 'par', sev: 'erro', title: short(people[A].name) + ' e ' + short(people[B].name) + ' juntos em ' + fmtW(d.date),
+            detail: people[A].name + ' e ' + people[B].name + ' estão escalados no mesmo dia (' + fmtW(d.date) + '). Essa dupla nunca trabalha junta ' + ({ sab: 'aos sábados', dom: 'aos domingos', fer: 'em feriados', util: 'em dias úteis' }[k]) + '.',
+            people: [A, B], dates: [d.date] }, [[A, di], [B, di]]);
+      });
+    });
+
+    // Espelhamento: Gabriel cobre Planilhas quando Leandro e Paulo não estão
+    const S = people.findIndex(p => grp(p) === 'sup');
+    const PLAN = people.map((p, pi) => grp(p) === 'plan' ? pi : -1).filter(x => x >= 0);
+    const coverage = days.map((d, di) => PLAN.some(pi => isWork(st(pi, di))));
+    if (rules.supCover && S >= 0 && PLAN.length) {
+      days.forEach((d, di) => {
+        const k = kind(d.date);
+        if (!coverage[di] && !isWork(st(S, di)))
+          add({ rule: 'sup', sev: 'erro', title: 'Planilhas descobertas em ' + fmtW(d.date),
+            detail: names(PLAN) + ' não estão atuando em ' + fmtW(d.date) + ' e Gabriel está ' + (st(S, di) || 'sem status') + '. Gabriel precisa entrar de plantão para cobrir Planilhas.',
+            people: [S].concat(PLAN), dates: [d.date] }, [[S, di]].concat(PLAN.map(pi => [pi, di])));
+        else if (k !== 'util' && coverage[di] && st(S, di) === 'PRESENTE')
+          add({ rule: 'sup', sev: 'info', title: 'Gabriel presente com Planilhas coberta em ' + fmtW(d.date),
+            detail: 'Em ' + fmtW(d.date) + ' Planilhas já está coberta por ' + names(PLAN.filter(pi => isWork(st(pi, di)))) + '. A presença do supervisor não é exigida pelo espelhamento; avalie se dá para liberar.',
+            people: [S], dates: [d.date] }, [[S, di]]);
+      });
+    }
+
+    // Regras pontuais
+    (rules.fixed || []).forEach(f => {
+      const pi = findIdx(people, f.name), di = dayIdx[f.date];
+      if (pi < 0 || di == null) return;
+      const want = f.status, have = st(pi, di);
+      const ok = want === 'TRABALHA' ? isWork(have) : have === want;
+      if (!ok)
+        add({ rule: 'pontual', sev: 'erro', title: 'Regra pontual: ' + short(people[pi].name) + ' em ' + fmtW(f.date),
+          detail: people[pi].name + ' precisa estar ' + want + ' em ' + fmtW(f.date) + ', mas está ' + (have || 'sem status') + '.',
+          people: [pi], dates: [f.date] }, [[pi, di]]);
+    });
+
+    // Consistência de códigos
+    people.forEach((p, pi) => days.forEach((d, di) => {
+      const s = st(pi, di), k = kind(d.date);
+      if (!s) add({ rule: 'codigo', sev: 'alerta', title: 'Célula vazia: ' + short(p.name) + ' em ' + fmtW(d.date), detail: 'Sem status para ' + p.name + ' em ' + fmtW(d.date) + '.', people: [pi], dates: [d.date] }, [[pi, di]]);
+      else if (s === 'PL' && k !== 'util') add({ rule: 'codigo', sev: 'alerta', title: 'PL em ' + (k === 'fer' ? 'feriado' : 'fim de semana') + ': ' + short(p.name) + ' ' + fmt(d.date), detail: 'Em sábado, domingo e feriado o código esperado é PRESENTE ou FOLGA.', people: [pi], dates: [d.date] }, [[pi, di]]);
+      else if (s === 'PRESENTE' && k === 'util') add({ rule: 'codigo', sev: 'alerta', title: 'PRESENTE em dia útil: ' + short(p.name) + ' ' + fmt(d.date), detail: 'Em dia útil o código esperado é PL ou FOLGA.', people: [pi], dates: [d.date] }, [[pi, di]]);
+      else if (!['PL', 'PRESENTE', 'FOLGA'].includes(s)) add({ rule: 'codigo', sev: 'alerta', title: 'Código desconhecido "' + s + '": ' + short(p.name), detail: 'Use PL, PRESENTE ou FOLGA.', people: [pi], dates: [d.date] }, [[pi, di]]);
+    }));
+
+    // Equilíbrio (sáb/dom/feriado trabalhados)
+    const load = people.map((p, pi) => {
+      const o = { sab: 0, dom: 0, fer: 0, folgas: 0, pl: 0 };
+      days.forEach((d, di) => { const s = st(pi, di), k = kind(d.date); if (s === 'PRESENTE' && k !== 'util') o[k]++; if (s === 'FOLGA') o.folgas++; if (s === 'PL') o.pl++; });
+      o.total = o.sab + o.dom + o.fer; return o;
+    });
+    const techLoads = people.map((p, pi) => isTech(p) ? load[pi].total : null).filter(x => x != null);
+    const avg = techLoads.reduce((a, b) => a + b, 0) / (techLoads.length || 1);
+    people.forEach((p, pi) => {
+      if (!isTech(p)) return;
+      const diff = load[pi].total - avg;
+      if (Math.abs(diff) >= 2)
+        add({ rule: 'equil', sev: 'alerta', title: short(p.name) + ': ' + load[pi].total + ' plantões de fim de semana/feriado (média ' + avg.toFixed(1) + ')',
+          detail: p.name + ' tem ' + load[pi].total + ' dias PRESENTE em sábado/domingo/feriado, ' + (diff > 0 ? 'acima' : 'abaixo') + ' da média da equipe (' + avg.toFixed(1) + '). Avalie trocar com quem está no outro extremo.',
+          people: [pi], dates: [] });
+    });
+
+    const errs = issues.filter(i => i.sev === 'erro').length;
+    // regras avaliadas (para % de conformidade)
+    let checks = 0;
+    days.forEach(d => { const k = kind(d.date); if (k !== 'util') checks += 2; });
+    checks += weekends.length * 2 + people.length * 2 + days.length + (rules.fixed || []).length;
+    (rules.pairs || []).forEach(pr => days.forEach(d => { if ((pr.days || {})[kind(d.date)]) checks++; }));
+    const conf = Math.max(0, Math.round(100 * (1 - errs / checks)));
+    const groupsOf = people.map(p => grp(p));
+    return { issues, cellFlags, colFlags, counts, weekends, load, avg, streakInfo, kind, rules, conf, checks, casadas, coverage, groupsOf, presBy, holMin, holMax };
+  }
+
+  root.Escala = { audit, DEFAULT_RULES, GROUPS, groupOf, norm, dow, fmt, fmtW, addDays, short, isTech, WD };
+})(typeof window !== 'undefined' ? window : globalThis);
+
+</script>
+<script>
+const BASE = {"periods": [{"title": "ESCALA GPON - OUTUBRO/NOVEMBRO", "days": [{"date": "2026-10-14", "hol": false}, {"date": "2026-10-15", "hol": false}, {"date": "2026-10-16", "hol": false}, {"date": "2026-10-17", "hol": false}, {"date": "2026-10-18", "hol": false}, {"date": "2026-10-19", "hol": false}, {"date": "2026-10-20", "hol": false}, {"date": "2026-10-21", "hol": false}, {"date": "2026-10-22", "hol": false}, {"date": "2026-10-23", "hol": false}, {"date": "2026-10-24", "hol": false}, {"date": "2026-10-25", "hol": false}, {"date": "2026-10-26", "hol": false}, {"date": "2026-10-27", "hol": false}, {"date": "2026-10-28", "hol": false}, {"date": "2026-10-29", "hol": false}, {"date": "2026-10-30", "hol": false}, {"date": "2026-10-31", "hol": false}, {"date": "2026-11-01", "hol": false}, {"date": "2026-11-02", "hol": true}, {"date": "2026-11-03", "hol": false}, {"date": "2026-11-04", "hol": false}, {"date": "2026-11-05", "hol": false}, {"date": "2026-11-06", "hol": false}, {"date": "2026-11-07", "hol": false}, {"date": "2026-11-08", "hol": false}, {"date": "2026-11-09", "hol": false}, {"date": "2026-11-10", "hol": false}, {"date": "2026-11-11", "hol": false}, {"date": "2026-11-12", "hol": false}], "people": [{"id": "103064551", "name": "GLAUCO OLIVEIRA DOS SANTOS", "role": "GPON", "st": ["PL", "PL", "PL", "PRESENTE", "FOLGA", "PL", "PL", "PL", "PL", "PL", "FOLGA", "PRESENTE", "PL", "PL", "PL", "PL", "PL", "PRESENTE", "FOLGA", "PRESENTE", "PL", "PL", "PL", "PL", "PRESENTE", "FOLGA", "FOLGA", "PL", "PL", "PL"]}, {"id": "103064023", "name": "AURELIANO CAMARGO", "role": "GPON", "st": ["PL", "PL", "PL", "FOLGA", "PRESENTE", "PL", "PL", "PL", "PL", "PL", "PRESENTE", "FOLGA", "FOLGA", "PL", "PL", "PL", "PL", "PRESENTE", "FOLGA", "PRESENTE", "PL", "PL", "PL", "PL", "FOLGA", "PRESENTE", "PL", "PL", "PL", "PL"]}, {"id": "103064521", "name": "LENILTON ALVES DUARTE", "role": "GPON", "st": ["PL", "PL", "PL", "PRESENTE", "FOLGA", "PL", "PL", "PL", "PL", "PL", "PRESENTE", "PRESENTE", "PL", "PL", "PL", "PL", "PL", "PRESENTE", "FOLGA", "FOLGA", "PL", "PL", "PL", "PL", "FOLGA", "PRESENTE", "PL", "PL", "PL", "PL"]}, {"id": "103060883", "name": "TAYNA LIMA PEÇANHA", "role": "GPON", "st": ["PL", "PL", "PL", "PRESENTE", "FOLGA", "PL", "PL", "PL", "PL", "PL", "FOLGA", "PRESENTE", "PL", "PL", "PL", "PL", "PL", "FOLGA", "FOLGA", "PRESENTE", "PL", "PL", "PL", "PL", "PRESENTE", "FOLGA", "PL", "PL", "PL", "PL"]}, {"id": "103053992", "name": "JORGE PIRES DA CONCEIÇÃO", "role": "GPON", "st": ["PL", "PL", "PL", "PRESENTE", "FOLGA", "FOLGA", "PL", "PL", "PL", "PL", "PRESENTE", "FOLGA", "PL", "PL", "PL", "PL", "PL", "FOLGA", "PRESENTE", "PRESENTE", "PL", "PL", "PL", "PL", "PRESENTE", "FOLGA", "PL", "PL", "PL", "PL"]}, {"id": "103064540", "name": "WELLINGTON MACEDO LOURENCO", "role": "GPON", "st": ["PL", "PL", "PL", "FOLGA", "PRESENTE", "PL", "PL", "PL", "PL", "PL", "FOLGA", "FOLGA", "PL", "PL", "PL", "PL", "PL", "PRESENTE", "PRESENTE", "FOLGA", "PL", "PL", "PL", "PL", "PRESENTE", "FOLGA", "PL", "PL", "PL", "PL"]}, {"id": "103064997", "name": "ELIAS MANOEL NASCIMENTO", "role": "GPON", "st": ["PL", "PL", "PL", "FOLGA", "PRESENTE", "PL", "PL", "PL", "PL", "PL", "PRESENTE", "FOLGA", "PL", "PL", "PL", "PL", "PL", "FOLGA", "FOLGA", "PRESENTE", "PL", "PL", "PL", "PL", "PRESENTE", "FOLGA", "PL", "PL", "PL", "PL"]}, {"id": "103065178", "name": "FERNANDO SOARES MESQUITA", "role": "GPON", "st": ["PL", "PL", "PL", "PRESENTE", "FOLGA", "FOLGA", "PL", "PL", "PL", "PL", "PRESENTE", "PRESENTE", "PL", "PL", "PL", "PL", "PL", "PRESENTE", "PRESENTE", "FOLGA", "PL", "PL", "PL", "PL", "FOLGA", "PRESENTE", "PL", "PL", "PL", "PL"]}, {"id": "103066030", "name": "LEANDRO HONORIO DE FIGUEIREDO", "role": "GPON", "st": ["PL", "PL", "PL", "PRESENTE", "FOLGA", "PL", "PL", "PL", "PL", "PL", "PRESENTE", "FOLGA", "PL", "PL", "PL", "PL", "PL", "FOLGA", "PRESENTE", "FOLGA", "PL", "PL", "PL", "PL", "FOLGA", "FOLGA", "PL", "PL", "PL", "PL"]}, {"id": "103043815", "name": "PAULO ENOQUE CASADO LIMA FERREIRA", "role": "GPON", "st": ["PL", "PL", "PL", "PRESENTE", "PRESENTE", "PL", "PL", "PL", "PL", "PL", "FOLGA", "FOLGA", "PL", "PL", "PL", "PL", "PL", "PRESENTE", "FOLGA", "PRESENTE", "PL", "PL", "PL", "PL", "PRESENTE", "FOLGA", "PL", "PL", "PL", "PL"]}, {"id": "103066142", "name": "RHONIS DOS SANTOS BARBOSA DE AMORIM", "role": "GPON", "st": ["PL", "PL", "PL", "PRESENTE", "FOLGA", "PL", "PL", "PL", "PL", "PL", "PRESENTE", "FOLGA", "FOLGA", "PL", "PL", "PL", "PL", "PRESENTE", "FOLGA", "PRESENTE", "PL", "PL", "PL", "PL", "PRESENTE", "FOLGA", "PL", "PL", "PL", "PL"]}, {"id": "103065107", "name": "Sup Gabriel de Souza Paschoa", "role": "Supervisor", "st": ["PL", "PL", "PL", "FOLGA", "FOLGA", "PL", "PL", "PL", "PL", "PL", "PRESENTE", "PRESENTE", "PL", "PL", "PL", "PL", "PL", "PRESENTE", "FOLGA", "PRESENTE", "PL", "PL", "PL", "PL", "PRESENTE", "FOLGA", "PL", "PL", "PL", "PL"]}]}, {"title": "ESCALA GPON - NOVEMBRO/DEZEMBRO", "days": [{"date": "2026-11-13", "hol": false}, {"date": "2026-11-14", "hol": false}, {"date": "2026-11-15", "hol": false}, {"date": "2026-11-16", "hol": false}, {"date": "2026-11-17", "hol": false}, {"date": "2026-11-18", "hol": false}, {"date": "2026-11-19", "hol": false}, {"date": "2026-11-20", "hol": true}, {"date": "2026-11-21", "hol": false}, {"date": "2026-11-22", "hol": false}, {"date": "2026-11-23", "hol": false}, {"date": "2026-11-24", "hol": false}, {"date": "2026-11-25", "hol": false}, {"date": "2026-11-26", "hol": false}, {"date": "2026-11-27", "hol": false}, {"date": "2026-11-28", "hol": false}, {"date": "2026-11-29", "hol": false}, {"date": "2026-11-30", "hol": false}, {"date": "2026-12-01", "hol": false}, {"date": "2026-12-02", "hol": false}, {"date": "2026-12-03", "hol": false}, {"date": "2026-12-04", "hol": false}, {"date": "2026-12-05", "hol": false}, {"date": "2026-12-06", "hol": false}, {"date": "2026-12-07", "hol": false}, {"date": "2026-12-08", "hol": false}, {"date": "2026-12-09", "hol": false}, {"date": "2026-12-10", "hol": false}, {"date": "2026-12-11", "hol": false}, {"date": "2026-12-12", "hol": false}, {"date": "2026-12-13", "hol": false}], "people": [{"id": "103064551", "name": "GLAUCO OLIVEIRA DOS SANTOS", "role": "GPON", "st": ["PL", "PRESENTE", "FOLGA", "PL", "PL", "PL", "PL", "FOLGA", "PRESENTE", "PRESENTE", "PL", "PL", "PL", "PL", "PL", "PRESENTE", "FOLGA", "PL", "PL", "PL", "PL", "PL", "FOLGA", "PRESENTE", "PL", "PL", "PL", "PL", "PL", "PRESENTE", "PRESENTE"]}, {"id": "103064023", "name": "AURELIANO CAMARGO", "role": "GPON", "st": ["PL", "PRESENTE", "FOLGA", "PL", "PL", "PL", "PL", "PRESENTE", "PRESENTE", "FOLGA", "PL", "PL", "PL", "PL", "PL", "PRESENTE", "PRESENTE", "PL", "PL", "PL", "PL", "PL", "PRESENTE", "FOLGA", "PL", "PL", "PL", "PL", "PL", "FOLGA", "FOLGA"]}, {"id": "103064521", "name": "LENILTON ALVES DUARTE", "role": "GPON", "st": ["PL", "PRESENTE", "FOLGA", "PL", "PL", "PL", "PL", "PRESENTE", "FOLGA", "FOLGA", "PL", "PL", "PL", "PL", "PL", "PRESENTE", "FOLGA", "PL", "PL", "PL", "PL", "PL", "PRESENTE", "PRESENTE", "PL", "PL", "PL", "PL", "PL", "FOLGA", "PRESENTE"]}, {"id": "103060883", "name": "TAYNA LIMA PEÇANHA", "role": "GPON", "st": ["PL", "PRESENTE", "FOLGA", "FOLGA", "PL", "PL", "PL", "FOLGA", "PRESENTE", "PRESENTE", "PL", "PL", "PL", "PL", "PL", "PRESENTE", "FOLGA", "PL", "PL", "PL", "PL", "PL", "PRESENTE", "FOLGA", "PL", "PL", "PL", "PL", "PL", "FOLGA", "FOLGA"]}, {"id": "103053992", "name": "JORGE PIRES DA CONCEIÇÃO", "role": "GPON", "st": ["PL", "PRESENTE", "FOLGA", "PL", "PL", "PL", "PL", "PRESENTE", "FOLGA", "FOLGA", "PL", "PL", "PL", "PL", "PL", "FOLGA", "PRESENTE", "PL", "PL", "PL", "PL", "PL", "PRESENTE", "PRESENTE", "PL", "PL", "PL", "PL", "PL", "PRESENTE", "FOLGA"]}, {"id": "103064540", "name": "WELLINGTON MACEDO LOURENCO", "role": "GPON", "st": ["PL", "FOLGA", "PRESENTE", "PL", "PL", "PL", "PL", "PRESENTE", "FOLGA", "PRESENTE", "PL", "PL", "PL", "PL", "PL", "PRESENTE", "PRESENTE", "PL", "PL", "PL", "PL", "PL", "FOLGA", "FOLGA", "PL", "PL", "PL", "PL", "PL", "PRESENTE", "FOLGA"]}, {"id": "103064997", "name": "ELIAS MANOEL NASCIMENTO", "role": "GPON", "st": ["PL", "PRESENTE", "PRESENTE", "PL", "PL", "PL", "PL", "FOLGA", "PRESENTE", "FOLGA", "PL", "PL", "PL", "PL", "PL", "FOLGA", "FOLGA", "PL", "PL", "PL", "PL", "PL", "PRESENTE", "FOLGA", "PL", "PL", "PL", "PL", "PL", "PRESENTE", "PRESENTE"]}, {"id": "103065178", "name": "FERNANDO SOARES MESQUITA", "role": "GPON", "st": ["PL", "FOLGA", "PRESENTE", "PL", "PL", "PL", "PL", "PRESENTE", "PRESENTE", "FOLGA", "PL", "PL", "PL", "PL", "PL", "PRESENTE", "FOLGA", "FOLGA", "PL", "PL", "PL", "PL", "PRESENTE", "FOLGA", "PL", "PL", "PL", "PL", "PL", "PRESENTE", "FOLGA"]}, {"id": "103066030", "name": "LEANDRO HONORIO DE FIGUEIREDO", "role": "GPON", "st": ["PL", "PRESENTE", "FOLGA", "PL", "PL", "PL", "PL", "PRESENTE", "PRESENTE", "FOLGA", "FOLGA", "PL", "PL", "PL", "PL", "PRESENTE", "FOLGA", "PL", "PL", "PL", "PL", "PL", "PRESENTE", "FOLGA", "PL", "PL", "PL", "PL", "PL", "PRESENTE", "FOLGA"]}, {"id": "103043815", "name": "PAULO ENOQUE CASADO LIMA FERREIRA", "role": "GPON", "st": ["PL", "PRESENTE", "FOLGA", "PL", "PL", "PL", "PL", "FOLGA", "PRESENTE", "PRESENTE", "PL", "PL", "PL", "PL", "PL", "PRESENTE", "FOLGA", "PL", "PL", "PL", "PL", "PL", "PRESENTE", "FOLGA", "FOLGA", "PL", "PL", "PL", "PL", "PRESENTE", "FOLGA"]}, {"id": "103066142", "name": "RHONIS DOS SANTOS BARBOSA DE AMORIM", "role": "GPON", "st": ["PL", "PRESENTE", "FOLGA", "PL", "PL", "PL", "PL", "PRESENTE", "PRESENTE", "FOLGA", "PL", "PL", "PL", "PL", "PL", "FOLGA", "FOLGA", "PL", "PL", "PL", "PL", "PL", "PRESENTE", "FOLGA", "PL", "PL", "PL", "PL", "PL", "PRESENTE", "FOLGA"]}, {"id": "103065107", "name": "Sup Gabriel de Souza Paschoa", "role": "Supervisor", "st": ["PL", "FOLGA", "FOLGA", "PL", "PL", "PL", "PL", "PRESENTE", "FOLGA", "PRESENTE", "PL", "PL", "PL", "PL", "PL", "FOLGA", "PRESENTE", "PL", "PL", "PL", "PL", "PL", "PRESENTE", "PRESENTE", "PL", "PL", "PL", "PL", "PL", "FOLGA", "PRESENTE"]}]}]};
+const E = window.Escala;
+const $ = s => document.querySelector(s);
+const store = { get(k, d) { try { const v = localStorage.getItem('escalaGpon.' + k); return v ? JSON.parse(v) : d; } catch (e) { return d; } },
+               set(k, v) { try { localStorage.setItem('escalaGpon.' + k, JSON.stringify(v)); } catch (e) {} } };
+const RULE_NAMES = { consec: 'Dias seguidos', sab: 'Sábado', dom: 'Domingo', fer: 'Feriado', folgaSD: 'Folga Sáb/Dom', folgaDS: 'Folga Dom/Seg', casada: 'Folgas casadas', par: 'Duplas', sup: 'Cobertura Planilhas', pontual: 'Regra pontual', codigo: 'Códigos', equil: 'Equilíbrio' };
+const GCOL = { atend: '#0b6e8e', monit: '#7b5ea7', plan: '#1f8a5b', novato: '#b7791f', sup: '#5d6b77' };
+const MES = ['janeiro','fevereiro','março','abril','maio','junho','julho','agosto','setembro','outubro','novembro','dezembro'];
+
+let state = {
+  base: JSON.parse(JSON.stringify(BASE.periods)),
+  periods: null, p: BASE.periods.length - 1,
+  rules: Object.assign(JSON.parse(JSON.stringify(E.DEFAULT_RULES)), store.get('rules2', {})),
+  edits: store.get('edits', {}), editing: false, view: 'all', ruleFilter: 'todas', focus: null, ai: store.get('ai', 'claude'), res: null, chat: [], proposal: null
+};
+
+function applyEdits() {
+  state.periods = JSON.parse(JSON.stringify(state.base));
+  state.periods.forEach((per, pi) => per.people.forEach((p, i) => per.days.forEach((d, di) => {
+    const k = pi + '|' + (p.id || p.name) + '|' + d.date;
+    if (state.edits[k]) p.st[di] = state.edits[k];
+  })));
+}
+const editKey = (pi, p, d) => pi + '|' + (p.id || p.name) + '|' + d.date;
+const nEdits = () => Object.keys(state.edits).length;
+const abbr = s => s === 'PRESENTE' ? 'P' : s === 'FOLGA' ? 'F' : s === 'PL' ? 'PL' : (s ? '?' : '–');
+const per = () => state.periods[state.p];
+const esc = s => String(s == null ? '' : s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+function toast(msg) { const t = $('#toast'); t.textContent = msg; t.style.display = 'block'; clearTimeout(toast.t); toast.t = setTimeout(() => t.style.display = 'none', 2600); }
+function periodLabel(P) { const a = P.days[0].date, b = P.days[P.days.length - 1].date; return E.fmt(a) + ' – ' + E.fmt(b); }
+
+function render() {
+  applyEdits();
+  state.res = E.audit(state.periods, state.p, state.rules);
+  renderHeader(); renderKpis(); renderGrid(); renderIssues(); renderBars(); renderWeekends(); renderCasadas(); renderRules(); renderProposal();
+  $('#btnUndo').disabled = !nEdits();
+  $('#btnUndo').textContent = nEdits() ? 'Desfazer trocas (' + nEdits() + ')' : 'Desfazer trocas';
+}
+
+function renderHeader() {
+  const P = per();
+  $('#ttl').textContent = 'Escala GPON · ' + periodLabel(P);
+  $('#sub').textContent = P.people.length + ' colaboradores · ' + P.days.length + ' dias · ' + (P.title || '');
+  const seg = $('#perSeg'); seg.innerHTML = '';
+  state.periods.forEach((Q, i) => { const b = document.createElement('button'); b.type = 'button'; b.textContent = periodLabel(Q); b.setAttribute('aria-pressed', i === state.p); b.onclick = () => { state.p = i; state.focus = null; render(); }; seg.appendChild(b); });
+}
+
+function renderKpis() {
+  const r = state.res, P = per();
+  const errs = r.issues.filter(i => i.sev === 'erro'), al = r.issues.filter(i => i.sev === 'alerta');
+  const sats = P.days.map((d, di) => [d, di]).filter(([d]) => r.kind(d.date) === 'sab'), suns = P.days.map((d, di) => [d, di]).filter(([d]) => r.kind(d.date) === 'dom');
+  const satOk = sats.filter(([, di]) => r.counts[di].PRESENTE === r.rules.satQty).length, sunOk = suns.filter(([d]) => !r.issues.some(i => i.rule === 'dom' && i.sev === 'erro' && i.dates.includes(d.date))).length;
+  const semCasada = r.casadas.filter(c => c.total < r.rules.casadaMin).length;
+  let best = -1, bp = 0; Object.entries(r.streakInfo).forEach(([pi, s]) => { if (s.max > best) { best = s.max; bp = +pi; } });
+  const consecBad = new Set(r.issues.filter(i => i.rule === 'consec').flatMap(i => i.people)).size;
+  const k = [
+    { l: 'Conformidade', v: r.conf + '%', s: errs.length ? 'das checagens sem erro' : 'todas as regras ok', c: r.conf >= 95 ? 'good' : r.conf >= 80 ? 'mid' : 'bad' },
+    { l: 'Erros', v: errs.length, s: al.length + ' alertas de atenção', c: errs.length ? 'bad' : 'good', f: 'erro' },
+    { l: 'Sábados na meta', v: satOk + '/' + sats.length, s: 'exatamente ' + r.rules.satQty + ' técnicos', c: satOk === sats.length ? 'good' : 'bad', f: 'sab' },
+    { l: 'Domingos na meta', v: sunOk + '/' + suns.length, s: r.rules.sunAtend + ' Atendimento + ' + r.rules.sunMonit + ' Monitoramento', c: sunOk === suns.length ? 'good' : 'bad', f: 'dom' },
+    { l: 'Sem folga casada', v: semCasada, s: 'todos precisam de ao menos ' + r.rules.casadaMin, c: semCasada ? 'bad' : 'good', f: 'casada' },
+    { l: 'Acima de ' + r.rules.maxConsec + ' dias seguidos', v: consecBad, s: 'maior: ' + best + ' dias (' + E.short(P.people[bp].name) + ')', c: consecBad ? 'bad' : 'good', f: 'consec' },
+    { l: 'Trocas simuladas', v: nEdits(), s: nEdits() ? 'ainda não estão na planilha' : 'escala igual à planilha', c: nEdits() ? 'mid' : '' }
+  ];
+  $('#kpis').innerHTML = k.map(x => `<div class="kpi ${x.c} ${x.f ? 'click' : ''}" ${x.f ? `data-f="${x.f}" role="button" tabindex="0"` : ''}><div class="l">${esc(x.l)}</div><div class="v">${esc(x.v)}</div><div class="s">${esc(x.s)}</div></div>`).join('');
+  $('#kpis').querySelectorAll('[data-f]').forEach(el => el.onclick = () => { const f = el.dataset.f; state.ruleFilter = f === 'erro' ? 'erro' : f; state.focus = null; renderIssues(); renderGrid(); $('#auditCard').scrollIntoView({ behavior: 'smooth', block: 'start' }); });
+}
+
+function renderGrid() {
+  const P = per(), r = state.res, today = new Date().toISOString().slice(0, 10);
+  const foc = state.focus != null ? r.issues[state.focus] : null;
+  const hlCells = new Set(); if (foc) Object.entries(r.cellFlags).forEach(([k, arr]) => { if (arr.includes(state.focus)) hlCells.add(k); });
+  if (foc && !hlCells.size) foc.people.forEach(pi => foc.dates.forEach(d => { const di = P.days.findIndex(x => x.date === d); if (di >= 0) hlCells.add(pi + ':' + di); }));
+  const cols = P.days.map((d, di) => ({ d, di, k: r.kind(d.date) })).filter(c => state.view === 'all' || c.k !== 'util');
+  let h = '<thead><tr><th class="nm">Colaborador</th>';
+  cols.forEach(({ d, di, k }) => {
+    const cf = (r.colFlags[di] || []).some(n => r.issues[n].sev === 'erro');
+    h += `<th class="dh ${k !== 'util' ? 'wk' : ''} ${k === 'fer' ? 'fer' : ''} ${d.date === today ? 'today' : ''}" data-day="${di}" tabindex="0" title="Ver detalhes do dia"><div class="w">${E.WD[E.dow(d.date)]}</div><div class="d">${d.date.slice(8)}</div>${k === 'fer' ? '<span class="tag">FER</span>' : cf ? '<span class="tag" style="color:var(--err)">●</span>' : '<span class="tag">&nbsp;</span>'}</th>`;
+  });
+  h += '</tr></thead><tbody>';
+  P.people.forEach((p, pi) => {
+    const rowHl = foc && foc.people.includes(pi);
+    h += `<tr class="${rowHl ? 'rowhl' : ''}"><td class="nm"><button type="button" data-person="${pi}">${esc(p.name.replace(/^Sup\s+/i, ''))}</button><div class="role"><span style="color:${GCOL[r.groupsOf[pi]]};font-weight:600">${E.GROUPS[r.groupsOf[pi]]}</span>${p.id ? ' · ' + esc(p.id) : ''}</div></td>`;
+    cols.forEach(({ d, di, k }) => {
+      const s = p.st[di], fl = r.cellFlags[pi + ':' + di] || [];
+      const sev = fl.some(n => r.issues[n].sev === 'erro') ? 'bad' : fl.some(n => r.issues[n].sev === 'alerta') ? 'warn' : '';
+      const ed = state.edits[editKey(state.p, p, d)] ? 'edited' : '';
+      h += `<td class="c ${k !== 'util' ? 'wk' : ''}"><button type="button" class="cell ${s || 'x'} ${sev} ${ed} ${hlCells.has(pi + ':' + di) ? 'hl' : ''}" data-p="${pi}" data-d="${di}" aria-label="${esc(p.name)} ${E.fmt(d.date)}: ${esc(s || 'vazio')}">${abbr(s)}</button></td>`;
+    });
+    h += '</tr>';
+  });
+  h += '</tbody><tfoot><tr><td class="nm">Técnicos presentes</td>';
+  cols.forEach(({ di, k }) => {
+    const c = r.counts[di].PRESENTE + (k === 'util' ? r.counts[di].PL : 0);
+    const tgt = k === 'sab' ? [r.rules.satQty, r.rules.satQty] : k === 'dom' ? [r.rules.sunAtend + r.rules.sunMonit, r.rules.sunAtend + r.rules.sunMonit] : k === 'fer' ? [r.holMin, r.holMax] : null;
+    h += `<td>${tgt ? `<span class="cnt ${c >= tgt[0] && c <= tgt[1] ? 'ok' : 'bad'}" title="Meta ${tgt[0] === tgt[1] ? tgt[0] : tgt[0] + ' a ' + tgt[1]}">${c}</span>` : `<span class="muted">${c}</span>`}</td>`;
+  });
+  h += '</tr><tr><td class="nm">Técnicos de folga</td>';
+  cols.forEach(({ di }) => h += `<td class="muted">${r.counts[di].FOLGA}</td>`);
+  h += '</tr></tfoot>';
+  const g = $('#grid'); g.innerHTML = h;
+  g.classList.toggle('dim', !!foc); g.closest('.card').classList.toggle('editing', state.editing);
+}
+
+function renderIssues() {
+  const r = state.res;
+  const groups = {}; r.issues.forEach(i => groups[i.rule] = (groups[i.rule] || 0) + (i.sev === 'erro' ? 1 : 0));
+  const chips = [['todas', 'Todas'], ['erro', 'Só erros']].concat(Object.keys(RULE_NAMES).filter(k => r.issues.some(i => i.rule === k)).map(k => [k, RULE_NAMES[k] + (groups[k] ? ' · ' + groups[k] : '')]));
+  if (!chips.some(c => c[0] === state.ruleFilter)) state.ruleFilter = 'todas';
+  $('#ruleChips').innerHTML = chips.map(([k, l]) => `<button class="chip" type="button" data-rf="${k}" aria-pressed="${state.ruleFilter === k}">${esc(l)}</button>`).join('');
+  const order = { erro: 0, alerta: 1, info: 2 };
+  const list = r.issues.map((i, n) => [i, n]).filter(([i]) => state.ruleFilter === 'todas' || (state.ruleFilter === 'erro' ? i.sev === 'erro' : i.rule === state.ruleFilter)).sort((a, b) => order[a[0].sev] - order[b[0].sev]);
+  const ne = r.issues.filter(i => i.sev === 'erro').length;
+  $('#auditCount').textContent = ne + ' erros · ' + (r.issues.length - ne) + ' avisos';
+  $('#issues').innerHTML = list.length ? list.map(([i, n]) => `<button type="button" class="iss ${i.sev}" data-iss="${n}" aria-pressed="${state.focus === n}"><span class="bar"></span><div><b><span class="pill ${i.sev}">${i.sev === 'erro' ? 'Erro' : i.sev === 'alerta' ? 'Atenção' : 'Info'}</span>${esc(i.title)}</b><span>${esc(i.detail)}</span></div></button>`).join('') : '<div class="empty">Nenhum problema nesta regra.</div>';
+}
+
+function renderBars() {
+  const r = state.res, P = per();
+  const rows = P.people.map((p, pi) => ({ pi, name: E.short(p.name) + (E.isTech(p) ? '' : ' (sup.)'), ...r.load[pi] })).sort((a, b) => b.total - a.total);
+  const W = Math.max(320, $('#bars').clientWidth || 600), lw = 120, rh = 24, H = rows.length * rh + 26;
+  const max = Math.max(1, ...rows.map(x => x.total)), sx = v => (W - lw - 40) * v / max;
+  let s = `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Dias presentes em sábado, domingo e feriado por colaborador">`;
+  for (let t = 0; t <= max; t++) s += `<line x1="${lw + sx(t)}" x2="${lw + sx(t)}" y1="0" y2="${H - 20}" stroke="var(--line)" stroke-dasharray="${t ? '2 3' : ''}"/><text x="${lw + sx(t)}" y="${H - 6}" text-anchor="middle">${t}</text>`;
+  const avgX = lw + sx(r.avg);
+  s += `<line x1="${avgX}" x2="${avgX}" y1="0" y2="${H - 20}" stroke="var(--accent)" stroke-width="1.5"/>`;
+  rows.forEach((x, i) => {
+    const y = i * rh + 4; let xo = lw;
+    s += `<g class="row" data-person="${x.pi}"><rect x="0" y="${y - 2}" width="${W}" height="${rh}" fill="transparent"/><text class="lbl" x="${lw - 8}" y="${y + 13}" text-anchor="end">${esc(x.name)}</text>`;
+    [['sab', 'var(--pre)'], ['dom', '#7a9fb5'], ['fer', 'var(--warn)']].forEach(([k, c]) => { if (x[k]) { s += `<rect x="${xo}" y="${y}" width="${sx(x[k]) - 1}" height="16" rx="3" fill="${c}"><title>${k === 'sab' ? 'Sábados' : k === 'dom' ? 'Domingos' : 'Feriados'}: ${x[k]}</title></rect>`; xo += sx(x[k]); } });
+    s += `<text class="val" x="${xo + 6}" y="${y + 13}">${x.total}</text></g>`;
+  });
+  s += '</svg>';
+  $('#bars').innerHTML = s;
+  const tl = rows.filter(x => E.isTech(P.people[x.pi])).map(x => x.total);
+  $('#barsNote').textContent = 'Linha azul: média da equipe técnica (' + r.avg.toFixed(1) + ' dias). Diferença entre quem mais e quem menos trabalhou em fim de semana/feriado: ' + (Math.max(...tl) - Math.min(...tl)) + ' dias. Clique numa barra para abrir o colaborador.';
+}
+
+function renderWeekends() {
+  const r = state.res, P = per();
+  const pill = (ok, txt) => `<span class="pill ${ok ? 'ok' : 'erro'} num">${txt}</span>`;
+  const S = P.people.findIndex((p, i) => r.groupsOf[i] === 'sup');
+  const nm = list => esc(list.map(pi => E.short(P.people[pi].name)).join(', ') || 'ninguém');
+  const sunT = r.rules.sunAtend + r.rules.sunMonit;
+  let h = '<thead><tr><th>Dia</th><th>Sábado</th><th>Domingo / Feriado</th><th>Folga Sáb+Dom</th><th>Folga Dom+Seg</th><th>Planilhas</th><th>Gabriel</th></tr></thead><tbody>';
+  const rows = [];
+  r.weekends.forEach(w => rows.push({ date: w.sat, w }));
+  P.days.forEach((d, di) => { if (d.hol) rows.push({ date: d.date, hol: di }); });
+  rows.sort((a, b) => a.date < b.date ? -1 : 1);
+  rows.forEach(x => {
+    if (x.w) {
+      const w = x.w, ps = r.presBy(w.si), sOk = r.counts[w.di].PRESENTE === r.rules.satQty;
+      const dOk = ps.atend.length === r.rules.sunAtend && ps.monit.length === r.rules.sunMonit && !ps.plan.length && !ps.novato.length;
+      const plan = [w.di, w.si].map(di => r.coverage[di] ? 'ok' : 'descoberta');
+      h += `<tr class="clk" data-wk="${w.di}"><td><b>${E.fmt(w.sat)} e ${E.fmt(w.sun)}</b></td><td>${pill(sOk, r.counts[w.di].PRESENTE + '/' + r.rules.satQty)}</td><td>${pill(dOk, ps.all.length + '/' + sunT)} <span class="muted">${ps.atend.length} At · ${ps.monit.length} Mo${ps.plan.length + ps.novato.length ? ' · ' + (ps.plan.length + ps.novato.length) + ' outro' : ''}</span></td><td>${pill(w.sd.length === r.rules.folgaSabDom, w.sd.length + '/' + r.rules.folgaSabDom)} <span class="muted">${nm(w.sd)}</span></td><td>${w.monKnown ? pill(w.dsg.length === r.rules.folgaDomSeg, w.dsg.length + '/' + r.rules.folgaDomSeg) + ' <span class="muted">' + nm(w.dsg) + '</span>' : '<span class="pill info">—</span> <span class="muted">segunda fora da escala</span>'}</td><td>${plan.map((p, i) => `<span class="pill ${p === 'ok' || (S >= 0 && ['PL', 'PRESENTE'].includes(P.people[S].st[[w.di, w.si][i]])) ? 'ok' : 'erro'}">${i ? 'Dom' : 'Sáb'} ${p === 'ok' ? 'Le/Pa' : 'Gabriel'}</span>`).join('')}</td><td class="num">${S >= 0 ? abbr(P.people[S].st[w.di]) + ' / ' + abbr(P.people[S].st[w.si]) : '—'}</td></tr>`;
+    } else {
+      const di = x.hol, ps = r.presBy(di), n = ps.all.length, ok = n >= r.holMin && n <= r.holMax;
+      h += `<tr class="clk" data-wk="${di}" style="background:var(--accent-soft)"><td><b>${E.fmtW(x.date)}</b><br><span class="pill info">Feriado</span></td><td class="muted">—</td><td>${pill(ok, n + '/' + (r.holMin === r.holMax ? r.holMin : r.holMin + '–' + r.holMax))} <span class="muted">${ps.atend.length} At · ${ps.monit.length} Mo · ${ps.plan.length} Pl${ps.novato.length ? ' · ' + ps.novato.length + ' Nov' : ''}</span></td><td class="muted">—</td><td class="muted">—</td><td><span class="pill ${r.coverage[di] ? 'ok' : 'erro'}">${r.coverage[di] ? nm(ps.plan) : 'Gabriel'}</span></td><td class="num">${S >= 0 ? abbr(P.people[S].st[di]) : '—'}</td></tr>`;
+    }
+  });
+  $('#wkTable').innerHTML = h + '</tbody>';
+}
+
+function renderCasadas() {
+  const r = state.res, P = per();
+  let h = '<thead><tr><th>Colaborador</th><th>Sáb+Dom</th><th>Dom+Seg</th><th>Quando</th></tr></thead><tbody>';
+  P.people.map((p, pi) => [p, pi]).sort((a, b) => r.casadas[a[1]].total - r.casadas[b[1]].total).forEach(([p, pi]) => {
+    const c = r.casadas[pi], bad = c.total < r.rules.casadaMin, warn = c.c100 > r.rules.casada100Max;
+    h += `<tr class="clk" data-person="${pi}"><td><span class="pill ${bad ? 'erro' : warn ? 'alerta' : 'ok'}">${bad ? 'Sem' : warn ? 'Excesso' : 'Ok'}</span>${esc(E.short(p.name))} <span class="muted" style="font-size:11.5px">${E.GROUPS[r.groupsOf[pi]]}</span></td><td class="num">${c.c100}</td><td class="num">${c.ext}</td><td class="muted" style="font-size:12px">${esc(c.list.join(', ') || '—')}</td></tr>`;
+  });
+  $('#casTable').innerHTML = h + '</tbody>';
+}
+
+function renderRules() {
+  const R = state.rules, P = per(), r = state.res;
+  const num = (k, l) => `<div class="row"><input type="number" min="0" max="31" id="r_${k}" data-r="${k}" value="${R[k]}"><label for="r_${k}">${l}</label></div>`;
+  const gsel = P.people.map((p, pi) => `<div class="row" style="justify-content:space-between"><span style="font-size:13px">${esc(E.short(p.name))}</span><select data-g="${pi}" aria-label="Função de ${esc(p.name)}">${Object.entries(E.GROUPS).map(([k, l]) => `<option value="${k}" ${r.groupsOf[pi] === k ? 'selected' : ''}>${l}</option>`).join('')}</select></div>`).join('');
+  const dl = { sab: 'Sáb', dom: 'Dom', fer: 'Fer', util: 'Útil' };
+  const pairs = R.pairs.map((pr, i) => `<div style="font-size:13px"><b>${esc(pr.a)} × ${esc(pr.b)}</b> · nunca juntos em: ${Object.keys(dl).map(k => `<label><input type="checkbox" data-pair="${i}" data-pd="${k}" ${pr.days[k] ? 'checked' : ''}> ${dl[k]}</label>`).join(' ')}</div>`).join('');
+  const fixed = R.fixed.map((f, i) => `<div class="row" style="font-size:13px"><span>${esc(f.name)} ${f.status} em ${E.fmtW(f.date)}</span><button class="chip" type="button" data-fxdel="${i}">Remover</button></div>`).join('') || '<span class="muted" style="font-size:12.5px">Nenhuma</span>';
+  $('#rulesForm').innerHTML = `
+    <div class="rg"><b>Fadiga</b>${num('maxConsec', 'máximo de dias seguidos trabalhando (PL ou presente). Conta o fim do período anterior.')}</div>
+    <div class="rg"><b>Sábados e domingos</b>${num('satQty', 'técnicos operando todo sábado')}${num('sunAtend', 'do Atendimento todo domingo')}${num('sunMonit', 'do Monitoramento todo domingo')}<span class="muted" style="font-size:12px">Planilhas e novato ficam fora do domingo; Gabriel cobre Planilhas.</span></div>
+    <div class="rg"><b>Feriados</b>${num('holPct', '% da equipe técnica presente')}${num('holAtend', 'do Atendimento (usual)')}${num('holMonit', 'do Monitoramento (usual)')}${num('holPlan', 'de Planilhas, intercalando Leandro e Paulo')}</div>
+    <div class="rg"><b>Folgas casadas</b>${num('folgaSabDom', 'Sáb+Dom (100%) por fim de semana')}${num('folgaDomSeg', 'Dom+Seg (estendida) por fim de semana')}${num('casadaMin', 'mínimo por colaborador no período')}${num('casada100Max', 'máximo de Sáb+Dom por colaborador')}</div>
+    <div class="rg"><b>Duplas</b>${pairs}<span class="muted" style="font-size:12px">Glauco e Aureliano: liberados.</span></div>
+    <div class="rg"><b>Espelhamento e regras pontuais</b><label><input type="checkbox" id="r_sup" ${R.supCover ? 'checked' : ''}> Gabriel entra quando Leandro e Paulo não estão atuando</label>${fixed}
+      <div class="row"><select id="fxName" aria-label="Colaborador">${P.people.map(p => `<option>${esc(p.name.split(' ')[0].toUpperCase())}</option>`).join('')}</select><input type="text" id="fxDate" placeholder="dd/mm" style="width:64px;padding:5px;border:1px solid var(--line);border-radius:6px;background:var(--surface)" aria-label="Dia"><select id="fxSt" aria-label="Status"><option>PRESENTE</option><option>FOLGA</option><option value="TRABALHA">TRABALHA (PL ou P)</option></select><button class="chip" type="button" id="fxAdd">Adicionar</button></div></div>
+    <div class="rg"><b>Funções na sala</b>${gsel}</div>`;
+}
+function saveRules() { store.set('rules2', state.rules); render(); $('#rulesBox').open = true; }
+
+// ---------- modais ----------
+function openModal(html) { $('#modal').innerHTML = html; $('#ov').classList.add('open'); const b = $('#modal .x'); if (b) b.focus(); }
+function closeModal() { $('#ov').classList.remove('open'); }
+function personModal(pi) {
+  const P = per(), r = state.res, p = P.people[pi], L = r.load[pi], si = r.streakInfo[pi];
+  const iss = r.issues.filter(i => i.people.includes(pi));
+  const strip = P.days.map((d, di) => `<span class="cell ${p.st[di] || 'x'}" title="${E.fmtW(d.date)}: ${esc(p.st[di])}">${abbr(p.st[di])}</span>`).join('');
+  openModal(`<div><button class="btn x" type="button" data-close>Fechar</button><h2 id="mTitle" style="text-transform:none;font-size:18px">${esc(p.name)}</h2><span class="muted">${esc(p.role)} · ID ${esc(p.id)}</span></div>
+    <div class="kpis">
+      <div class="kpi"><div class="l">Sábados</div><div class="v">${L.sab}</div></div>
+      <div class="kpi"><div class="l">Domingos</div><div class="v">${L.dom}</div></div>
+      <div class="kpi"><div class="l">Feriados</div><div class="v">${L.fer}</div></div>
+      <div class="kpi"><div class="l">Folgas</div><div class="v">${L.folgas}</div></div>
+      <div class="kpi ${si.max > r.rules.maxConsec ? 'bad' : 'good'}"><div class="l">Maior sequência</div><div class="v">${si.max}</div><div class="s">${si.carry ? 'chega com ' + si.carry + ' dia(s) do período anterior' : 'começa descansado'}</div></div>
+    </div>
+    <div><div class="muted" style="font-size:12.5px;margin-bottom:4px">Dia a dia (${periodLabel(P)})</div><div class="strip">${strip}</div></div>
+    <div><h3 style="font-size:14px;margin-bottom:6px">${iss.length ? iss.length + ' ponto(s) na auditoria' : 'Sem pontos na auditoria'}</h3>${iss.map(i => `<p style="margin:4px 0"><span class="pill ${i.sev}">${i.sev}</span>${esc(i.detail)}</p>`).join('')}</div>`);
+}
+function dayModal(di) {
+  const P = per(), r = state.res, d = P.days[di], k = r.kind(d.date);
+  const by = s => P.people.map((p, pi) => [p, pi]).filter(([p, pi]) => p.st[di] === s).map(([p]) => esc(E.short(p.name)) + (E.isTech(p) ? '' : ' <span class="muted">(sup.)</span>')).join(', ') || '<span class="muted">ninguém</span>';
+  const iss = (r.colFlags[di] || []).map(n => r.issues[n]).concat(r.issues.filter(i => i.dates.includes(d.date) && !(r.colFlags[di] || []).some(n => r.issues[n] === i)));
+  const uniq = [...new Set(iss)];
+  openModal(`<div><button class="btn x" type="button" data-close>Fechar</button><h2 id="mTitle" style="text-transform:none;font-size:18px">${E.fmtW(d.date)}${k === 'fer' ? ' · Feriado' : ''}</h2><span class="muted">${k === 'sab' ? 'Meta: ' + r.rules.satQty + ' técnicos presentes' : k === 'dom' ? 'Meta: ' + r.rules.sunQty + ' técnicos presentes' : k === 'fer' ? 'Feriado' : 'Dia útil'}</span></div>
+    <table class="t"><tr><th>Status</th><th>Quem</th></tr>
+    ${k === 'util' ? `<tr><td><span class="sw" style="background:var(--pl)"></span>PL</td><td>${by('PL')}</td></tr>` : `<tr><td><span class="sw" style="background:var(--pre)"></span>Presente (${r.counts[di].PRESENTE} téc.)</td><td>${by('PRESENTE')}</td></tr>`}
+    <tr><td><span class="sw" style="background:var(--fol)"></span>Folga</td><td>${by('FOLGA')}</td></tr>
+    ${k !== 'util' ? (() => { const ps = r.presBy(di); return `<tr><td>Composição</td><td>Atendimento ${ps.atend.length} · Monitoramento ${ps.monit.length} · Planilhas ${ps.plan.length} · Novato ${ps.novato.length} · Planilhas ${r.coverage[di] ? 'coberta' : '<b style="color:var(--err)">descoberta</b>'}</td></tr>`; })() : `<tr><td>Planilhas</td><td>${r.coverage[di] ? 'coberta' : '<b style="color:var(--err)">descoberta</b>'}</td></tr>`}</table>
+    <div>${uniq.length ? uniq.map(i => `<p style="margin:4px 0"><span class="pill ${i.sev}">${i.sev}</span>${esc(i.detail)}</p>`).join('') : '<span class="pill ok">Sem problemas neste dia</span>'}</div>`);
+}
+
+// ---------- eventos ----------
+document.addEventListener('click', e => {
+  const t = e.target;
+  if (t.closest('[data-close]') || t === $('#ov')) return closeModal();
+  const cell = t.closest('#grid .cell');
+  if (cell) {
+    const pi = +cell.dataset.p, di = +cell.dataset.d;
+    if (!state.editing) { personModal(pi); return; }
+    const P = per(), p = P.people[pi], d = P.days[di], k = state.res.kind(d.date);
+    const cycle = k === 'util' ? ['PL', 'FOLGA'] : ['PRESENTE', 'FOLGA'];
+    const cur = p.st[di], next = cycle[(cycle.indexOf(cur) + 1) % cycle.length];
+    const orig = state.base[state.p].people[pi].st[di], key = editKey(state.p, p, d);
+    if (next === orig) delete state.edits[key]; else state.edits[key] = next;
+    store.set('edits', state.edits); state.focus = null; render(); return;
+  }
+  const pb = t.closest('[data-person]'); if (pb) return personModal(+pb.dataset.person);
+  const dh = t.closest('[data-day]'); if (dh) return dayModal(+dh.dataset.day);
+  const ib = t.closest('[data-iss]');
+  if (ib) { const n = +ib.dataset.iss; state.focus = state.focus === n ? null : n; renderIssues(); renderGrid(); if (state.focus != null && window.innerWidth < 1100) $('#gridCard').scrollIntoView({ behavior: 'smooth' }); else { const c = document.querySelector('#grid .cell.hl'); if (c) c.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' }); } return; }
+  const rf = t.closest('[data-rf]'); if (rf) { state.ruleFilter = rf.dataset.rf; state.focus = null; renderIssues(); renderGrid(); return; }
+  const vw = t.closest('[data-view]'); if (vw) { state.view = vw.dataset.view; document.querySelectorAll('[data-view]').forEach(b => b.setAttribute('aria-pressed', b === vw)); renderGrid(); return; }
+  const wk = t.closest('[data-wk]'); if (wk) { state.view = 'wk'; document.querySelectorAll('[data-view]').forEach(b => b.setAttribute('aria-pressed', b.dataset.view === 'wk')); state.focus = null; renderGrid(); const h = document.querySelector(`#grid [data-day="${wk.dataset.wk}"]`); if (h) { $('#gridCard').scrollIntoView({ behavior: 'smooth' }); h.scrollIntoView({ block: 'nearest', inline: 'center' }); h.style.outline = '2px solid var(--accent)'; } return; }
+  const ai = t.closest('[data-ai]'); if (ai) { state.ai = ai.dataset.ai; store.set('ai', state.ai); syncAi(); return; }
+  const q = t.closest('[data-q]'); if (q) { $('#aiQ').value = QUICK[q.dataset.q]; return; }
+});
+document.addEventListener('keydown', e => { if (e.key === 'Escape') closeModal(); if ((e.key === 'Enter' || e.key === ' ') && e.target.matches('[data-day],.kpi.click')) { e.preventDefault(); e.target.click(); } });
+const tip = $('#tip');
+document.addEventListener('mouseover', e => {
+  const c = e.target.closest('#grid .cell'); if (!c) { tip.style.display = 'none'; return; }
+  const P = per(), r = state.res, pi = +c.dataset.p, di = +c.dataset.d, fl = r.cellFlags[pi + ':' + di] || [];
+  tip.innerHTML = `<b>${esc(P.people[pi].name)}</b><br>${E.fmtW(P.days[di].date)} · ${esc(P.people[pi].st[di] || 'vazio')}${fl.length ? '<br>' + fl.map(n => '• ' + esc(r.issues[n].title)).join('<br>') : ''}${state.editing ? '<br><i>clique para trocar</i>' : ''}`;
+  tip.style.display = 'block';
+});
+document.addEventListener('mousemove', e => { if (tip.style.display === 'block') { const x = Math.min(e.clientX + 14, window.innerWidth - 290); tip.style.left = x + 'px'; tip.style.top = (e.clientY + 16) + 'px'; } });
+
+$('#btnEdit').onclick = () => { state.editing = !state.editing; $('#btnEdit').classList.toggle('on', state.editing); $('#btnEdit').setAttribute('aria-pressed', state.editing); $('#btnEdit').textContent = state.editing ? 'Simulação ligada' : 'Simular trocas'; $('#editHint').style.display = state.editing ? 'inline' : 'none'; renderGrid(); };
+$('#btnUndo').onclick = () => { state.edits = {}; store.set('edits', {}); render(); toast('Trocas desfeitas. Escala igual à planilha.'); };
+$('#btnCopy').onclick = async () => {
+  const P = per();
+  const tsv = P.people.map(p => p.st.map(s => s || '').join('\t')).join('\n');
+  try { await navigator.clipboard.writeText(tsv); toast('Copiado. No Sheets, clique na 1ª célula de status (' + E.fmt(P.days[0].date) + ' do 1º colaborador) e cole.'); }
+  catch (e) { openModal(`<div><button class="btn x" type="button" data-close>Fechar</button><h2 id="mTitle">Copiar para o Sheets</h2></div><p>Selecione tudo abaixo (Ctrl+A) e copie. No Sheets, clique na 1ª célula de status do 1º colaborador e cole.</p><textarea class="copybox" readonly>${esc(tsv)}</textarea>`); const ta = $('#modal textarea'); ta.focus(); ta.select(); }
+};
+$('#ov').addEventListener('click', e => { if (e.target.id === 'ov') closeModal(); });
+$('#rulesForm').addEventListener('change', e => {
+  const t = e.target, R = state.rules;
+  if (t.dataset.r) R[t.dataset.r] = Math.max(0, parseInt(t.value || '0', 10));
+  if (t.dataset.pair) R.pairs[+t.dataset.pair].days[t.dataset.pd] = t.checked;
+  if (t.id === 'r_sup') R.supCover = t.checked;
+  if (t.dataset.g) { const p = per().people[+t.dataset.g]; R.groups = Object.assign({}, R.groups, { [E.norm(p.name)]: t.value }); }
+  if (t.dataset.r || t.dataset.pair || t.id === 'r_sup' || t.dataset.g) saveRules();
+});
+$('#rulesForm').addEventListener('click', e => {
+  const t = e.target;
+  if (t.dataset.fxdel) { state.rules.fixed.splice(+t.dataset.fxdel, 1); saveRules(); }
+  if (t.id === 'fxAdd') {
+    const m = ($('#fxDate').value || '').match(/(\d{1,2})\/(\d{1,2})/); if (!m) { toast('Informe o dia como dd/mm.'); return; }
+    const d = per().days.find(x => x.date.slice(5) === m[2].padStart(2, '0') + '-' + m[1].padStart(2, '0'));
+    if (!d) { toast('Esse dia não está no período aberto.'); return; }
+    state.rules.fixed.push({ name: $('#fxName').value, date: d.date, status: $('#fxSt').value }); saveRules();
+  }
+});
+$('#rulesReset').onclick = () => { state.rules = JSON.parse(JSON.stringify(E.DEFAULT_RULES)); store.set('rules2', {}); render(); };
+window.addEventListener('resize', () => { clearTimeout(window._rz); window._rz = setTimeout(renderBars, 150); });
+
+// ---------- importar planilha ----------
+$('#fileIn').onchange = async e => {
+  const f = e.target.files[0]; if (!f) return;
+  if (!window.XLSX) { toast('Não consegui carregar o leitor de planilhas. Recarregue a página.'); return; }
+  try {
+    const wb = XLSX.read(await f.arrayBuffer(), { type: 'array' });
+    const periods = [];
+    wb.SheetNames.forEach(sn => {
+      const A = XLSX.utils.sheet_to_json(wb.Sheets[sn], { header: 1, raw: false, defval: null });
+      let hr = -1, hc = -1, title = '';
+      A.forEach((row, ri) => (row || []).forEach((v, ci) => { const s = String(v || ''); if (hr < 0 && /^COLABORADORES$/i.test(s.trim())) { hr = ri; hc = ci; } if (!title && /ESCALA/i.test(s)) title = s; }));
+      if (hr < 0) return;
+      const H = A[hr];
+      let m = new Date().getMonth() + 1, y = new Date().getFullYear();
+      const tl = title.toLowerCase(); const mi = MES.findIndex(n => tl.includes(n)); if (mi >= 0) m = mi + 1;
+      const days = []; let last = 0;
+      for (let ci = hc + 3; ci < H.length; ci++) {
+        const v = H[ci]; if (v == null || v === '') break;
+        const dn = parseInt(String(v), 10); if (!dn) break;
+        if (dn < last) { m++; if (m > 12) { m = 1; y++; } } last = dn;
+        days.push({ date: y + '-' + String(m).padStart(2, '0') + '-' + String(dn).padStart(2, '0'), hol: /feriad/i.test(String(v)) });
+      }
+      const people = [];
+      for (let ri = hr + 1; ri < A.length; ri++) {
+        const row = A[ri] || []; const nm = row[hc]; if (!nm || !String(nm).trim()) continue;
+        people.push({ id: row[hc + 1] ? String(row[hc + 1]) : '', name: String(nm).trim(), role: row[hc + 2] ? String(row[hc + 2]) : 'GPON', st: days.map((d, i) => { const v = row[hc + 3 + i]; return v ? String(v).trim().toUpperCase() : null; }) });
+      }
+      if (days.length && people.length) periods.push({ title: title || sn, days, people });
+    });
+    if (!periods.length) { toast('Não achei a linha "COLABORADORES" em nenhuma aba.'); return; }
+    periods.sort((a, b) => a.days[0].date < b.days[0].date ? -1 : 1);
+    state.base = periods; state.p = periods.length - 1; state.edits = {}; store.set('edits', {}); state.focus = null; render();
+    toast('Planilha carregada: ' + periods.length + ' período(s).');
+  } catch (err) { toast('Não consegui ler o arquivo: ' + err.message); }
+  e.target.value = '';
+};
+
+// ---------- assistente IA ----------
+const QUICK = {
+  melhor: 'Encontre o conjunto de trocas que zera (ou mais reduz) os erros da auditoria, testando cada combinação antes de sugerir.',
+  erros: 'Explique cada erro da auditoria em linguagem simples, do mais grave para o menos grave, dizendo quem, qual dia e por que é problema para a sala.',
+  equilibrio: 'Analise o equilíbrio: sábados, domingos, feriados e folgas casadas por pessoa. Proponha trocas que deixem a escala mais justa sem criar erros, testando antes.',
+  proximo: 'Sugira os sábados, domingos e feriados do próximo período (4 a 5 fins de semana) respeitando todas as regras, o revezamento de folgas casadas e a sequência de dias que cada um traz deste período. Entregue em tabela.'
+};
+function rulesText(R) {
+  const P = per(), r = state.res;
+  const byG = g => P.people.filter((p, i) => r.groupsOf[i] === g).map(p => E.short(p.name)).join(', ') || '—';
+  const dl = { sab: 'sábados', dom: 'domingos', fer: 'feriados', util: 'dias úteis' };
+  return `FUNÇÕES NA SALA GPON:
+- Atendimento (cordões e atendimentos): ${byG('atend')}
+- Monitoramento (concentração, e-mails, massivos): ${byG('monit')}
+- Planilhas: ${byG('plan')}
+- Novato (planilhas de massivos durante a semana e alguns atendimentos): ${byG('novato')}
+- Supervisor (back-up de Planilhas): ${byG('sup')}
+
+CÓDIGOS: PL = plantão em dia útil; PRESENTE = trabalha em sábado/domingo/feriado; FOLGA = folga. "Trabalhando" = PL ou PRESENTE.
+
+REGRAS:
+1. Sábados: exatamente ${R.satQty} técnicos PRESENTE (supervisor não conta).
+2. Domingos: exatamente ${R.sunAtend + R.sunMonit} técnicos: ${R.sunAtend} do Atendimento e ${R.sunMonit} do Monitoramento. Planilhas e novato não entram; Gabriel cobre Planilhas.
+3. Feriados: metade da equipe técnica (${R.holPct}%, ou seja ${r.holMin === r.holMax ? r.holMin : r.holMin + ' a ' + r.holMax} pessoas), geralmente ${R.holAtend} do Atendimento, ${R.holMonit} do Monitoramento e ${R.holPlan} de Planilhas, intercalando Leandro e Paulo Enoque a cada feriado.
+4. Duplas: ${R.pairs.map(p => p.a + ' e ' + p.b + ' nunca juntos em ' + Object.keys(p.days).filter(k => p.days[k]).map(k => dl[k]).join('/')).join('; ')}. Glauco e Aureliano podem trabalhar juntos.
+5. Espelhamento: ${R.supCover ? 'sempre que Leandro e Paulo Enoque não estiverem atuando, Gabriel (supervisor) precisa estar trabalhando no lugar deles.' : 'desligado.'}
+6. Fadiga: máximo absoluto de ${R.maxConsec} dias seguidos trabalhando (conta a sequência que vem do período anterior). Ao bater o limite, folga simples ou casada.
+7. Por fim de semana: exatamente ${R.folgaSabDom} folgas casadas 100% (técnico de FOLGA sábado e domingo) e exatamente ${R.folgaDomSeg} folga casada estendida (FOLGA domingo e segunda) — não mais, para não esvaziar a segunda.
+8. Cada colaborador precisa de pelo menos ${R.casadaMin} folga casada no período; ninguém passa de ${R.casada100Max} folgas Sáb+Dom enquanto outro tem zero.
+9. Regras pontuais: ${R.fixed.map(f => f.name + ' ' + f.status + ' em ' + E.fmt(f.date)).join('; ') || 'nenhuma'}.`;
+}
+function buildPrompt(q, withTools) {
+  const P = per(), r = state.res, R = r.rules;
+  const head = 'Colaborador;Função;' + P.days.map(d => E.WD[E.dow(d.date)] + ' ' + E.fmt(d.date) + (d.hol ? ' (FERIADO)' : '')).join(';');
+  const rows = P.people.map((p, i) => p.name + ';' + E.GROUPS[r.groupsOf[i]] + ';' + p.st.map(s => s || '').join(';')).join('\n');
+  const carry = P.people.map((p, pi) => r.streakInfo[pi].carry ? E.short(p.name) + ' chega com ' + r.streakInfo[pi].carry + ' dia(s) seguidos do período anterior' : null).filter(Boolean).join('; ');
+  return `Você é o assistente de escala do supervisor Gabriel, da sala GPON de uma empresa de telecom. Responda em português do Brasil, direto, com títulos curtos, listas e tabelas quando ajudar. Use só os dados abaixo.
+
+${rulesText(R)}
+
+PERÍODO: ${periodLabel(P)}${nEdits() ? ' (já com ' + nEdits() + ' troca(s) simuladas pelo Gabriel)' : ''}
+CONTINUIDADE: ${carry || 'ninguém chega com sequência do período anterior'}
+
+ESCALA (separada por ;):
+${head}
+${rows}
+
+AUDITORIA AUTOMÁTICA (${r.issues.filter(i => i.sev === 'erro').length} erros):
+${r.issues.map(i => '- [' + i.sev.toUpperCase() + '] ' + i.detail).join('\n') || '- nenhum problema'}
+${withTools ? `
+FERRAMENTAS: "testar_trocas" aplica um conjunto de trocas numa cópia da escala e devolve a auditoria completa (é o mesmo verificador do painel). Teste antes de recomendar qualquer troca, e itere: se surgir erro novo, ajuste e teste de novo. Lembre que cada troca mexe em contagens de sábado/domingo, folgas casadas e dias seguidos ao mesmo tempo, então resolva em pacotes. Quando tiver o melhor conjunto, chame "propor_trocas" uma vez com ele. Na resposta, mostre a tabela de trocas (colaborador, dia, de → para, motivo) e quantos erros sobram e por quê, se algum for impossível de zerar.` : ''}
+
+PEDIDO DO GABRIEL:
+${q}`;
+}
+function md(s) {
+  const lines = esc(s).split('\n'); let h = '', inList = false;
+  const inl = t => t.replace(/\*\*(.+?)\*\*/g, '<b>$1</b>').replace(/`([^`]+)`/g, '<code>$1</code>').replace(/(^|\s)\*(\S[^*]*?)\*(?=\s|$)/g, '$1<i>$2</i>');
+  let tbl = [];
+  const flushT = () => { if (!tbl.length) return; const rows = tbl.filter(r => !/^\s*\|?\s*:?-{2,}/.test(r)); h += '<div class="tbox"><table class="t">' + rows.map((r, i) => '<tr>' + r.replace(/^\s*\||\|\s*$/g, '').split('|').map(c => i ? '<td>' + inl(c.trim()) + '</td>' : '<th>' + inl(c.trim()) + '</th>').join('') + '</tr>').join('') + '</table></div>'; tbl = []; };
+  lines.forEach(l => {
+    if (/^\s*\|.*\|\s*$/.test(l)) { if (inList) { h += '</ul>'; inList = false; } tbl.push(l); return; } flushT();
+    const m = l.match(/^\s*(#{1,4})\s+(.*)/); if (m) { if (inList) { h += '</ul>'; inList = false; } h += '<h4>' + inl(m[2]) + '</h4>'; return; }
+    const li = l.match(/^\s*(?:[-*•]|\d+[.)])\s+(.*)/); if (li) { if (!inList) { h += '<ul>'; inList = true; } h += '<li>' + inl(li[1]) + '</li>'; return; }
+    if (inList) { h += '</ul>'; inList = false; }
+    if (/^\s*-{3,}\s*$/.test(l)) return;
+    if (l.trim()) h += '<p>' + inl(l) + '</p>';
+  });
+  flushT(); if (inList) h += '</ul>'; return h;
+}
+// ----- ferramentas que o Claude usa -----
+function resolveSwaps(trocas) {
+  const P = per(), out = [], erros = [];
+  (trocas || []).forEach(t => {
+    const pi = P.people.findIndex(p => E.norm(p.name).includes(E.norm(t.colaborador || '').trim()));
+    const m = String(t.dia || '').match(/(\d{1,2})\/(\d{1,2})/);
+    const di = m ? P.days.findIndex(d => d.date.slice(5) === m[2].padStart(2, '0') + '-' + m[1].padStart(2, '0')) : -1;
+    const stt = String(t.status || '').toUpperCase().trim();
+    if (pi < 0) erros.push('colaborador não encontrado: ' + t.colaborador);
+    else if (di < 0) erros.push('dia fora do período: ' + t.dia);
+    else if (!['PL', 'PRESENTE', 'FOLGA'].includes(stt)) erros.push('status inválido: ' + t.status);
+    else out.push({ pi, di, st: stt });
+  });
+  return { out, erros };
+}
+function auditWith(swaps) {
+  const periods = JSON.parse(JSON.stringify(state.periods));
+  swaps.forEach(s => periods[state.p].people[s.pi].st[s.di] = s.st);
+  return E.audit(periods, state.p, state.rules);
+}
+function summarize(res) {
+  const P = per();
+  const errs = res.issues.filter(i => i.sev === 'erro');
+  return {
+    erros: errs.length,
+    alertas: res.issues.filter(i => i.sev === 'alerta').length,
+    problemas: res.issues.filter(i => i.sev !== 'info').map(i => '[' + i.sev + '] ' + i.title),
+    sabados: P.days.map((d, di) => res.kind(d.date) === 'sab' ? E.fmt(d.date) + '=' + res.counts[di].PRESENTE : null).filter(Boolean).join(' '),
+    domingos: P.days.map((d, di) => { if (res.kind(d.date) !== 'dom') return null; const ps = res.presBy(di); return E.fmt(d.date) + '=' + ps.atend.length + 'At+' + ps.monit.length + 'Mo+' + (ps.plan.length + ps.novato.length) + 'outros'; }).filter(Boolean).join(' ')
+  };
+}
+const TOOLS = [
+  { name: 'testar_trocas', description: 'Aplica um conjunto de trocas numa cópia da escala atual e devolve a auditoria completa (erros, alertas, contagens de sábados e composição dos domingos). Não muda a escala do Gabriel.',
+    inputSchema: { type: 'object', properties: { trocas: { type: 'array', items: { type: 'object', properties: { colaborador: { type: 'string', description: 'nome ou primeiro nome, ex.: Jorge' }, dia: { type: 'string', description: 'dd/mm' }, status: { type: 'string', enum: ['PL', 'PRESENTE', 'FOLGA'] } }, required: ['colaborador', 'dia', 'status'] } } }, required: ['trocas'] },
+    execute(input) {
+      const { out, erros } = resolveSwaps(input.trocas);
+      if (erros.length) throw new Error(erros.join('; '));
+      const res = summarize(auditWith(out));
+      res.antes = state.res.issues.filter(i => i.sev === 'erro').length;
+      return res;
+    } },
+  { name: 'propor_trocas', description: 'Registra o conjunto final de trocas recomendado, para o Gabriel aplicar na grade com um clique. Chame uma vez, no fim, com o melhor conjunto já testado.',
+    inputSchema: { type: 'object', properties: { resumo: { type: 'string', description: 'uma frase com o resultado, ex.: zera os 12 erros' }, trocas: { type: 'array', items: { type: 'object', properties: { colaborador: { type: 'string' }, dia: { type: 'string' }, status: { type: 'string', enum: ['PL', 'PRESENTE', 'FOLGA'] }, motivo: { type: 'string' } }, required: ['colaborador', 'dia', 'status'] } } }, required: ['trocas'] },
+    execute(input) {
+      const { out, erros } = resolveSwaps(input.trocas);
+      if (erros.length) throw new Error(erros.join('; '));
+      const after = auditWith(out);
+      state.proposal = { resumo: input.resumo || '', swaps: out.map((s, i) => Object.assign({}, s, { motivo: (input.trocas[i] || {}).motivo || '' })), erros: after.issues.filter(i => i.sev === 'erro').length, p: state.p };
+      renderProposal();
+      return { registrado: true, erros_depois: state.proposal.erros };
+    } }
+];
+function renderProposal() {
+  const box = $('#proposal'), pr = state.proposal;
+  if (!pr || pr.p !== state.p) { box.innerHTML = ''; return; }
+  const P = per();
+  box.innerHTML = `<div class="note" style="display:grid;gap:8px"><b>Proposta do Claude: ${pr.swaps.length} troca(s) · ${pr.erros} erro(s) depois${pr.resumo ? ' · ' + esc(pr.resumo) : ''}</b>
+    <div class="tbox"><table class="t"><tr><th>Quem</th><th>Dia</th><th>De → para</th></tr>${pr.swaps.map(s => `<tr><td>${esc(E.short(P.people[s.pi].name))}</td><td>${E.fmtW(P.days[s.di].date)}</td><td class="num">${abbr(P.people[s.pi].st[s.di])} → ${abbr(s.st)}</td></tr>`).join('')}</table></div>
+    <div class="row"><button class="btn primary" type="button" id="prApply">Aplicar na grade (simulação)</button><button class="btn" type="button" id="prDrop">Descartar</button></div></div>`;
+  $('#prApply').onclick = () => {
+    pr.swaps.forEach(s => { const p = state.base[state.p].people[s.pi], d = state.base[state.p].days[s.di], k = editKey(state.p, p, d); if (p.st[s.di] === s.st) delete state.edits[k]; else state.edits[k] = s.st; });
+    store.set('edits', state.edits); state.proposal = null; render(); toast('Trocas aplicadas na simulação. Confira a auditoria; para levar à planilha, use "Copiar para o Sheets".');
+    $('#gridCard').scrollIntoView({ behavior: 'smooth' });
+  };
+  $('#prDrop').onclick = () => { state.proposal = null; renderProposal(); };
+}
+let sampleFn = null, aborter = null, sampleChecked = false;
+(async () => { try { if (window.claude && window.claude.use) sampleFn = await window.claude.use('sample'); } catch (e) { sampleFn = null; } sampleChecked = true; if (!sampleFn && state.ai === 'claude') state.ai = 'gemini'; syncAi(); })();
+function syncAi() {
+  document.querySelectorAll('[data-ai]').forEach(b => b.setAttribute('aria-pressed', b.dataset.ai === state.ai));
+  $('#geminiCfg').style.display = state.ai === 'gemini' ? 'grid' : 'none';
+  $('#claudeCfg').style.display = state.ai === 'claude' ? 'block' : 'none';
+  $('#aiCopy').style.display = state.ai === 'gemini' ? '' : 'none';
+  $('#aiNew').style.display = state.ai === 'claude' ? '' : 'none';
+  $('#claudeCfg').innerHTML = state.ai === 'claude' && sampleChecked && !sampleFn
+    ? 'O Claude embutido funciona com o painel aberto no claude.ai. Aqui fora dele, use o Gemini.'
+    : 'O Claude roda aqui no painel, sem chave, e testa as trocas nas mesmas regras antes de sugerir. Na primeira pergunta o navegador pede sua autorização. A conversa continua: dá para pedir ajustes ("e se o Jorge não puder no dia 29?").';
+}
+$('#gKey').value = store.get('gkey', ''); $('#gModel').value = store.get('gmodel', 'gemini-2.5-flash');
+$('#gKey').onchange = () => store.set('gkey', $('#gKey').value.trim());
+$('#gModel').onchange = () => store.set('gmodel', $('#gModel').value);
+function setBusy(b) { $('#aiSend').disabled = b; $('#aiStop').disabled = !b; $('#aiSend').textContent = b ? 'Analisando…' : 'Perguntar'; }
+$('#aiStop').onclick = () => { if (aborter) aborter.abort(); };
+$('#aiNew').onclick = () => { state.chat = []; $('#aiOut').innerHTML = '<p class="muted">Conversa nova. A escala e as regras atuais vão junto na próxima pergunta.</p>'; };
+$('#aiCopy').onclick = async () => {
+  const p = buildPrompt($('#aiQ').value.trim() || QUICK.erros, false);
+  try { await navigator.clipboard.writeText(p); toast('Pergunta copiada com a escala. Cole no Gemini.'); $('#aiOut').innerHTML = '<p>Pergunta copiada com a escala, as regras e a auditoria.</p><p>Abra <a href="https://gemini.google.com/app" target="_blank" rel="noopener">gemini.google.com</a>, cole (Ctrl+V) e envie.</p>'; }
+  catch (e) { $('#aiOut').innerHTML = '<p>Copie o texto abaixo (Ctrl+A, Ctrl+C) e cole em <a href="https://gemini.google.com/app" target="_blank" rel="noopener">gemini.google.com</a>.</p><textarea class="copybox" readonly>' + esc(p) + '</textarea>'; }
+};
+function chatHtml(live) {
+  return state.chat.map(m => m.role === 'user' ? `<p style="border-left:3px solid var(--accent);padding-left:8px;color:var(--muted)"><b>Você:</b> ${esc(m.q)}</p>` : md(m.content)).join('') + (live != null ? (live ? md(live) : '<p class="muted">Analisando a escala e testando trocas…</p>') : '');
+}
+$('#aiSend').onclick = async () => {
+  const q = $('#aiQ').value.trim() || QUICK.melhor, out = $('#aiOut');
+  aborter = new AbortController(); setBusy(true);
+  try {
+    if (state.ai === 'claude') {
+      if (!sampleFn) throw { message: 'O Claude embutido funciona com o painel aberto no claude.ai.' };
+      const msgs = state.chat.map(m => ({ role: m.role, content: m.role === 'user' ? m.q : m.content }));
+      msgs.push({ role: 'user', content: buildPrompt(q, true) + (state.chat.length ? '\n\n(Isto continua a conversa acima; a escala e a auditoria mostradas aqui são as atuais.)' : '') });
+      state.chat.push({ role: 'user', q });
+      out.innerHTML = chatHtml(''); out.scrollTop = out.scrollHeight;
+      const res = await sampleFn(msgs, { signal: aborter.signal, modelTier: 'complex', cache: false, tools: TOOLS, onText: ({ text }) => { out.innerHTML = chatHtml(text); } });
+      state.chat.push({ role: 'assistant', content: res.text || '(sem texto)' });
+      out.innerHTML = chatHtml() + (res.truncated ? '<p class="muted">(resposta cortada)</p>' : '');
+    } else {
+      out.innerHTML = '<p class="muted">Analisando a escala…</p>';
+      const key = $('#gKey').value.trim(); store.set('gkey', key);
+      if (!key) throw { message: 'Cole sua chave da API do Gemini no campo acima, ou use "Copiar para o Gemini".' };
+      let r;
+      try {
+        r = await fetch('https://generativelanguage.googleapis.com/v1beta/models/' + $('#gModel').value + ':generateContent', {
+          method: 'POST', signal: aborter.signal, headers: { 'Content-Type': 'application/json', 'x-goog-api-key': key },
+          body: JSON.stringify({ contents: [{ role: 'user', parts: [{ text: buildPrompt(q, false) }] }], generationConfig: { temperature: 0.3 } })
+        });
+      } catch (netErr) {
+        if (netErr.name === 'AbortError') throw netErr;
+        throw { blocked: true, message: 'O navegador bloqueou a conexão direta com o Gemini. Dentro do claude.ai a página não pode falar com outros sites.' };
+      }
+      const j = await r.json().catch(() => ({}));
+      if (!r.ok) throw { message: 'O Gemini recusou: ' + ((j.error && j.error.message) || r.status) + '. Confira a chave e o modelo.' };
+      const txt = ((j.candidates || [])[0] || {}).content ? j.candidates[0].content.parts.map(p => p.text || '').join('') : '';
+      out.innerHTML = txt ? md(txt) : '<p class="muted">O Gemini não devolveu texto. Tente de novo.</p>';
+    }
+  } catch (err) {
+    if (state.ai === 'claude' && state.chat.length && state.chat[state.chat.length - 1].role === 'user') state.chat.pop();
+    if (err && err.name === 'AbortError') out.innerHTML = chatHtml() + '<p class="muted">Análise interrompida.</p>';
+    else if (err && err.code === 'not_granted') out.innerHTML = '<p>O uso do Claude não foi autorizado. Autorize quando o navegador pedir, ou use o Gemini.</p>';
+    else if (err && err.code === 'rate_limited') out.innerHTML = '<p>Muitas perguntas seguidas. Espere um minuto e tente de novo.</p>';
+    else out.innerHTML = '<p><b>Não deu certo.</b> ' + esc((err && err.message) || String(err)) + '</p>' + (err && err.blocked ? '<p>Use <b>Copiar para o Gemini</b> e cole em gemini.google.com, ou troque para <b>Claude</b> acima, que roda aqui dentro.</p>' : '');
+  } finally { setBusy(false); aborter = null; out.scrollTop = out.scrollHeight; }
+};
+
+render(); syncAi();
+</script>
+</body>
+</html>
