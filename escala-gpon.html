@@ -1050,13 +1050,16 @@ async function geminiApi(contents, signal, onProgress) {
       throw { blocked: true, message: 'O navegador bloqueou a conexão direta com o Gemini. Dentro do claude.ai a página não pode falar com outros sites; abra pelo site do GitHub.' };
     }
     const j = await r.json().catch(() => ({}));
-    if (!r.ok && /no longer available|not found|not supported/i.test(JSON.stringify(j)) && step < 8) {
-      const sel = $('#gModel'), cur = sel.value, bad = store.get('gbad', []); if (!bad.includes(cur)) bad.push(cur); store.set('gbad', bad);
-      const next = [...sel.options].map(o => o.value).filter(v => !bad.includes(v)).sort((a, b) => verOf(b) - verOf(a) || (/flash/.test(b) ? 1 : 0) - (/flash/.test(a) ? 1 : 0))[0];
-      [...sel.options].filter(o => o.value === cur).forEach(o => o.remove());
-      if (next) { sel.value = next; store.set('gmodel', next); onProgress((text ? text + '\n\n' : '') + '*O modelo ' + cur + ' não está disponível. Trocando para ' + next + '…*'); continue; }
+    const noQuota = !r.ok && r.status === 429 && /limit: 0/.test(JSON.stringify(j));
+    if (!r.ok && (noQuota || /no longer available|not found|not supported/i.test(JSON.stringify(j))) && step < 8) {
+      const sel = $('#gModel'), cur = sel.value;
+      if (noQuota) { (window._gQuotaBad = window._gQuotaBad || []).push(cur); }
+      else { const bad = store.get('gbad', []); if (!bad.includes(cur)) bad.push(cur); store.set('gbad', bad); [...sel.options].filter(o => o.value === cur).forEach(o => o.remove()); }
+      const allBad = (window._gQuotaBad || []).concat(store.get('gbad', []));
+      const next = [...sel.options].map(o => o.value).filter(v => !allBad.includes(v)).sort((a, b) => verOf(b) - verOf(a) || (/flash/.test(b) ? 1 : 0) - (/flash/.test(a) ? 1 : 0))[0];
+      if (next) { sel.value = next; store.set('gmodel', next); onProgress((text ? text + '\n\n' : '') + '*O modelo ' + cur + (noQuota ? ' não tem cota no plano gratuito' : ' não está disponível') + '. Trocando para ' + next + '…*'); continue; }
     }
-    if (!r.ok) throw { message: 'O Gemini recusou: ' + ((j.error && j.error.message) || r.status) + (/no longer available|not found/i.test(JSON.stringify(j)) ? ' Escolha outro modelo na lista ao lado da chave.' : r.status === 400 && /API key/i.test(JSON.stringify(j)) ? ' A chave parece inválida.' : r.status === 429 ? ' Limite de uso atingido; espere um minuto.' : '') };
+    if (!r.ok) throw { message: 'O Gemini recusou: ' + ((j.error && j.error.message) || r.status) + (/no longer available|not found/i.test(JSON.stringify(j)) ? ' Escolha outro modelo na lista ao lado da chave.' : r.status === 400 && /API key/i.test(JSON.stringify(j)) ? ' A chave parece inválida.' : noQuota ? ' Nenhum modelo da lista tem cota no seu plano. Ative o faturamento no AI Studio ou use "Copiar para o Gemini".' : r.status === 429 ? ' Limite de uso atingido; espere um minuto.' : '') };
     const cand = (j.candidates || [])[0];
     if (!cand || !cand.content) { if (!text) text = 'O Gemini não devolveu resposta' + (cand && cand.finishReason ? ' (' + cand.finishReason + ')' : '') + '. Tente de novo.'; break; }
     contents.push(cand.content);
