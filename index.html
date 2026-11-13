@@ -143,6 +143,7 @@
     <div id="v-dashboard"></div>
     <div id="v-tabela" class="hidden"></div>
     <div id="v-comparativo" class="hidden"></div>
+    <div id="v-entrantes" class="hidden"></div>
   </section>
   <footer class="mt-10 pt-4 pb-2 border-t border-slate-200 dark:border-slate-800 text-[11px] leading-relaxed font-bold text-slate-600 dark:text-slate-300 flex flex-col sm:flex-row items-center justify-center gap-3 text-center sm:text-left">
     <img src="data:image/png;base64,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" alt="tel" class="w-9 h-9 rounded-md shrink-0">
@@ -328,10 +329,10 @@ const S = {
   cp: { measure: '__count', agg: 'sum', win: 7, dim: '' }
 };
 const GEN_TABS = [['dashboard', 'Dashboard'], ['tabela', 'Dados'], ['comparativo', 'Comparativo']];
-const TEL_TABS = [['painel', '📡 Painel operacional'], ['ofensores', 'Ofensores'], ['reinc', 'Reincidência'], ['controle', 'Controle por hora'], ['risco', 'Área de risco']];
-const ALL_IDS = ['painel', 'ofensores', 'reinc', 'controle', 'risco', 'dashboard', 'tabela', 'comparativo'];
+const TEL_TABS = [['painel', '📡 Painel operacional'], ['ofensores', 'Ofensores'], ['reinc', 'Reincidência'], ['controle', 'Controle por hora'], ['risco', 'Área de risco'], ['entrantes', '📈 Entrantes']];
+const ALL_IDS = ['painel', 'ofensores', 'reinc', 'controle', 'risco', 'entrantes', 'dashboard', 'tabela', 'comparativo'];
 const telOn = () => !!(S.tel && S.tel.on);
-const tabsList = () => telOn() ? TEL_TABS.concat(GEN_TABS) : GEN_TABS;
+const tabsList = () => telOn() ? TEL_TABS.concat(GEN_TABS.filter(t => t[0] !== 'comparativo')) : GEN_TABS; // no modo telecom, Entrantes substitui o Comparativo
 const OPLBL = { key: '=', in: 'em', eq: '=', neq: '≠', contains: 'contém', gt: '>', gte: '≥', lt: '<', lte: '≤', empty: 'vazio', notempty: 'preenchido' };
 const MESES = ['jan', 'fev', 'mar', 'abr', 'mai', 'jun', 'jul', 'ago', 'set', 'out', 'nov', 'dez'];
 const DIAS = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
@@ -607,8 +608,8 @@ function renderActive() {
   if (!tabsList().some(t => t[0] === S.tab)) { S.tab = telOn() ? 'painel' : 'dashboard'; buildTabs(); }
   ALL_IDS.forEach(id => $('#v-' + id).classList.toggle('hidden', id !== S.tab));
   const F = S.filtered;
-  if (!F.length && !['controle'].includes(S.tab)) { $('#v-' + S.tab).innerHTML = `<div class="card p-10 text-center text-slate-500">Nenhum registro encontrado com os filtros atuais. <button class="btn mt-3" onclick="clearAll()">Limpar filtros</button></div>`; return; }
-  ({ dashboard: renderDashboard, tabela: renderTable, comparativo: renderComp, painel: renderPainel, ofensores: renderOfensores, reinc: renderReinc, controle: renderControle, risco: renderRisco })[S.tab]();
+  if (!F.length && !['controle', 'entrantes'].includes(S.tab)) { $('#v-' + S.tab).innerHTML = `<div class="card p-10 text-center text-slate-500">Nenhum registro encontrado com os filtros atuais. <button class="btn mt-3" onclick="clearAll()">Limpar filtros</button></div>`; return; }
+  ({ dashboard: renderDashboard, tabela: renderTable, comparativo: renderComp, painel: renderPainel, ofensores: renderOfensores, reinc: renderReinc, controle: renderControle, risco: renderRisco, entrantes: renderEntrantes })[S.tab]();
 }
 function clearAll() {
   S.filters = []; S.search = ''; S.dateFrom = S.dateTo = null; $('#search').value = ''; $('#dateFrom').value = ''; $('#dateTo').value = ''; S.page = 1; refresh();
@@ -1292,6 +1293,177 @@ function r7Tabela(titulo, cor, cols, linhas, sub, grupos, semRolagem) {
 }
 const tdc = (v, o = {}) => `<td class="px-2 py-1 border-t border-slate-100 dark:border-slate-800 ${o.r ? 'text-center tabular-nums' : ''} ${o.b ? 'font-bold' : ''} ${o.w ? 'whitespace-nowrap' : ''}" ${o.st || ''} ${o.title ? `title="${esc(o.title)}"` : ''}>${v}</td>`;
 
+/* ============================================================
+   ENTRANTES: BAs que entraram por dia (data de abertura da BA), abertas e encerradas.
+   Fonte: entrantes.json (o script do Drive soma as planilhas de hora em hora sem contar a mesma BA duas vezes).
+   ============================================================ */
+const ENT_TIPOS = [['REP', 'Reparo'], ['INST', 'Instalação'], ['MUD', 'Mudança'], ['RET', 'Retirada'], ['SRV', 'Serviço'], ['ALL', 'Todos']];
+const ENT_SIT = [['', 'Todas'], ['A', 'Abertas'], ['E', 'Encerradas'], ['X', 'Canceladas']];
+const ENT_REC = [['', 'Todos'], ['risco', 'Área de risco'], ['R', 'Repetida 7D'], ['I', 'Infância 7D']];
+const ENT_PER = [[7, '7 dias'], [15, '15 dias'], [30, '30 dias'], [60, '60 dias'], ['mes', 'Mês a mês']];
+const ENT_COR = { A: '#f59e0b', C: '#16a34a', S: '#64748b', X: '#cbd5e1' };
+const ENT_LBL = { A: 'Abertas', C: 'Concluídas c/ sucesso', S: 'Concluídas s/ sucesso', X: 'Canceladas' };
+const ENT_DSEM = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
+const ENT_MES = ['jan', 'fev', 'mar', 'abr', 'mai', 'jun', 'jul', 'ago', 'set', 'out', 'nov', 'dez'];
+const isoAdd = (d, n) => new Date(Date.UTC(+d.slice(0, 4), +d.slice(5, 7) - 1, +d.slice(8, 10)) + n * 864e5).toISOString().slice(0, 10);
+const dLbl = d => d.slice(8, 10) + '/' + d.slice(5, 7) + ' ' + ENT_DSEM[new Date(d + 'T12:00:00Z').getUTCDay()];
+const mLbl = m => ENT_MES[+m.slice(5, 7) - 1] + '/' + m.slice(2, 4);
+
+async function loadEntInfo() {
+  try {
+    const r = await fetch('entrantes.json?t=' + Date.now(), { cache: 'no-store' }); if (!r.ok) return;
+    const txt = await r.text(); if (S.entSig === txt) return; S.entSig = txt; S.ent = JSON.parse(txt);
+    if (S.tel && S.tab === 'entrantes') renderActive();
+  } catch (e) { }
+}
+function entSet(k, v) { S.entF[k] = v; if (k === 'tipo' && v !== 'REP' && (S.entF.rec === 'R' || S.entF.rec === 'I')) S.entF.rec = ''; if (k === 'rec' && (v === 'R' || v === 'I')) S.entF.tipo = 'REP'; renderActive(); }
+
+function renderEntrantes() {
+  const el = $('#v-entrantes'), E = S.ent;
+  S.entF = S.entF || { tipo: 'REP', cp: '', sit: '', rec: '', per: 15 };
+  const F = S.entF;
+  let h = bandTitle('ENTRANTES POR DIA', 'BAs que entraram (data de abertura da BA), abertas e encerradas · independe dos filtros da barra de cima');
+  if (!E || !E.dias || !Object.keys(E.dias).length) { el.innerHTML = h + `<div class="card p-8 text-center text-slate-500">O histórico de entrantes aparece quando o script do Drive (versão nova) publicar a próxima planilha de atividades.</div>`; return; }
+  const dias = Object.keys(E.dias).sort(), primeiro = dias[0];
+  const ate = E.ate || '', hoje = (ate.slice(0, 10) && E.dias[ate.slice(0, 10)]) ? ate.slice(0, 10) : dias[dias.length - 1];
+  const H = ate.slice(0, 10) === hoje ? +ate.slice(11, 13) : 23;
+  const cps = [...new Set(dias.flatMap(d => E.dias[d].k.map(t => t[1])))].filter(c => c === 'TIM' || c === 'NIO').sort((a, b) => b.localeCompare(a));
+
+  // filtros
+  const okT = t => (F.tipo === 'ALL' || t[0] === F.tipo) && (!F.cp || t[1] === F.cp)
+    && (!F.sit || (F.sit === 'A' ? t[5] === 'A' : F.sit === 'E' ? (t[5] === 'C' || t[5] === 'S') : t[5] === 'X'))
+    && (!F.rec || (F.rec === 'risco' ? t[3] === 1 : t[4] === F.rec));
+  const diaInfo = d => { const o = { n: 0, A: 0, C: 0, S: 0, X: 0 }; const x = E.dias[d]; if (!x) return o; x.k.forEach(t => { if (okT(t)) { o.n += t[6]; o[t[5]] += t[6]; } }); return o; };
+  const porHora = !F.sit && !F.rec; // a curva por hora existe por tipo/operadora
+  const acum = (d, hh) => { const x = E.dias[d]; if (!x || !x.h) return null; let s = 0; Object.keys(x.h).forEach(k => { const [m, c] = k.split('|'); if ((F.tipo === 'ALL' || m === F.tipo) && (!F.cp || c === F.cp)) for (let i = 0; i <= hh; i++) s += x.h[k][i]; }); return s; };
+  const parcial = d => !!(E.dias[d] && E.dias[d].p);
+  const ruimSobe = F.tipo === 'REP' || F.rec || F.sit === 'X';
+
+  // controles
+  const seg = (lista, k, cur) => `<div style="display:inline-flex;flex-wrap:wrap;border:1px solid rgba(148,163,184,.45);border-radius:8px;overflow:hidden">${lista.map(([v, l], i) => { const on = String(cur) === String(v); return `<button onclick="entSet('${k}', ${typeof v === 'number' ? v : `'${v}'`})" class="${on ? '' : 'hover:bg-slate-100 dark:hover:bg-slate-800'}" style="padding:5px 11px;font-size:12px;font-weight:600;white-space:nowrap;${i ? 'border-left:1px solid rgba(148,163,184,.35);' : ''}${on ? 'background:#4f46e5;color:#fff' : ''}">${l}</button>`; }).join('')}</div>`;
+  const grp = (t, c) => `<div><div class="text-[10px] font-bold uppercase tracking-wide text-slate-500 mb-1">${t}</div>${c}</div>`;
+  h += `<div class="card p-3 mb-4 flex flex-wrap gap-x-5 gap-y-3 items-end">${grp('Tipo', seg(ENT_TIPOS, 'tipo', F.tipo))}${grp('Operadora', seg([['', 'Todas']].concat(cps.map(c => [c, c])), 'cp', F.cp))}${grp('Situação', seg(ENT_SIT, 'sit', F.sit))}${grp('Recorte', seg(ENT_REC, 'rec', F.rec))}${grp('Período', seg(ENT_PER, 'per', F.per))}</div>`;
+
+  if (F.per === 'mes') { el.innerHTML = h + entMensal(E, okT, hoje); entMensalChart(); return; }
+
+  // período
+  const N = F.per, ini = isoAdd(hoje, -(N - 1)) < primeiro ? primeiro : isoAdd(hoje, -(N - 1));
+  const per = []; for (let d = ini; d <= hoje; d = isoAdd(d, 1)) per.push(d);
+  const info = per.map(diaInfo);
+  const base = per.filter(d => d !== hoje && !parcial(d) && E.dias[d]);
+
+  // cards de comparação
+  const ontem = isoAdd(hoje, -1), sem = isoAdd(hoje, -7);
+  const hojeN = porHora ? acum(hoje, H) : diaInfo(hoje).n;
+  const cmpV = d => !E.dias[d] ? null : porHora ? acum(d, H) : diaInfo(d).n;
+  const media = base.length ? base.reduce((s, d) => s + cmpV(d), 0) / base.length : null;
+  const ateTxt = H < 23 ? ` (até ${String(H).padStart(2, '0')}h59)` : '';
+  const delta = (a, b) => {
+    if (b == null || !b) return `<span class="text-slate-400">sem base</span>`;
+    const p = (a - b) / b * 100, sobe = p > 0, cor = Math.abs(p) < 0.5 ? '#64748b' : (sobe === !!ruimSobe ? '#dc2626' : '#16a34a');
+    return `<span style="color:${cor}" class="font-bold">${p > 0 ? '+' : ''}${p.toFixed(1).replace('.', ',')}% ${Math.abs(p) < 0.5 ? '=' : sobe ? '↑' : '↓'}</span>`;
+  };
+  const card = (t, val, sub, extra) => `<div class="card p-4"><div class="text-[11px] font-bold uppercase tracking-wide text-slate-500">${t}</div><div class="flex items-baseline gap-2 mt-1 flex-wrap"><div class="text-2xl font-extrabold">${val}</div>${extra || ''}</div><div class="text-xs text-slate-500 mt-1">${sub}</div></div>`;
+  const hi = diaInfo(hoje);
+  const fmtN = v => v == null ? '-' : fmt(Math.round(v));
+  h += `<div class="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-4">
+    ${card(hoje === (ate.slice(0, 10)) ? 'Hoje' + ateTxt : 'Último dia · ' + dLbl(hoje), fmt(hi.n), `${fmt(hi.A)} ainda abertas (${pctTxt(hi.A, hi.n)})`)}
+    ${card('vs dia anterior', `${fmtN(hojeN)}<span class="text-slate-400 text-base font-semibold">/${fmtN(cmpV(ontem))}</span>`, dLbl(ontem) + (porHora ? ateTxt : ' · dia inteiro'), delta(hojeN, cmpV(ontem)))}
+    ${card('vs 7 dias atrás', `${fmtN(hojeN)}<span class="text-slate-400 text-base font-semibold">/${fmtN(cmpV(sem))}</span>`, dLbl(sem) + (porHora ? ateTxt : ' · dia inteiro'), delta(hojeN, cmpV(sem)))}
+    ${card('vs média do período', `${fmtN(hojeN)}<span class="text-slate-400 text-base font-semibold">/${fmtN(media)}</span>`, base.length ? `média de ${base.length} dia(s) completos${porHora ? ateTxt : ''}` : 'ainda sem dias completos', delta(hojeN, media))}
+  </div>`;
+
+  // gráfico dia a dia
+  const tot = info.reduce((s, o) => s + o.n, 0);
+  h += `<div class="grid grid-cols-1 gap-4 mb-4">${chartCard('e_dia', `Entrante dia a dia (${dLbl(per[0]).slice(0, 5)} a ${dLbl(hoje).slice(0, 5)})`, '', `${fmt(tot)} BAs no período · barras por situação atual · linha = média móvel de 7 dias${per.some(parcial) ? ' · dias mais claros = parciais (antes do acompanhamento começar em ' + isoBr(E.inicio) + ')' : ''}`, '', 'h-72 sm:h-80')}</div>`;
+
+  // curva por hora + matriz tipo × dia
+  h += `<div class="grid grid-cols-1 lg:grid-cols-5 gap-4 mb-4">`;
+  h += porHora ? chartCard('e_hora', 'Curva de entrada por hora (acumulado)', 'lg:col-span-2', 'hoje × ontem × 7 dias atrás × média do período', '', 'h-72') : `<div class="card p-6 lg:col-span-2 text-sm text-slate-500 flex items-center justify-center text-center">A curva por hora existe por tipo e operadora.<br>Tire o filtro de situação/recorte para ver.</div>`;
+  // matriz
+  const ult = per.slice(-Math.min(per.length, 10));
+  const linhasM = [];
+  const sumBy = (d, fn) => { const x = E.dias[d]; if (!x) return 0; let s = 0; x.k.forEach(t => { if ((!F.cp || t[1] === F.cp) && (!F.sit || (F.sit === 'A' ? t[5] === 'A' : F.sit === 'E' ? (t[5] === 'C' || t[5] === 'S') : t[5] === 'X')) && fn(t)) s += t[6]; }); return s; };
+  const mRow = (nome, fn, sub) => {
+    const vs = ult.map(d => sumBy(d, fn)), mx = Math.max(1, ...vs), tt = per.reduce((s, d) => s + sumBy(d, fn), 0), md = base.length ? base.reduce((s, d) => s + sumBy(d, fn), 0) / base.length : null;
+    const cor = sub ? '79,70,229' : '217,119,6';
+    linhasM.push(`<tr>${tdc(sub ? `<span class="pl-3 text-slate-500">↳ ${nome}</span>` : `<b>${nome}</b>`, { w: 1 })}${vs.map((v, i) => `<td class="px-1.5 py-1 text-center tabular-nums border-t border-slate-100 dark:border-slate-800 ${parcial(ult[i]) ? 'opacity-50' : ''}" style="background:rgba(${cor},${v ? (0.08 + 0.42 * v / mx).toFixed(2) : 0})">${v || '<span class="text-slate-300">·</span>'}</td>`).join('')}${tdc(fmt(tt), { r: 1, b: 1 }).replace('<td class="', '<td class="border-l border-slate-200 dark:border-slate-700 ')}${tdc(md == null ? '-' : nf.format(Math.round(md * 10) / 10), { r: 1 })}</tr>`);
+  };
+  ENT_TIPOS.filter(t => t[0] !== 'ALL').forEach(([k, l]) => { mRow(l, t => t[0] === k); if (k === 'REP') { mRow('Área de risco', t => t[0] === 'REP' && t[3] === 1, 1); mRow('Repetida 7D', t => t[0] === 'REP' && t[4] === 'R', 1); mRow('Infância 7D', t => t[0] === 'REP' && t[4] === 'I', 1); } });
+  mRow('TOTAL', () => true);
+  h += `<div class="lg:col-span-3">${r7Tabela('ENTRANTES POR TIPO × DIA', '#1f3864', [{ t: 'TIPO' }].concat(ult.map(d => ({ t: dLbl(d).slice(0, 5) + `<div class="text-[9px] font-medium opacity-75">${dLbl(d).slice(6)}</div>`, r: 1 }))).concat([{ t: 'TOTAL', r: 1 }, { t: 'MÉDIA/DIA', r: 1 }]), linhasM, `últimos ${ult.length} dias · total e média = período inteiro${F.cp ? ' · ' + F.cp : ''}${F.sit ? ' · ' + ENT_SIT.find(x => x[0] === F.sit)[1].toLowerCase() : ''}`, null, true)}</div></div>`;
+
+  // por setor
+  const ss = new Map();
+  per.forEach((d, i) => { const x = E.dias[d]; if (!x) return; x.k.forEach(t => { if (!okT(t)) return; const nm = E.s[t[2]] || '?'; const o = ss.get(nm) || { v: per.map(() => 0), A: 0 }; o.v[i] += t[6]; if (t[5] === 'A') o.A += t[6]; ss.set(nm, o); }); });
+  const iH = per.indexOf(hoje), iO = per.indexOf(ontem), bi = per.map((d, i) => base.includes(d) ? i : -1).filter(i => i >= 0);
+  const L = [...ss.entries()].map(([nm, o]) => ({ nm, o, t: o.v.reduce((a, b) => a + b, 0), md: bi.length ? bi.reduce((s, i) => s + o.v[i], 0) / bi.length : null })).sort((a, b) => b.t - a.t);
+  const mxT = Math.max(1, ...L.map(x => x.t));
+  const spark = v => { const m = Math.max(1, ...v), w = 84, hh = 20, st = v.length > 1 ? w / (v.length - 1) : w; return `<svg width="${w}" height="${hh}" viewBox="0 0 ${w} ${hh}"><polyline fill="none" stroke="#6366f1" stroke-width="1.6" points="${v.map((y, i) => (i * st).toFixed(1) + ',' + (hh - 2 - y / m * (hh - 4)).toFixed(1)).join(' ')}"/><circle cx="${((v.length - 1) * st).toFixed(1)}" cy="${(hh - 2 - v[v.length - 1] / m * (hh - 4)).toFixed(1)}" r="2.2" fill="#6366f1"/></svg>`; };
+  const linS = L.map(x => {
+    const hj = iH >= 0 ? x.o.v[iH] : 0, on = iO >= 0 ? x.o.v[iO] : 0;
+    const dv = x.md ? (hj - x.md) / x.md * 100 : null;
+    const corDv = dv == null || Math.abs(dv) < 0.5 ? '#94a3b8' : (dv > 0) === !!ruimSobe ? '#dc2626' : '#16a34a';
+    const bar = `<div style="display:flex;align-items:center;gap:8px"><div style="flex:1;height:8px;border-radius:4px;background:rgba(148,163,184,.22);overflow:hidden"><div style="height:100%;border-radius:4px;width:${Math.max(4, Math.round(x.t / mxT * 100))}%;background:#6366f1"></div></div><span style="width:34px;text-align:center;font-weight:800">${fmt(x.t)}</span></div>`;
+    return `<tr>${tdc(esc(x.nm), { w: 1 })}${tdc(bar, { st: 'style="min-width:150px"' })}${tdc(x.md == null ? '-' : nf.format(Math.round(x.md * 10) / 10), { r: 1 })}${tdc(on || '', { r: 1 })}${tdc(hj || '', { r: 1, b: 1 })}${tdc(dv == null ? '-' : (dv > 0 ? '+' : '') + Math.round(dv) + '%', { r: 1, st: `style="color:${corDv};font-weight:700"` })}${tdc(x.o.A ? `${x.o.A} <span class="text-slate-400">(${pctTxt(x.o.A, x.t)})</span>` : '', { r: 1, w: 1 })}${tdc(spark(x.o.v), { r: 1 })}</tr>`;
+  });
+  h += r7Tabela('ENTRANTES POR SETOR', '#6b7280', [{ t: 'SETOR' }, { t: 'TOTAL NO PERÍODO' }, { t: 'MÉDIA/DIA', r: 1 }, { t: 'ONTEM', r: 1 }, { t: 'HOJE', r: 1 }, { t: 'HOJE × MÉDIA', r: 1 }, { t: 'AINDA ABERTAS', r: 1 }, { t: 'TENDÊNCIA', r: 1 }], linS, `${ENT_TIPOS.find(t => t[0] === F.tipo)[1]}${F.rec ? ' · ' + ENT_REC.find(t => t[0] === F.rec)[1] : ''} · hoje parcial${ateTxt} · tendência = dia a dia no período`, null, true);
+  h += `<div class="text-[11px] text-slate-500 mt-2">Entrante = BA pela data de abertura. A situação é a mais recente que apareceu nas planilhas (uma BA aberta ontem e encerrada hoje conta como encerrada). Dias de abertura com mais de 2 dias ficam congelados. Média = dias completos do período, sem hoje${per.some(parcial) ? ' e sem os parciais' : ''}.</div>`;
+  el.innerHTML = h;
+
+  // gráficos
+  const mm7 = per.map((d, i) => { const j = per.slice(Math.max(0, i - 6), i + 1).map((x, k) => ({ x, o: info[Math.max(0, i - 6) + k] })).filter(z => z.x !== hoje && !parcial(z.x)); return j.length ? Math.round(j.reduce((s, z) => s + z.o.n, 0) / j.length * 10) / 10 : null; });
+  const alpha = (c, d) => parcial(d) || d === hoje ? c + '88' : c;
+  mk('e_dia', {
+    type: 'bar', plugins: [entTopo],
+    data: {
+      labels: per.map(d => d === hoje && H < 23 ? [dLbl(d), 'até ' + String(H).padStart(2, '0') + 'h'] : parcial(d) ? [dLbl(d), 'parcial'] : dLbl(d)),
+      datasets: ['A', 'C', 'S', 'X'].map(k => ({ label: ENT_LBL[k], data: info.map(o => o[k]), backgroundColor: per.map(d => alpha(ENT_COR[k], d)), stack: 's', borderRadius: 2, maxBarThickness: 64, order: 2 }))
+        .concat([{ type: 'line', label: 'Média móvel 7 dias', data: mm7, borderColor: '#1f3864', borderDash: [5, 4], borderWidth: 2, pointRadius: 0, tension: .3, order: 1, spanGaps: true }])
+    },
+    options: { plugins: { legend: { position: 'bottom', labels: { boxWidth: 10, usePointStyle: true } }, tooltip: { mode: 'index', intersect: false, callbacks: { footer: it => 'Total: ' + fmt(info[it[0].dataIndex].n) } } }, scales: { x: { stacked: true, grid: { display: false }, ticks: { font: { size: 10 } } }, y: { stacked: true, beginAtZero: true, grace: '10%' } } }
+  }, 'Entrante dia a dia');
+  if (porHora) {
+    const hrs = [...Array(24).keys()], curva = d => E.dias[d] && E.dias[d].h ? hrs.map(x => acum(d, x)) : null;
+    const lim = (arr, d) => d === hoje ? arr.map((v, i) => i <= H ? v : null) : arr;
+    const ds = [];
+    const add = (lbl, d, cor, dash, w) => { const c = curva(d); if (c) ds.push({ label: lbl, data: lim(c, d), borderColor: cor, backgroundColor: cor, borderDash: dash || [], borderWidth: w || 2, pointRadius: 0, tension: .25 }); };
+    add('Hoje', hoje, '#dc2626', null, 3); add('Ontem', ontem, '#f59e0b'); add('7 dias atrás', sem, '#94a3b8', [4, 3]);
+    if (base.length) ds.push({ label: 'Média do período', data: hrs.map(x => Math.round(base.reduce((s, d) => s + (acum(d, x) || 0), 0) / base.length)), borderColor: '#1f3864', borderDash: [6, 4], borderWidth: 2, pointRadius: 0, tension: .25 });
+    mk('e_hora', { type: 'line', data: { labels: hrs.map(x => String(x).padStart(2, '0') + 'h'), datasets: ds }, options: { interaction: { mode: 'index', intersect: false }, plugins: { legend: { position: 'bottom', labels: { boxWidth: 10, usePointStyle: true } } }, scales: { x: { grid: { display: false }, ticks: { maxTicksLimit: 12, font: { size: 10 } } }, y: { beginAtZero: true } } } }, 'Curva de entrada por hora');
+  }
+}
+/* total em cima das barras empilhadas (só as barras, não a linha) */
+const entTopo = {
+  id: 'entTopo',
+  afterDatasetsDraw(ch) {
+    const c = ch.ctx; c.save(); c.font = '700 11px sans-serif'; c.fillStyle = Chart.defaults.color; c.textAlign = 'center'; c.textBaseline = 'bottom';
+    ch.data.labels.forEach((_, i) => {
+      let t = 0, y = null, x = null;
+      ch.data.datasets.forEach((ds, di) => { if (ds.type === 'line') return; const m = ch.getDatasetMeta(di); if (m.hidden) return; t += ds.data[i] || 0; const b = m.data[i]; if (b && (y == null || b.y < y)) { y = b.y; x = b.x; } });
+      if (t && y != null) c.fillText(fmt(t), x, y - 3);
+    });
+    c.restore();
+  }
+};
+
+/* visão mês a mês: dias detalhados + meses antigos já compactados */
+function entMensal(E, okT, hoje) {
+  const M = new Map();
+  const put = (m, k, n) => { const o = M.get(m) || { n: 0, A: 0, C: 0, S: 0, X: 0, dias: new Set(), p: false }; o.n += n; o[k] += n; M.set(m, o); return o; };
+  Object.keys(E.dias).forEach(d => { const x = E.dias[d]; x.k.forEach(t => { if (okT(t)) { const o = put(d.slice(0, 7), t[5], t[6]); o.dias.add(d); if (x.p) o.p = true; } }); });
+  Object.keys(E.mes || {}).forEach(m => Object.keys(E.mes[m]).forEach(k => { const [mac, cp, st] = k.split('|'); if (okT([mac, cp, 0, 0, '', st, 0]) ) put(m, st, E.mes[m][k]); }));
+  const ms = [...M.keys()].sort();
+  S._entM = { ms, M };
+  const lin = ms.map((m, i) => { const o = M.get(m), a = i ? M.get(ms[i - 1]) : null, nd = o.dias.size || null, md = nd ? o.n / nd : null, ma = a && a.dias.size ? a.n / a.dias.size : null; const dv = md && ma ? (md - ma) / ma * 100 : null;
+    return `<tr>${tdc(`<b>${mLbl(m)}</b>${o.p ? ' <span class="text-[10px] text-slate-400">(parcial)</span>' : m === hoje.slice(0, 7) ? ' <span class="text-[10px] text-slate-400">(em andamento)</span>' : ''}`, { w: 1 })}${tdc(fmt(o.n), { r: 1, b: 1 })}${tdc(nd || '-', { r: 1 })}${tdc(md == null ? '-' : nf.format(Math.round(md * 10) / 10), { r: 1 })}${tdc(dv == null ? '-' : (dv > 0 ? '+' : '') + Math.round(dv) + '%', { r: 1 })}${['A', 'C', 'S', 'X'].map(k => tdc(o[k] ? `${fmt(o[k])} <span class="text-slate-400">(${pctTxt(o[k], o.n)})</span>` : '', { r: 1, w: 1 })).join('')}</tr>`; });
+  return `<div class="grid grid-cols-1 lg:grid-cols-5 gap-4 mb-4">${chartCard('e_mes', 'Entrantes mês a mês', 'lg:col-span-2', 'barras por situação atual', '', 'h-72')}<div class="lg:col-span-3">${r7Tabela('RESUMO MENSAL', '#1f3864', [{ t: 'MÊS' }, { t: 'ENTRANTES', r: 1 }, { t: 'DIAS', r: 1 }, { t: 'MÉDIA/DIA', r: 1 }, { t: 'MÉDIA × MÊS ANT.', r: 1 }, { t: 'ABERTAS', r: 1 }, { t: 'CONCL. C/ SUC.', r: 1 }, { t: 'CONCL. S/ SUC.', r: 1 }, { t: 'CANCELADAS', r: 1 }], lin, 'o histórico cresce sozinho a cada dia; comparação pela média/dia (meses de tamanhos diferentes)', null, true)}</div></div>`;
+}
+function entMensalChart() {
+  const { ms, M } = S._entM || {}; if (!ms || !ms.length) return;
+  mk('e_mes', { type: 'bar', plugins: [entTopo], data: { labels: ms.map(mLbl), datasets: ['A', 'C', 'S', 'X'].map(k => ({ label: ENT_LBL[k], data: ms.map(m => M.get(m)[k]), backgroundColor: ENT_COR[k], stack: 's', borderRadius: 2, maxBarThickness: 70 })) }, options: { plugins: { legend: { position: 'bottom', labels: { boxWidth: 10, usePointStyle: true } } }, scales: { x: { stacked: true, grid: { display: false } }, y: { stacked: true, beginAtZero: true, grace: '10%' } } } }, 'Entrantes mês a mês');
+}
+
 function renderReinc() {
   const el = $('#v-reinc'), R = TR();
   let h = bandTitle('REINCIDÊNCIA 7 DIAS: INFÂNCIA × REPETIDA', 'Regra nova: reparo aberto até 7 dias depois de outro reparo encerrado (repetida) ou da instalação (infância) no mesmo GPON · clique nos cards e linhas para filtrar (os BAs ficam na aba Dados)');
@@ -1572,7 +1744,7 @@ async function loadRiscoInfo() {
 }
 async function syncSnaps(first) {
   if (location.protocol === 'file:') return false;
-  loadRiscoInfo(); loadUltima(); loadReincInfo();
+  loadRiscoInfo(); loadUltima(); loadReincInfo(); loadEntInfo();
   const ch = await loadSnaps(); if (!ch) return false;
   if (S.tel) {
     const st = snapStore();
