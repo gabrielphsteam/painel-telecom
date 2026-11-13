@@ -256,8 +256,8 @@ footer{color:var(--muted);font-size:12px;text-align:center}
             <label for="gKey" style="font-size:12.5px" class="muted">Chave da API do Gemini</label>
             <input type="password" id="gKey" placeholder="AIza…" style="flex:1;min-width:160px" autocomplete="off">
             <select id="gModel" aria-label="Modelo Gemini">
-              <option value="gemini-2.5-flash">gemini-2.5-flash</option>
-              <option value="gemini-2.5-pro">gemini-2.5-pro</option>
+              <option value="gemini-3-flash-preview">gemini-3-flash-preview (rápido)</option>
+              <option value="gemini-3.1-pro-preview">gemini-3.1-pro-preview (mais inteligente)</option>
             </select>
           </div>
           <div class="note" id="gNote">O Gemini testa as trocas nas regras do painel antes de sugerir. A chave fica só neste navegador. Gere a sua em <a href="https://aistudio.google.com/app/apikey" target="_blank" rel="noopener">aistudio.google.com</a>. Se aparecer erro de conexão, use <b>Copiar para o Gemini</b> e cole em <a href="https://gemini.google.com/app" target="_blank" rel="noopener">gemini.google.com</a>.</div>
@@ -1050,7 +1050,7 @@ async function geminiApi(contents, signal, onProgress) {
       throw { blocked: true, message: 'O navegador bloqueou a conexão direta com o Gemini. Dentro do claude.ai a página não pode falar com outros sites; abra pelo site do GitHub.' };
     }
     const j = await r.json().catch(() => ({}));
-    if (!r.ok) throw { message: 'O Gemini recusou: ' + ((j.error && j.error.message) || r.status) + (r.status === 400 && /API key/i.test(JSON.stringify(j)) ? ' A chave parece inválida.' : r.status === 429 ? ' Limite de uso atingido; espere um minuto.' : '') };
+    if (!r.ok) throw { message: 'O Gemini recusou: ' + ((j.error && j.error.message) || r.status) + (/no longer available|not found/i.test(JSON.stringify(j)) ? ' Escolha outro modelo na lista ao lado da chave.' : r.status === 400 && /API key/i.test(JSON.stringify(j)) ? ' A chave parece inválida.' : r.status === 429 ? ' Limite de uso atingido; espere um minuto.' : '') };
     const cand = (j.candidates || [])[0];
     if (!cand || !cand.content) { if (!text) text = 'O Gemini não devolveu resposta' + (cand && cand.finishReason ? ' (' + cand.finishReason + ')' : '') + '. Tente de novo.'; break; }
     contents.push(cand.content);
@@ -1153,9 +1153,27 @@ function syncAi() {
 $('#cKey').value = store.get('ckey', ''); $('#cModel').value = store.get('cmodel', 'claude-sonnet-5-5');
 $('#cKey').onchange = () => store.set('ckey', $('#cKey').value.trim());
 $('#cModel').onchange = () => store.set('cmodel', $('#cModel').value);
-$('#gKey').value = store.get('gkey', ''); $('#gModel').value = store.get('gmodel', 'gemini-2.5-flash');
-$('#gKey').onchange = () => store.set('gkey', $('#gKey').value.trim());
+$('#gKey').value = store.get('gkey', '');
+const verOf = n => { const m = n.match(/gemini-(\d+(?:\.\d+)?)/); return m ? parseFloat(m[1]) : 0; };
+async function loadGeminiModels(quiet) {
+  const key = $('#gKey').value.trim(); if (!key) return;
+  try {
+    const r = await fetch('https://generativelanguage.googleapis.com/v1beta/models?pageSize=200', { headers: { 'x-goog-api-key': key } });
+    const j = await r.json(); if (!r.ok) throw new Error((j.error && j.error.message) || r.status);
+    const ok = (j.models || []).filter(m => (m.supportedGenerationMethods || []).includes('generateContent') && /^models\/gemini-[\d.]+-(pro|flash)(-preview)?$/.test(m.name)).map(m => m.name.replace('models/', ''));
+    if (!ok.length) return;
+    ok.sort((a, b) => verOf(b) - verOf(a) || (/flash/.test(b) ? 1 : 0) - (/flash/.test(a) ? 1 : 0));
+    const sel = $('#gModel'), saved = store.get('gmodel', '');
+    sel.innerHTML = ok.map(n => `<option value="${n}">${n} (${/pro/.test(n) ? 'mais inteligente' : 'rápido'})</option>`).join('');
+    sel.value = ok.includes(saved) ? saved : (ok.find(n => /flash/.test(n) && !/preview/.test(n)) || ok.find(n => /flash/.test(n)) || ok[0]);
+    store.set('gmodel', sel.value);
+    if (!quiet) toast('Chave ok. ' + ok.length + ' modelos do Gemini disponíveis para você.');
+  } catch (e) { if (!quiet) toast('Não consegui listar os modelos: ' + (e.message || e)); }
+}
+$('#gKey').onchange = () => { store.set('gkey', $('#gKey').value.trim()); loadGeminiModels(false); };
 $('#gModel').onchange = () => store.set('gmodel', $('#gModel').value);
+{ const sm = store.get('gmodel', ''); if (sm && ![...$('#gModel').options].some(o => o.value === sm)) $('#gModel').add(new Option(sm, sm)); if (sm) $('#gModel').value = sm; }
+loadGeminiModels(true);
 function setBusy(b) { $('#aiSend').disabled = b; $('#aiStop').disabled = !b; $('#aiSend').textContent = b ? 'Analisando…' : 'Perguntar'; }
 $('#aiStop').onclick = () => { if (aborter) aborter.abort(); };
 $('#aiNew').onclick = () => { state.chat = []; $('#aiOut').innerHTML = '<p class="muted">Conversa nova. A escala e as regras atuais vão junto na próxima pergunta.</p>'; };
