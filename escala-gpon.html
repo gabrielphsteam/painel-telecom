@@ -336,7 +336,7 @@ footer{color:var(--muted);font-size:12px;text-align:center}
   const WD = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
   const GROUPS = { atend: 'Atendimento', monit: 'Monitoramento', plan: 'Planilhas', novato: 'Novato', sup: 'Supervisor' };
   const DEFAULT_RULES = {
-    maxConsec: 8,
+    maxConsec: 12,
     satQty: 8,
     sunAtend: 2, sunMonit: 1,
     holPct: 50, holAtend: 3, holMonit: 1, holPlan: 1,
@@ -820,6 +820,7 @@ let state = {
 
 // regras confirmadas em 14/11: PRESENTE laranja = plantão normal; folga em dia útil só na segunda da casada
 if (!store.get('mig2', 0)) { state.rules.presSemCor = 'NOR'; state.rules.folgaUtilRegra = true; if (store.get('rules2', null)) store.set('rules2', state.rules); store.set('mig2', 1); }
+if (!store.get('mig3', 0)) { if (state.rules.maxConsec === 8) { state.rules.maxConsec = 12; if (store.get('rules2', null)) store.set('rules2', state.rules); } store.set('mig3', 1); }
 (function restoreGen() {
   const gen = store.get('gen', []), lastEnd = () => { const L = state.base[state.base.length - 1]; return L.days[L.days.length - 1].date; };
   gen.sort((a, b) => a.days[0].date < b.days[0].date ? -1 : 1).forEach(g => { if (g.days[0].date > lastEnd()) state.base.push(g); });
@@ -1395,7 +1396,7 @@ REGRAS:
 3. Feriados: metade da equipe técnica (${R.holPct}%, ou seja ${r.holMin === r.holMax ? r.holMin : r.holMin + ' a ' + r.holMax} pessoas), geralmente ${R.holAtend} do Atendimento, ${R.holMonit} do Monitoramento e ${R.holPlan} de Planilhas, intercalando Leandro e Paulo Enoque a cada feriado.
 4. Duplas: ${R.pairs.map(p => p.a + ' e ' + p.b + ' nunca juntos em ' + Object.keys(p.days).filter(k => p.days[k]).map(k => dl[k]).join('/')).join('; ')}. Glauco e Aureliano podem trabalhar juntos.
 5. Espelhamento: ${R.supCover ? 'sempre que Leandro e Paulo Enoque não estiverem atuando, Gabriel (supervisor) precisa estar trabalhando no lugar deles.' : 'desligado.'}
-6. Fadiga: máximo absoluto de ${R.maxConsec} dias seguidos trabalhando (conta a sequência que vem do período anterior). Ao bater o limite, folga simples ou casada.
+6. Fadiga: máximo absoluto de ${R.maxConsec} dias seguidos trabalhando (conta a sequência que vem do período anterior). Ao bater o limite, folga obrigatória.
 7. Por fim de semana: exatamente ${R.folgaSabDom} folgas casadas 100% (técnico de FOLGA sábado e domingo) e exatamente ${R.folgaDomSeg} folga casada estendida (FOLGA domingo e segunda) — não mais, para não esvaziar a segunda.
 8b. Cada pessoa tem de ${R.folgasMin} a ${R.folgasMax} folgas no período (31 dias), e no máximo ${R.folgaUtilMax} técnicos de folga no mesmo dia útil.${R.folgaUtilRegra ? ' Folga em dia útil só é permitida na segunda-feira de uma folga casada Domingo+Segunda; nos outros dias úteis ninguém folga.' : ''}
 8. Cada colaborador precisa de pelo menos ${R.casadaMin} folga casada no período; ninguém passa de ${R.casada100Max} folgas Sáb+Dom enquanto outro tem zero.
