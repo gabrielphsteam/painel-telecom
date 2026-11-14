@@ -15,7 +15,7 @@
   --pl:#e7ebef; --pl-ink:#3d4b57; --pre:#0b6e8e; --pre-ink:#ffffff; --fol:#f6e6c4; --fol-ink:#7a5410;
   --err:#c4362b; --err-soft:#fbe3e0; --warn:#b7791f; --warn-soft:#fbefd9; --ok:#1f8a5b; --ok-soft:#dcf2e7; --info:#4a6378; --info-soft:#e3eaf0;
   --wk:#e9eef3;
-  --j-azul:#4472c4; --j-azul-ink:#ffffff; --j-verde:#92d050; --j-verde-ink:#1d3a06; --j-amarelo:#ffd966; --j-amarelo-ink:#4d3a00; --j-laranja:#f4b183; --j-laranja-ink:#6b2f07;
+  --j-azul:#4472c4; --j-azul-ink:#ffffff; --j-verde:#92d050; --j-verde-ink:#1d3a06; --j-amarelo:#ffd966; --j-amarelo-ink:#4d3a00; --j-laranja:#f4b183; --j-laranja-ink:#6b2f07; --j-pn:#fbdcc4; --j-pn-ink:#6b2f07;
   --display:"Archivo", "Helvetica Neue", Arial, sans-serif; --body:"IBM Plex Sans", "Segoe UI", Arial, sans-serif; --mono:"IBM Plex Mono", ui-monospace, Consolas, monospace;
   color-scheme:light;
 }
@@ -24,13 +24,13 @@
   --accent:#4fb3d4; --accent-ink:#06222c; --accent-soft:#173847;
   --pl:#22313d; --pl-ink:#b7c4ce; --pre:#2f8fb0; --pre-ink:#ffffff; --fol:#4a3a1a; --fol-ink:#f3d9a1;
   --err:#ff7a6b; --err-soft:#43211e; --warn:#f0b357; --warn-soft:#3d2e14; --ok:#5fd19a; --ok-soft:#173a2a; --info:#9db4c6; --info-soft:#22313d;
-  --wk:#1a2833; --j-azul:#3e66b3; --j-azul-ink:#ffffff; --j-verde:#79b444; --j-verde-ink:#10240a; --j-amarelo:#e3bd45; --j-amarelo-ink:#2e2300; --j-laranja:#d98e5c; --j-laranja-ink:#2e1405; color-scheme:dark; } }
+  --wk:#1a2833; --j-azul:#3e66b3; --j-azul-ink:#ffffff; --j-verde:#79b444; --j-verde-ink:#10240a; --j-amarelo:#e3bd45; --j-amarelo-ink:#2e2300; --j-laranja:#d98e5c; --j-laranja-ink:#2e1405; --j-pn:#7d5238; --j-pn-ink:#fbe6d6; color-scheme:dark; } }
 :root[data-theme="dark"]{
   --bg:#0e161c; --surface:#152029; --surface-2:#1b2a35; --ink:#e3eaef; --muted:#93a3b0; --line:#2a3a47;
   --accent:#4fb3d4; --accent-ink:#06222c; --accent-soft:#173847;
   --pl:#22313d; --pl-ink:#b7c4ce; --pre:#2f8fb0; --pre-ink:#ffffff; --fol:#4a3a1a; --fol-ink:#f3d9a1;
   --err:#ff7a6b; --err-soft:#43211e; --warn:#f0b357; --warn-soft:#3d2e14; --ok:#5fd19a; --ok-soft:#173a2a; --info:#9db4c6; --info-soft:#22313d;
-  --wk:#1a2833; --j-azul:#3e66b3; --j-azul-ink:#ffffff; --j-verde:#79b444; --j-verde-ink:#10240a; --j-amarelo:#e3bd45; --j-amarelo-ink:#2e2300; --j-laranja:#d98e5c; --j-laranja-ink:#2e1405; color-scheme:dark; }
+  --wk:#1a2833; --j-azul:#3e66b3; --j-azul-ink:#ffffff; --j-verde:#79b444; --j-verde-ink:#10240a; --j-amarelo:#e3bd45; --j-amarelo-ink:#2e2300; --j-laranja:#d98e5c; --j-laranja-ink:#2e1405; --j-pn:#7d5238; --j-pn-ink:#fbe6d6; color-scheme:dark; }
 *{box-sizing:border-box}
 html,body{margin:0}
 body{background:var(--bg);color:var(--ink);font:14px/1.45 var(--body);}
@@ -98,6 +98,7 @@ table.g{border-collapse:separate;border-spacing:0;font-size:12.5px;min-width:100
 .cell.j-HO,.cell.j-RED{background:var(--j-verde);color:var(--j-verde-ink)}
 .cell.j-EST,.cell.j-INT{background:var(--j-amarelo);color:var(--j-amarelo-ink)}
 .cell.FOLGA{background:var(--j-laranja);color:var(--j-laranja-ink)}
+.cell.j-NOR{background:var(--j-pn);color:var(--j-pn-ink)}
 .cell.j-UND{background:var(--surface);color:var(--muted);outline:1.5px dashed var(--muted);outline-offset:-2px}
 .cell.j-SUP{background:var(--pl);color:var(--pl-ink)}
 .jleg{display:grid;grid-template-columns:repeat(auto-fill,minmax(205px,1fr));gap:6px 14px;font-size:12px;color:var(--muted);margin-bottom:10px}
@@ -217,13 +218,14 @@ footer{color:var(--muted);font-size:12px;text-align:center}
         <div><span class="sw" style="background:var(--j-verde);color:var(--j-verde-ink)">HO</span>Home office · seg a sex</div>
         <div><span class="sw" style="background:var(--j-amarelo);color:var(--j-amarelo-ink)">PE</span>Plantão estendido 08–20h · seg a sex</div>
         <div><span class="sw" style="background:var(--j-amarelo);color:var(--j-amarelo-ink)">PI</span>Plantão integral 08–20h · fim de semana/feriado</div>
+        <div><span class="sw" style="background:var(--j-pn);color:var(--j-pn-ink)">PN</span>Plantão normal 08–18h · fim de semana/feriado</div>
         <div><span class="sw" style="background:var(--j-verde);color:var(--j-verde-ink)">PR</span>Plantão reduzido 08–13h · fim de semana/feriado</div>
         <div><span class="sw" style="background:var(--j-laranja);color:var(--j-laranja-ink)">F</span>Folga · qualquer dia</div>
       </div>
       <div class="filters" role="group" aria-label="Mostrar colunas">
         <button class="chip" type="button" data-view="all" aria-pressed="true">Todos os dias</button>
         <button class="chip" type="button" data-view="wk" aria-pressed="false">Só sáb, dom e feriado</button>
-        <span class="muted" id="editHint" style="font-size:12.5px;display:none">Clique numa célula para trocar. Dia útil: PL → HO → PE → F. Fim de semana/feriado: PI → PR → F. A auditoria refaz na hora.</span>
+        <span class="muted" id="editHint" style="font-size:12.5px;display:none">Clique numa célula para trocar. Dia útil: PL → HO → PE → F. Fim de semana/feriado: PI → PN → PR → F. A auditoria refaz na hora.</span>
       </div>
       <div class="note warn" id="draftBar" style="display:none;gap:8px 12px;flex-wrap:wrap;align-items:center;margin-bottom:10px">
         <span style="flex:1;min-width:220px"><b>Rascunho do próximo período.</b> Gere uma versão automática, ajuste à mão ou peça à IA, e baixe o Excel quando estiver pronto. Feriados nacionais já marcados; clique no dia para marcar ou desmarcar outro.</span>
@@ -344,10 +346,10 @@ footer{color:var(--muted);font-size:12px;text-align:center}
     pairs: [{ a: 'LENILTON', b: 'WELLINGTON', days: { dom: true } }, { a: 'LEANDRO', b: 'PAULO ENOQUE', days: { dom: true } }, { a: 'PAULO ENOQUE', b: 'RHONIS', days: { dom: true } }],
     supCover: true,
     folgasMin: 4, folgasMax: 7, folgaUtilMax: 2,
-    estPorDia: 2, intMin: 1, presSemCor: 'definir', jornadaOn: true,
+    estPorDia: 2, intMin: 1, presSemCor: 'NOR', jornadaOn: true, folgaUtilRegra: true,
     fixed: [{ name: 'LEANDRO', date: '2026-11-14', status: 'PRESENTE' }]
   };
-  const JOR = { PRES: 'Presencial', HO: 'Home office', EST: 'Plantão estendido 08–20h', INT: 'Plantão integral 08–20h', RED: 'Plantão reduzido 08–13h' };
+  const JOR = { PRES: 'Presencial', HO: 'Home office', EST: 'Plantão estendido 08–20h', INT: 'Plantão integral 08–20h', NOR: 'Plantão normal 08–18h', RED: 'Plantão reduzido 08–13h' };
   const _nc = new Map();
   const norm = t => { const k = String(t || ''); let v = _nc.get(k); if (v === undefined) { v = k.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toUpperCase(); _nc.set(k, v); } return v; };
   const _gc = new WeakMap();
@@ -413,7 +415,7 @@ footer{color:var(--muted);font-size:12px;text-align:center}
           const inPer = run.filter(d => d in dayIdx);
           if (inPer.length) {
             const over = run.slice(rules.maxConsec).filter(d => d in dayIdx);
-            add({ rule: 'consec', sev: 'erro', title: run.length + ' dias seguidos – ' + short(p.name),
+            add({ rule: 'consec', sev: 'erro', over: run.length - rules.maxConsec, title: run.length + ' dias seguidos – ' + short(p.name),
               detail: p.name + ' trabalha de ' + fmtW(run[0]) + ' a ' + fmtW(run[run.length - 1]) + ' (' + run.length + ' dias). Limite: ' + rules.maxConsec + '. Dias excedentes: ' + over.map(fmt).join(', ') + '.',
               people: [pi], dates: run.filter(d => d in dayIdx) },
               (over.length ? over : inPer).map(d => [pi, dayIdx[d]]));
@@ -603,7 +605,7 @@ footer{color:var(--muted);font-size:12px;text-align:center}
       if (s === 'PRESENTE') return j || (rules.presSemCor && rules.presSemCor !== 'definir' ? rules.presSemCor : null);
       return null;
     }));
-    const jcount = days.map((d, di) => { const o = { PRES: [], HO: [], EST: [], INT: [], RED: [], und: [] }; people.forEach((p, pi) => { if (grp(p) === 'sup') return; const s = st(pi, di); if (!isWork(s)) return; const j = jor[pi][di]; (j ? o[j] : o.und).push(pi); }); return o; });
+    const jcount = days.map((d, di) => { const o = { PRES: [], HO: [], EST: [], INT: [], NOR: [], RED: [], und: [] }; people.forEach((p, pi) => { if (grp(p) === 'sup') return; const s = st(pi, di); if (!isWork(s)) return; const j = jor[pi][di]; (j ? o[j] : o.und).push(pi); }); return o; });
     if (rules.jornadaOn) {
       days.forEach((d, di) => {
         const k = kind(d.date), c = jcount[di];
@@ -612,7 +614,7 @@ footer{color:var(--muted);font-size:12px;text-align:center}
             detail: 'Em ' + fmtW(d.date) + ' estão de plantão estendido (PL amarelo, 08h às 20h): ' + names(c.EST) + '. O padrão é ' + rules.estPorDia + ' por dia útil, para a sala ficar coberta até 20h.',
             people: c.EST, dates: [d.date] }, c.EST.map(pi => [pi, di]), [di]);
         if (k !== 'util' && c.INT.length < rules.intMin)
-          add({ rule: 'jornada', sev: c.und.length ? 'alerta' : 'erro', title: fmtW(d.date) + ': ' + (c.und.length ? 'plantão até 20h não definido' : 'ninguém até 20h'),
+          add({ rule: 'jornada', sev: 'alerta', title: fmtW(d.date) + ': ' + (c.und.length ? 'plantão até 20h não definido' : 'ninguém até 20h'),
             detail: 'Em ' + fmtW(d.date) + (k === 'fer' ? ' (feriado)' : '') + ' ninguém está em plantão integral (PRESENTE amarelo, 08h às 20h)' + (c.und.length ? '; há ' + c.und.length + ' presente(s) sem cor de jornada: ' + names(c.und) : '') + '. É preciso pelo menos ' + rules.intMin + ' até 20h.',
             people: c.und, dates: [d.date] }, c.und.map(pi => [pi, di]), [di]);
       });
@@ -622,6 +624,20 @@ footer{color:var(--muted);font-size:12px;text-align:center}
           detail: und.length + ' células PRESENTE estão com cor fora da legenda (nem amarelo = integral 08–20h, nem verde = reduzido 08–13h). Pinte na planilha ou escolha em "Regras aplicadas" como contar essas células.',
           people: [...new Set(und.map(x => x[0]))], dates: [] }, []);
     }
+
+    // Folga em dia útil: só a segunda-feira de uma folga casada Domingo+Segunda
+    if (rules.folgaUtilRegra) people.forEach((p, pi) => {
+      if (grp(p) === 'sup') return;
+      const hist = tl[String(p.id || p.name)] || {};
+      days.forEach((d, di) => {
+        if (kind(d.date) !== 'util' || st(pi, di) !== 'FOLGA') return;
+        const ontem = hist[addDays(d.date, -1)];
+        if (dow(d.date) === 1 && (ontem === undefined || ontem === 'FOLGA')) return;
+        add({ rule: 'folgaUtil', sev: 'erro', title: short(p.name) + ' de folga em dia útil: ' + fmtW(d.date),
+          detail: p.name + ' está de FOLGA em ' + fmtW(d.date) + '. Folga em dia útil só vale como a segunda-feira de uma folga casada Domingo+Segunda.',
+          people: [pi], dates: [d.date] }, [[pi, di]]);
+      });
+    });
 
     // Quantidade de folgas
     days.forEach((d, di) => {
@@ -652,7 +668,7 @@ footer{color:var(--muted);font-size:12px;text-align:center}
 
     // Equilíbrio (sáb/dom/feriado trabalhados)
     const load = people.map((p, pi) => {
-      const o = { sab: 0, dom: 0, fer: 0, folgas: 0, pl: 0, PRES: 0, HO: 0, EST: 0, INT: 0, RED: 0 };
+      const o = { sab: 0, dom: 0, fer: 0, folgas: 0, pl: 0, PRES: 0, HO: 0, EST: 0, INT: 0, NOR: 0, RED: 0 };
       days.forEach((d, di) => { const jj = jor[pi][di]; if (jj) o[jj]++; const s = st(pi, di), k = kind(d.date); if (s === 'PRESENTE' && k !== 'util') o[k]++; if (s === 'FOLGA') o.folgas++; if (s === 'PL') o.pl++; });
       o.total = o.sab + o.dom + o.fer; return o;
     });
@@ -703,7 +719,7 @@ footer{color:var(--muted);font-size:12px;text-align:center}
   }
   // pontuação: erros pesam muito, alertas médio, equilíbrio leve
   function score(res) {
-    let s = 0; res.issues.forEach(i => { s += i.sev === 'erro' ? 100 : i.sev === 'alerta' ? (i.rule === 'equil' ? 4 : 12) : 0; });
+    let s = 0; res.issues.forEach(i => { s += i.sev === 'erro' ? 100 + 12 * (i.over || 0) : i.sev === 'alerta' ? (i.rule === 'equil' ? 4 : 12) : 0; });
     const techs = res.load.filter((l, i) => res.groupsOf[i] !== 'sup');
     const sp = k => { const v = techs.map(l => l[k]); return Math.max(...v) - Math.min(...v); };
     s += 2 * sp('EST') + 2 * sp('HO') + 3 * sp('total') + 2 * sp('INT');
@@ -720,7 +736,8 @@ footer{color:var(--muted);font-size:12px;text-align:center}
     const isSup = pi => E.groupOf(P.people[pi], rules) === 'sup';
     const fixed = new Set((rules.fixed || []).map(f => { const pi = P.people.findIndex(p => E.norm(p.name).includes(E.norm(f.name))), di = P.days.findIndex(d => d.date === f.date); return pi + ':' + di; }));
     const opts1 = (pi, di) => { const k = kind(di); if (isSup(pi)) return k === 'util' ? [['PL', null], ['FOLGA', null]] : [['PRESENTE', null], ['FOLGA', null]];
-      return k === 'util' ? [['PL', 'PRES'], ['PL', 'HO'], ['PL', 'EST'], ['FOLGA', null]] : [['PRESENTE', 'INT'], ['PRESENTE', 'RED'], ['FOLGA', null]]; };
+      if (k === 'util') return [['PL', 'PRES'], ['PL', 'HO'], ['PL', 'EST']].concat(!rules.folgaUtilRegra || E.dow(P.days[di].date) === 1 ? [['FOLGA', null]] : []);
+      return [['PRESENTE', 'INT'], ['PRESENTE', 'NOR'], ['PRESENTE', 'RED'], ['FOLGA', null]]; };
     let cur = E.audit(periods, pIdx, rules), cs = score(cur), best = cs, bestSt = P.people.map(p => [p.st.slice(), p.jr.slice()]);
     const t0 = Date.now(); let it = 0, temp = 30;
     while (Date.now() - t0 < ms) {
@@ -790,7 +807,7 @@ const E = window.Escala;
 const $ = s => document.querySelector(s);
 const store = { get(k, d) { try { const v = localStorage.getItem('escalaGpon.' + k); return v ? JSON.parse(v) : d; } catch (e) { return d; } },
                set(k, v) { try { localStorage.setItem('escalaGpon.' + k, JSON.stringify(v)); } catch (e) {} } };
-const RULE_NAMES = { consec: 'Dias seguidos', sab: 'Sábado', dom: 'Domingo', fer: 'Feriado', folgaSD: 'Folga Sáb/Dom', folgaDS: 'Folga Dom/Seg', casada: 'Folgas casadas', par: 'Duplas', sup: 'Cobertura Planilhas', pontual: 'Regra pontual', folgas: 'Quantidade de folgas', jornada: 'Jornadas', codigo: 'Códigos', equil: 'Equilíbrio' };
+const RULE_NAMES = { consec: 'Dias seguidos', sab: 'Sábado', dom: 'Domingo', fer: 'Feriado', folgaSD: 'Folga Sáb/Dom', folgaDS: 'Folga Dom/Seg', casada: 'Folgas casadas', par: 'Duplas', sup: 'Cobertura Planilhas', pontual: 'Regra pontual', folgaUtil: 'Folga em dia útil', folgas: 'Quantidade de folgas', jornada: 'Jornadas', codigo: 'Códigos', equil: 'Equilíbrio' };
 const GCOL = { atend: '#0b6e8e', monit: '#7b5ea7', plan: '#1f8a5b', novato: '#b7791f', sup: '#5d6b77' };
 const MES = ['janeiro','fevereiro','março','abril','maio','junho','julho','agosto','setembro','outubro','novembro','dezembro'];
 
@@ -801,6 +818,8 @@ let state = {
   edits: store.get('edits', {}), holOv: store.get('holov', {}), editing: false, view: 'all', ruleFilter: 'todas', focus: null, ai: store.get('ai', 'claude'), res: null, chat: [], proposal: null
 };
 
+// regras confirmadas em 14/11: PRESENTE laranja = plantão normal; folga em dia útil só na segunda da casada
+if (!store.get('mig2', 0)) { state.rules.presSemCor = 'NOR'; state.rules.folgaUtilRegra = true; if (store.get('rules2', null)) store.set('rules2', state.rules); store.set('mig2', 1); }
 (function restoreGen() {
   const gen = store.get('gen', []), lastEnd = () => { const L = state.base[state.base.length - 1]; return L.days[L.days.length - 1].date; };
   gen.sort((a, b) => a.days[0].date < b.days[0].date ? -1 : 1).forEach(g => { if (g.days[0].date > lastEnd()) state.base.push(g); });
@@ -819,7 +838,7 @@ function applyEdits() {
 const editKey = (pi, p, d) => pi + '|' + (p.id || p.name) + '|' + d.date;
 const nEdits = () => Object.keys(state.edits).length;
 const abbr = s => s === 'PRESENTE' ? 'P' : s === 'FOLGA' ? 'F' : s === 'PL' ? 'PL' : (s ? '?' : '–');
-const JAB = { PRES: 'PL', HO: 'HO', EST: 'PE', INT: 'PI', RED: 'PR' };
+const JAB = { PRES: 'PL', HO: 'HO', EST: 'PE', INT: 'PI', NOR: 'PN', RED: 'PR' };
 function cellInfo(pi, di) {
   const P = per(), r = state.res, s = P.people[pi].st[di], j = r.jor[pi][di], sup = r.groupsOf[pi] === 'sup';
   if (s === 'FOLGA') return { cls: 'FOLGA', lab: 'F', name: 'Folga' };
@@ -829,8 +848,8 @@ function cellInfo(pi, di) {
   if (s === 'PRESENTE') return { cls: 'j-UND', lab: 'P?', name: 'Presente, sem cor de jornada' };
   return { cls: s, lab: abbr(s), name: s };
 }
-const XCOL = { PRES: '4472C4', HO: '92D050', EST: 'FFD966', INT: 'FFD966', RED: '92D050', FOLGA: 'F4B183', UND: 'FFFFFF', SUP: 'D9D9D9' };
-const XINK = { PRES: 'FFFFFF', HO: '1D3A06', EST: '4D3A00', INT: '4D3A00', RED: '1D3A06', FOLGA: '6B2F07', UND: '7F7F7F', SUP: '3D4B57' };
+const XCOL = { PRES: '4472C4', HO: '92D050', EST: 'FFD966', INT: 'FFD966', NOR: 'FBDCC4', RED: '92D050', FOLGA: 'F4B183', UND: 'FFFFFF', SUP: 'D9D9D9' };
+const XINK = { PRES: 'FFFFFF', HO: '1D3A06', EST: '4D3A00', INT: '4D3A00', NOR: '6B2F07', RED: '1D3A06', FOLGA: '6B2F07', UND: '7F7F7F', SUP: '3D4B57' };
 function xKey(pi, di) { const s = per().people[pi].st[di], j = state.res.jor[pi][di]; if (s === 'FOLGA') return 'FOLGA'; if (!s) return null; if (state.res.groupsOf[pi] === 'sup' && !(per().people[pi].jr || [])[di]) return 'SUP'; return j || (s === 'PRESENTE' ? 'UND' : 'PRES'); }
 const cellCode = (pi, di) => { const s = per().people[pi].st[di], j = state.res.jor[pi][di]; return s === 'FOLGA' ? 'F' : !s ? '' : j ? JAB[j] : s === 'PRESENTE' ? 'P?' : 'PL'; };
 const per = () => state.periods[state.p];
@@ -994,12 +1013,12 @@ function renderJornadas() {
   const avg = k => tech.reduce((a, pi) => a + r.load[pi][k], 0) / (tech.length || 1);
   const av = { EST: avg('EST'), HO: avg('HO'), INT: avg('INT') };
   const hl = (v, a) => Math.abs(v - a) >= 2 ? ` style="color:${v > a ? 'var(--err)' : 'var(--warn)'};font-weight:700"` : '';
-  let h = '<thead><tr><th>Colaborador</th><th>Presencial</th><th>Home office</th><th>Plantão estendido</th><th>Integral 08–20h</th><th>Reduzido 08–13h</th><th>Sem cor</th></tr></thead><tbody>';
+  let h = '<thead><tr><th>Colaborador</th><th>Presencial</th><th>Home office</th><th>Plantão estendido</th><th>Integral 08–20h</th><th>Normal 08–18h</th><th>Reduzido 08–13h</th><th>Sem cor</th></tr></thead><tbody>';
   P.people.forEach((p, pi) => {
     const L = r.load[pi], und = P.days.filter((d, di) => p.st[di] === 'PRESENTE' && !r.jor[pi][di]).length;
-    h += `<tr class="clk" data-person="${pi}"><td>${esc(E.short(p.name))} <span class="muted" style="font-size:11.5px">${E.GROUPS[r.groupsOf[pi]]}</span></td><td class="num">${L.PRES}</td><td class="num"${r.groupsOf[pi] !== 'sup' ? hl(L.HO, av.HO) : ''}>${L.HO}</td><td class="num"${r.groupsOf[pi] !== 'sup' ? hl(L.EST, av.EST) : ''}>${L.EST}</td><td class="num">${L.INT}</td><td class="num">${L.RED}</td><td class="num muted">${und || '—'}</td></tr>`;
+    h += `<tr class="clk" data-person="${pi}"><td>${esc(E.short(p.name))} <span class="muted" style="font-size:11.5px">${E.GROUPS[r.groupsOf[pi]]}</span></td><td class="num">${L.PRES}</td><td class="num"${r.groupsOf[pi] !== 'sup' ? hl(L.HO, av.HO) : ''}>${L.HO}</td><td class="num"${r.groupsOf[pi] !== 'sup' ? hl(L.EST, av.EST) : ''}>${L.EST}</td><td class="num">${L.INT}</td><td class="num">${L.NOR}</td><td class="num">${L.RED}</td><td class="num muted">${und || '—'}</td></tr>`;
   });
-  h += `<tr><td class="muted">Média da equipe técnica</td><td></td><td class="num muted">${av.HO.toFixed(1)}</td><td class="num muted">${av.EST.toFixed(1)}</td><td class="num muted">${av.INT.toFixed(1)}</td><td></td><td></td></tr>`;
+  h += `<tr><td class="muted">Média da equipe técnica</td><td></td><td class="num muted">${av.HO.toFixed(1)}</td><td class="num muted">${av.EST.toFixed(1)}</td><td class="num muted">${av.INT.toFixed(1)}</td><td></td><td></td><td></td></tr>`;
   $('#jorTable').innerHTML = h + '</tbody>';
 }
 
@@ -1014,13 +1033,13 @@ function renderRules() {
     <div class="rg"><b>Fadiga</b>${num('maxConsec', 'máximo de dias seguidos trabalhando (PL ou presente). Conta o fim do período anterior.')}</div>
     <div class="rg"><b>Sábados e domingos</b>${num('satQty', 'técnicos operando todo sábado')}${num('sunAtend', 'do Atendimento todo domingo')}${num('sunMonit', 'do Monitoramento todo domingo')}<span class="muted" style="font-size:12px">Planilhas e novato ficam fora do domingo; Gabriel cobre Planilhas.</span></div>
     <div class="rg"><b>Feriados</b>${num('holPct', '% da equipe técnica presente')}${num('holAtend', 'do Atendimento (usual)')}${num('holMonit', 'do Monitoramento (usual)')}${num('holPlan', 'de Planilhas, intercalando Leandro e Paulo')}</div>
-    <div class="rg"><b>Quantidade de folgas</b>${num('folgasMin', 'folgas no mínimo por pessoa (período de 31 dias)')}${num('folgasMax', 'folgas no máximo por pessoa')}${num('folgaUtilMax', 'técnicos de folga no máximo por dia útil')}</div>
+    <div class="rg"><b>Quantidade de folgas</b>${num('folgasMin', 'folgas no mínimo por pessoa (período de 31 dias)')}${num('folgasMax', 'folgas no máximo por pessoa')}${num('folgaUtilMax', 'técnicos de folga no máximo por dia útil')}<label><input type="checkbox" id="r_fu" ${R.folgaUtilRegra ? 'checked' : ''}> Folga em dia útil só na segunda-feira da folga casada Dom+Seg</label></div>
     <div class="rg"><b>Folgas casadas</b>${num('folgaSabDom', 'Sáb+Dom (100%) por fim de semana')}${num('folgaDomSeg', 'Dom+Seg (estendida) por fim de semana')}${num('casadaMin', 'mínimo por colaborador no período')}${num('casada100Max', 'máximo de Sáb+Dom por colaborador')}</div>
     <div class="rg"><b>Duplas</b>${pairs}<span class="muted" style="font-size:12px">Glauco e Aureliano: liberados.</span></div>
     <div class="rg"><b>Espelhamento e regras pontuais</b><label><input type="checkbox" id="r_sup" ${R.supCover ? 'checked' : ''}> Gabriel entra quando Leandro e Paulo não estão atuando</label>${fixed}
       <div class="row"><select id="fxName" aria-label="Colaborador">${P.people.map(p => `<option>${esc(p.name.split(' ')[0].toUpperCase())}</option>`).join('')}</select><input type="text" id="fxDate" placeholder="dd/mm" style="width:64px;padding:5px;border:1px solid var(--line);border-radius:6px;background:var(--surface)" aria-label="Dia"><select id="fxSt" aria-label="Status"><option>PRESENTE</option><option>FOLGA</option><option value="TRABALHA">TRABALHA (PL ou P)</option></select><button class="chip" type="button" id="fxAdd">Adicionar</button></div></div>
     <div class="rg"><b>Jornadas (cor da célula)</b><label><input type="checkbox" id="r_jor" ${R.jornadaOn ? 'checked' : ''}> Conferir cobertura até 20h</label>${num('estPorDia', 'em plantão estendido (PL amarelo) por dia útil')}${num('intMin', 'no mínimo em plantão integral (PRESENTE amarelo) por dia de fim de semana/feriado')}
-      <label for="r_psc">PRESENTE com cor fora da legenda conta como:</label><select id="r_psc"><option value="definir" ${R.presSemCor === 'definir' ? 'selected' : ''}>A definir (marcar)</option><option value="RED" ${R.presSemCor === 'RED' ? 'selected' : ''}>Reduzido 08–13h</option><option value="INT" ${R.presSemCor === 'INT' ? 'selected' : ''}>Integral 08–20h</option></select></div>
+      <label for="r_psc">PRESENTE com cor fora da legenda conta como:</label><select id="r_psc"><option value="definir" ${R.presSemCor === 'definir' ? 'selected' : ''}>A definir (marcar)</option><option value="NOR" ${R.presSemCor === 'NOR' ? 'selected' : ''}>Plantão normal 08–18h</option><option value="RED" ${R.presSemCor === 'RED' ? 'selected' : ''}>Reduzido 08–13h</option><option value="INT" ${R.presSemCor === 'INT' ? 'selected' : ''}>Integral 08–20h</option></select></div>
     <div class="rg"><b>Funções na sala</b>${gsel}</div>`;
 }
 function saveRules() { store.set('rules2', state.rules); render(); $('#rulesBox').open = true; }
@@ -1040,7 +1059,7 @@ function personModal(pi) {
       <div class="kpi"><div class="l">Folgas</div><div class="v">${L.folgas}</div></div>
       <div class="kpi"><div class="l">Plantão estendido</div><div class="v">${L.EST}</div><div class="s">PL amarelo · 08–20h</div></div>
       <div class="kpi"><div class="l">Home office</div><div class="v">${L.HO}</div></div>
-      <div class="kpi"><div class="l">Integral / reduzido</div><div class="v">${L.INT} / ${L.RED}</div><div class="s">fim de semana e feriado</div></div>
+      <div class="kpi"><div class="l">Integral / normal / reduzido</div><div class="v">${L.INT} / ${L.NOR} / ${L.RED}</div><div class="s">fim de semana e feriado</div></div>
       <div class="kpi ${si.max > r.rules.maxConsec ? 'bad' : 'good'}"><div class="l">Maior sequência</div><div class="v">${si.max}</div><div class="s">${si.carry ? 'chega com ' + si.carry + ' dia(s) do período anterior' : 'começa descansado'}</div></div>
     </div>
     <div><div class="muted" style="font-size:12.5px;margin-bottom:4px">Dia a dia (${periodLabel(P)})</div><div class="strip">${strip}</div></div>
@@ -1056,7 +1075,7 @@ function dayModal(di) {
     <table class="t"><tr><th>Status</th><th>Quem</th></tr>
     ${k === 'util' ? `<tr><td><span class="sw" style="background:var(--pl)"></span>PL</td><td>${by('PL')}</td></tr>` : `<tr><td><span class="sw" style="background:var(--pre)"></span>Presente (${r.counts[di].PRESENTE} téc.)</td><td>${by('PRESENTE')}</td></tr>`}
     ${(() => { const c = r.jcount[di], nm = l => l.map(pi => esc(E.short(P.people[pi].name))).join(', ') || '<span class="muted">ninguém</span>';
-      const rows = k === 'util' ? [['j-PRES', 'PL', 'Presencial', c.PRES], ['j-HO', 'HO', 'Home office', c.HO], ['j-EST', 'PE', 'Plantão estendido 08–20h', c.EST]] : [['j-INT', 'PI', 'Integral 08–20h', c.INT], ['j-RED', 'PR', 'Reduzido 08–13h', c.RED]].concat(c.und.length ? [['j-UND', 'P?', 'Sem cor de jornada', c.und]] : []);
+      const rows = k === 'util' ? [['j-PRES', 'PL', 'Presencial', c.PRES], ['j-HO', 'HO', 'Home office', c.HO], ['j-EST', 'PE', 'Plantão estendido 08–20h', c.EST]] : [['j-INT', 'PI', 'Integral 08–20h', c.INT], ['j-NOR', 'PN', 'Normal 08–18h', c.NOR], ['j-RED', 'PR', 'Reduzido 08–13h', c.RED]].concat(c.und.length ? [['j-UND', 'P?', 'Sem cor de jornada', c.und]] : []);
       return rows.map(([cl, lb, t, l]) => `<tr><td><span class="cell ${cl}" style="display:inline-grid;width:26px;height:20px;margin-right:6px">${lb}</span>${t} (${l.length})</td><td>${nm(l)}</td></tr>`).join(''); })()}
     <tr><td><span class="sw" style="background:var(--j-laranja)"></span>Folga</td><td>${by('FOLGA')}</td></tr>
     ${k !== 'util' ? (() => { const ps = r.presBy(di); return `<tr><td>Composição</td><td>Atendimento ${ps.atend.length} · Monitoramento ${ps.monit.length} · Planilhas ${ps.plan.length} · Novato ${ps.novato.length} · Planilhas ${r.coverage[di] ? 'coberta' : '<b style="color:var(--err)">descoberta</b>'}</td></tr>`; })() : `<tr><td>Planilhas</td><td>${r.coverage[di] ? 'coberta' : '<b style="color:var(--err)">descoberta</b>'}</td></tr>`}</table>
@@ -1072,7 +1091,7 @@ document.addEventListener('click', e => {
     const pi = +cell.dataset.p, di = +cell.dataset.d;
     if (!state.editing) { personModal(pi); return; }
     const P = per(), p = P.people[pi], d = P.days[di], k = state.res.kind(d.date);
-    const cycle = k === 'util' ? ['PL:PRES', 'PL:HO', 'PL:EST', 'FOLGA'] : ['PRESENTE:INT', 'PRESENTE:RED', 'FOLGA'];
+    const cycle = k === 'util' ? ['PL:PRES', 'PL:HO', 'PL:EST', 'FOLGA'] : ['PRESENTE:INT', 'PRESENTE:NOR', 'PRESENTE:RED', 'FOLGA'];
     const curJ = state.res.jor[pi][di], cur = p.st[di] === 'FOLGA' ? 'FOLGA' : p.st[di] + ':' + (curJ || '');
     const next = cycle[(cycle.indexOf(cur) + 1) % cycle.length];
     const bp = state.base[state.p].people[pi], orig = bp.st[di] === 'FOLGA' ? 'FOLGA' : bp.st[di] + ':' + ((bp.jr || [])[di] || (bp.st[di] === 'PL' ? 'PRES' : '')), key = editKey(state.p, p, d);
@@ -1180,7 +1199,7 @@ async function exportXlsx() {
   const order = { atend: 0, monit: 1, plan: 2, novato: 3, sup: 4 };
   P.people.map((p, pi) => pi).sort((a, b) => order[r.groupsOf[a]] - order[r.groupsOf[b]] || a - b).forEach(pi => {
     const p = P.people[pi], row = ws.addRow([p.name.replace(/^Sup\s+/i, '').trim().toUpperCase(), E.GROUPS[r.groupsOf[pi]].toUpperCase()].concat(p.st.map(s => s || '')));
-    const JNOTE = { PRES: 'Presencial · horário normal', HO: 'Home office · horário normal', EST: 'Plantão estendido · 08h às 20h', INT: 'Plantão integral · 08h às 20h', RED: 'Plantão reduzido · 08h às 13h', UND: 'Presente · jornada a definir (cor fora da legenda)' };
+    const JNOTE = { PRES: 'Presencial · horário normal', HO: 'Home office · horário normal', EST: 'Plantão estendido · 08h às 20h', INT: 'Plantão integral · 08h às 20h', NOR: 'Plantão normal · 08h às 18h', RED: 'Plantão reduzido · 08h às 13h', UND: 'Presente · jornada a definir (cor fora da legenda)' };
     row.height = 20;
     row.eachCell({ includeEmpty: true }, (c, col) => {
       c.border = bd;
@@ -1200,9 +1219,9 @@ async function exportXlsx() {
   ws.mergeCells(lh.number, 3, lh.number, 6); ws.mergeCells(lh.number, 7, lh.number, 14);
   lh.eachCell(c => { c.font = { bold: true, color: { argb: 'FFFFFFFF' } }; c.fill = fill(C.ink); c.alignment = { vertical: 'middle', horizontal: 'left', indent: 1 }; });
   [['PL', 'PRES', 'Segunda a sexta', 'Horário normal (presencial)'], ['PL', 'HO', 'Segunda a sexta', 'Horário normal (home office)'], ['PL', 'EST', 'Segunda a sexta', 'Plantão estendido (08h às 20h)'],
-   ['PRESENTE', 'INT', 'Fim de semana / feriado', 'Plantão integral (08h às 20h)'], ['PRESENTE', 'RED', 'Fim de semana / feriado', 'Plantão reduzido (08h às 13h)'], ['FOLGA', 'FOLGA', 'Qualquer dia', 'Folga / descanso']].forEach(([sg, k, ap, hz]) => {
+   ['PRESENTE', 'INT', 'Fim de semana / feriado', 'Plantão integral (08h às 20h)'], ['PRESENTE', 'NOR', 'Fim de semana / feriado', 'Plantão normal (08h às 18h)'], ['PRESENTE', 'RED', 'Fim de semana / feriado', 'Plantão reduzido (08h às 13h)'], ['FOLGA', 'FOLGA', 'Qualquer dia', 'Folga / descanso']].forEach(([sg, k, ap, hz]) => {
     const lr = ws.addRow([sg, '', ap, '', '', '', hz]); ws.mergeCells(lr.number, 3, lr.number, 6); ws.mergeCells(lr.number, 7, lr.number, 14);
-    lr.getCell(1).font = { bold: true }; lr.getCell(2).fill = fill('FF' + XCOL[k]); lr.getCell(2).value = { PRES: 'Azul', HO: 'Verde', EST: 'Amarelo', INT: 'Amarelo', RED: 'Verde', FOLGA: 'Laranja' }[k];
+    lr.getCell(1).font = { bold: true }; lr.getCell(2).fill = fill('FF' + XCOL[k]); lr.getCell(2).value = { PRES: 'Azul', HO: 'Verde', EST: 'Amarelo', INT: 'Amarelo', NOR: 'Laranja claro', RED: 'Verde', FOLGA: 'Laranja' }[k];
     lr.getCell(2).font = { bold: true, color: { argb: 'FF' + XINK[k] } }; lr.getCell(2).alignment = mid;
     [1, 2, 3, 7].forEach(ci => { lr.getCell(ci).border = bd; if (ci !== 2) lr.getCell(ci).alignment = { vertical: 'middle', horizontal: 'left', indent: 1 }; });
   });
@@ -1255,8 +1274,9 @@ $('#rulesForm').addEventListener('change', e => {
   if (t.id === 'r_sup') R.supCover = t.checked;
   if (t.id === 'r_jor') R.jornadaOn = t.checked;
   if (t.id === 'r_psc') R.presSemCor = t.value;
+  if (t.id === 'r_fu') R.folgaUtilRegra = t.checked;
   if (t.dataset.g) { const p = per().people[+t.dataset.g]; R.groups = Object.assign({}, R.groups, { [E.norm(p.name)]: t.value }); }
-  if (t.dataset.r || t.dataset.pair || t.id === 'r_sup' || t.id === 'r_jor' || t.id === 'r_psc' || t.dataset.g) saveRules();
+  if (t.dataset.r || t.dataset.pair || t.id === 'r_sup' || t.id === 'r_jor' || t.id === 'r_psc' || t.id === 'r_fu' || t.dataset.g) saveRules();
 });
 $('#rulesForm').addEventListener('click', e => {
   const t = e.target;
@@ -1366,7 +1386,7 @@ function rulesText(R) {
 
 CÓDIGOS DA ESCALA (a cor de fundo da célula na planilha define a jornada):
 - Dias úteis: PL = presencial, horário normal (azul); HO = home office, horário normal (verde); PE = plantão estendido 08h às 20h (amarelo).
-- Sábado, domingo e feriado: PI = plantão integral 08h às 20h (amarelo); PR = plantão reduzido 08h às 13h (verde)${R.presSemCor === 'definir' ? '; P? = presente com cor fora da legenda (jornada a definir)' : ''}.
+- Sábado, domingo e feriado: PI = plantão integral 08h às 20h (amarelo); PN = plantão normal 08h às 18h (laranja); PR = plantão reduzido 08h às 13h (verde)${R.presSemCor === 'definir' ? '; P? = presente com cor fora da legenda (jornada a definir)' : ''}.
 - F = folga (laranja), qualquer dia. "Trabalhando" = qualquer código diferente de F. Na planilha, PL, HO e PE aparecem como "PL"; PI e PR como "PRESENTE".
 
 REGRAS:
@@ -1377,10 +1397,10 @@ REGRAS:
 5. Espelhamento: ${R.supCover ? 'sempre que Leandro e Paulo Enoque não estiverem atuando, Gabriel (supervisor) precisa estar trabalhando no lugar deles.' : 'desligado.'}
 6. Fadiga: máximo absoluto de ${R.maxConsec} dias seguidos trabalhando (conta a sequência que vem do período anterior). Ao bater o limite, folga simples ou casada.
 7. Por fim de semana: exatamente ${R.folgaSabDom} folgas casadas 100% (técnico de FOLGA sábado e domingo) e exatamente ${R.folgaDomSeg} folga casada estendida (FOLGA domingo e segunda) — não mais, para não esvaziar a segunda.
-8b. Cada pessoa tem de ${R.folgasMin} a ${R.folgasMax} folgas no período (31 dias), e no máximo ${R.folgaUtilMax} técnicos de folga no mesmo dia útil.
+8b. Cada pessoa tem de ${R.folgasMin} a ${R.folgasMax} folgas no período (31 dias), e no máximo ${R.folgaUtilMax} técnicos de folga no mesmo dia útil.${R.folgaUtilRegra ? ' Folga em dia útil só é permitida na segunda-feira de uma folga casada Domingo+Segunda; nos outros dias úteis ninguém folga.' : ''}
 8. Cada colaborador precisa de pelo menos ${R.casadaMin} folga casada no período; ninguém passa de ${R.casada100Max} folgas Sáb+Dom enquanto outro tem zero.
 9. Regras pontuais: ${R.fixed.map(f => f.name + ' ' + f.status + ' em ' + E.fmt(f.date)).join('; ') || 'nenhuma'}.
-10. Jornadas: ${R.jornadaOn ? 'em todo dia útil exatamente ' + R.estPorDia + ' técnicos em plantão estendido (PE, 08–20h); em todo sábado, domingo e feriado pelo menos ' + R.intMin + ' em plantão integral (PI, 08–20h), para a sala ficar coberta até 20h. Distribua PE, PI e home office de forma justa entre os técnicos, e evite PE logo antes de um fim de semana trabalhado.' : 'cobertura até 20h não está sendo conferida.'} Ao sugerir trocas, diga sempre o código da jornada (PL, HO, PE, PI, PR ou FOLGA).`;
+10. Jornadas: ${R.jornadaOn ? 'em todo dia útil exatamente ' + R.estPorDia + ' técnicos em plantão estendido (PE, 08–20h); em todo sábado, domingo e feriado pelo menos ' + R.intMin + ' em plantão integral (PI, 08–20h), para a sala ficar coberta até 20h. Distribua PE, PI e home office de forma justa entre os técnicos, e evite PE logo antes de um fim de semana trabalhado.' : 'cobertura até 20h não está sendo conferida.'} Ao sugerir trocas, diga sempre o código da jornada (PL, HO, PE, PI, PN, PR ou FOLGA).`;
 }
 function buildPrompt(q, withTools) {
   const P = per(), r = state.res, R = r.rules;
@@ -1513,14 +1533,14 @@ function resolveSwaps(trocas) {
     const m = String(t.dia || '').match(/(\d{1,2})\/(\d{1,2})/);
     const di = m ? P.days.findIndex(d => d.date.slice(5) === m[2].padStart(2, '0') + '-' + m[1].padStart(2, '0')) : -1;
     const stt = String(t.status || '').toUpperCase().trim();
-    const MAP = { PL: ['PL', 'PRES'], HO: ['PL', 'HO'], PE: ['PL', 'EST'], PI: ['PRESENTE', 'INT'], PR: ['PRESENTE', 'RED'], PRESENTE: ['PRESENTE', 'INT'], FOLGA: ['FOLGA', null], F: ['FOLGA', null] };
+    const MAP = { PL: ['PL', 'PRES'], HO: ['PL', 'HO'], PE: ['PL', 'EST'], PI: ['PRESENTE', 'INT'], PN: ['PRESENTE', 'NOR'], PR: ['PRESENTE', 'RED'], PRESENTE: ['PRESENTE', 'NOR'], FOLGA: ['FOLGA', null], F: ['FOLGA', null] };
     if (pi < 0) erros.push('colaborador não encontrado: ' + t.colaborador);
     else if (di < 0) erros.push('dia fora do período: ' + t.dia);
-    else if (!MAP[stt]) erros.push('código inválido: ' + t.status + ' (use PL, HO, PE, PI, PR ou FOLGA)');
+    else if (!MAP[stt]) erros.push('código inválido: ' + t.status + ' (use PL, HO, PE, PI, PN, PR ou FOLGA)');
     else { const k = state.res.kind(P.days[di].date), [st, jr] = MAP[stt];
       if (k === 'util' && st === 'PRESENTE') erros.push(t.dia + ' é dia útil: use PL, HO, PE ou FOLGA');
-      else if (k !== 'util' && st === 'PL') erros.push(t.dia + ' é fim de semana/feriado: use PI, PR ou FOLGA');
-      else out.push({ pi, di, st, jr, code: stt === 'PRESENTE' ? 'PI' : stt === 'F' ? 'FOLGA' : stt }); }
+      else if (k !== 'util' && st === 'PL') erros.push(t.dia + ' é fim de semana/feriado: use PI, PN, PR ou FOLGA');
+      else out.push({ pi, di, st, jr, code: stt === 'PRESENTE' ? 'PN' : stt === 'F' ? 'FOLGA' : stt }); }
   });
   return { out, erros };
 }
@@ -1543,7 +1563,7 @@ function summarize(res) {
 }
 const TOOLS = [
   { name: 'testar_trocas', description: 'Aplica um conjunto de trocas numa cópia da escala atual e devolve a auditoria completa (erros, alertas, contagens de sábados e composição dos domingos). Não muda a escala do Gabriel.',
-    inputSchema: { type: 'object', properties: { trocas: { type: 'array', items: { type: 'object', properties: { colaborador: { type: 'string', description: 'nome ou primeiro nome, ex.: Jorge' }, dia: { type: 'string', description: 'dd/mm' }, status: { type: 'string', enum: ['PL', 'HO', 'PE', 'PI', 'PR', 'FOLGA'], description: 'PL presencial, HO home office, PE plantão estendido 08-20h (dias úteis); PI integral 08-20h, PR reduzido 08-13h (fim de semana/feriado); FOLGA' } }, required: ['colaborador', 'dia', 'status'] } } }, required: ['trocas'] },
+    inputSchema: { type: 'object', properties: { trocas: { type: 'array', items: { type: 'object', properties: { colaborador: { type: 'string', description: 'nome ou primeiro nome, ex.: Jorge' }, dia: { type: 'string', description: 'dd/mm' }, status: { type: 'string', enum: ['PL', 'HO', 'PE', 'PI', 'PN', 'PR', 'FOLGA'], description: 'PL presencial, HO home office, PE plantão estendido 08-20h (dias úteis); PI integral 08-20h, PN normal 08-18h, PR reduzido 08-13h (fim de semana/feriado); FOLGA' } }, required: ['colaborador', 'dia', 'status'] } } }, required: ['trocas'] },
     execute(input) {
       const { out, erros } = resolveSwaps(input.trocas);
       if (erros.length) throw new Error(erros.join('; '));
@@ -1552,7 +1572,7 @@ const TOOLS = [
       return res;
     } },
   { name: 'propor_trocas', description: 'Registra o conjunto final de trocas recomendado, para o Gabriel aplicar na grade com um clique. Chame uma vez, no fim, com o melhor conjunto já testado.',
-    inputSchema: { type: 'object', properties: { resumo: { type: 'string', description: 'uma frase com o resultado, ex.: zera os 12 erros' }, trocas: { type: 'array', items: { type: 'object', properties: { colaborador: { type: 'string' }, dia: { type: 'string' }, status: { type: 'string', enum: ['PL', 'HO', 'PE', 'PI', 'PR', 'FOLGA'] }, motivo: { type: 'string' } }, required: ['colaborador', 'dia', 'status'] } } }, required: ['trocas'] },
+    inputSchema: { type: 'object', properties: { resumo: { type: 'string', description: 'uma frase com o resultado, ex.: zera os 12 erros' }, trocas: { type: 'array', items: { type: 'object', properties: { colaborador: { type: 'string' }, dia: { type: 'string' }, status: { type: 'string', enum: ['PL', 'HO', 'PE', 'PI', 'PN', 'PR', 'FOLGA'] }, motivo: { type: 'string' } }, required: ['colaborador', 'dia', 'status'] } } }, required: ['trocas'] },
     execute(input) {
       const { out, erros } = resolveSwaps(input.trocas);
       if (erros.length) throw new Error(erros.join('; '));
