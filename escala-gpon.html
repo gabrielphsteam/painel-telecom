@@ -754,7 +754,12 @@ footer{color:var(--muted);font-size:12px;text-align:center}
     const opts1 = (pi, di) => { const k = kind(di); if (isSup(pi)) return k === 'util' ? [['PL', null], ['FOLGA', null]] : [['PRESENTE', null], ['FOLGA', null]];
       if (k === 'util') return [['PL', 'PRES'], ['PL', 'HO'], ['PL', 'EST']].concat(!rules.folgaUtilRegra || E.dow(P.days[di].date) === 1 ? [['FOLGA', null]] : []);
       return [['PRESENTE', 'INT'], ['PRESENTE', 'NOR'], ['PRESENTE', 'RED'], ['FOLGA', null]]; };
-    let cur = E.audit(periods, pIdx, rules), cs = score(cur), best = cs, bestSt = P.people.map(p => [p.st.slice(), p.jr.slice()]);
+    // preferência: quem trabalhou o bloco de feriado folga o sábado e o domingo seguintes
+    const posBloco = () => { let pen = 0; (rules.blocos || []).forEach(b => { if (rules.blocoCasada === false) return; const last = b.dates.slice().sort().pop(), dSat = P.days.findIndex(d => d.date === E.addDays(last, 1)), dSun = P.days.findIndex(d => d.date === E.addDays(last, 2));
+      if (dSat < 0 || dSun < 0 || E.dow(P.days[dSat].date) !== 6) return;
+      (b.trabalha || []).forEach(nm => { const pi = P.people.findIndex(p => E.norm(p.name).includes(E.norm(nm))); if (pi < 0) return; const a = P.people[pi].st[dSat] === 'FOLGA', c = P.people[pi].st[dSun] === 'FOLGA'; if (!a) pen += 3; if (!c) pen += 8; }); }); return pen; };
+    const sc0 = r => score(r) + posBloco();
+    let cur = E.audit(periods, pIdx, rules), cs = sc0(cur), best = cs, bestSt = P.people.map(p => [p.st.slice(), p.jr.slice()]);
     const t0 = Date.now(); let it = 0, temp = 30;
     while (Date.now() - t0 < ms) {
       for (let b = 0; b < 40; b++) {
@@ -778,7 +783,7 @@ footer{color:var(--muted);font-size:12px;text-align:center}
         if (Math.random() < 0.5) { pj = Math.floor(Math.random() * np); if (pj === pi || isSup(pj) !== isSup(pi) || fixed.has(pj + ':' + di)) pj = -1; else { nowj = [P.people[pj].st[di], P.people[pj].jr[di]]; if (nowj[0] === now[0] && nowj[1] === now[1]) pj = -1; } }
         if (pj >= 0) { p.st[di] = nowj[0]; p.jr[di] = nowj[1]; P.people[pj].st[di] = now[0]; P.people[pj].jr[di] = now[1]; }
         else { p.st[di] = nx[0]; p.jr[di] = nx[1]; }
-        const r = E.audit(periods, pIdx, rules), s = score(r);
+        const r = E.audit(periods, pIdx, rules), s = sc0(r);
         if (s <= cs || Math.random() < Math.exp((cs - s) / temp)) { cur = r; cs = s; if (s < best) { best = s; bestSt = P.people.map(q => [q.st.slice(), q.jr.slice()]); } }
         else { p.st[di] = now[0]; p.jr[di] = now[1]; if (pj >= 0) { P.people[pj].st[di] = nowj[0]; P.people[pj].jr[di] = nowj[1]; } }
       }
@@ -797,12 +802,12 @@ footer{color:var(--muted);font-size:12px;text-align:center}
         for (let pi = 0; pi < np; pi++) {
           if (fixed.has(pi + ':' + di)) continue; const p = P.people[pi], now = [p.st[di], p.jr[di]];
           opts1(pi, di).forEach(o => { if (o[0] === now[0] && o[1] === now[1]) return; p.st[di] = o[0]; p.jr[di] = o[1];
-            const sc = score(E.audit(periods, pIdx, rules)); if (sc < ms2) { ms2 = sc; mv = [[pi, di, o]]; } p.st[di] = now[0]; p.jr[di] = now[1]; });
+            const sc = sc0(E.audit(periods, pIdx, rules)); if (sc < ms2) { ms2 = sc; mv = [[pi, di, o]]; } p.st[di] = now[0]; p.jr[di] = now[1]; });
           for (let pj = pi + 1; pj < np; pj++) {
             if (fixed.has(pj + ':' + di) || isSup(pj) !== isSup(pi)) continue; const q = P.people[pj], nq = [q.st[di], q.jr[di]];
             if (nq[0] === now[0] && nq[1] === now[1]) continue;
             p.st[di] = nq[0]; p.jr[di] = nq[1]; q.st[di] = now[0]; q.jr[di] = now[1];
-            const sc = score(E.audit(periods, pIdx, rules)); if (sc < ms2) { ms2 = sc; mv = [[pi, di, nq], [pj, di, now]]; }
+            const sc = sc0(E.audit(periods, pIdx, rules)); if (sc < ms2) { ms2 = sc; mv = [[pi, di, nq], [pj, di, now]]; }
             p.st[di] = now[0]; p.jr[di] = now[1]; q.st[di] = nq[0]; q.jr[di] = nq[1];
           }
         }
@@ -1422,7 +1427,7 @@ REGRAS:
 5. Espelhamento: ${R.supCover ? 'sempre que Leandro e Paulo Enoque não estiverem atuando, Gabriel (supervisor) precisa estar trabalhando no lugar deles.' : 'desligado.'}
 6. Fadiga: máximo absoluto de ${R.maxConsec} dias seguidos trabalhando (conta a sequência que vem do período anterior). Ao bater o limite, folga obrigatória.
 7. Por fim de semana: exatamente ${R.folgaSabDom} folgas casadas 100% (técnico de FOLGA sábado e domingo) e exatamente ${R.folgaDomSeg} folga casada estendida (FOLGA domingo e segunda) — não mais, para não esvaziar a segunda.
-8a. Natal e Ano Novo (blocos fixos de 2 dias, espelho do ano anterior): ${(R.blocos || []).map(b => b.nome + ' (' + b.dates.map(E.fmt).join(' e ') + '): trabalham ' + b.trabalha.join(', ') + '; folgam ' + b.folga.join(', ')).join(' | ')}. ${(R.folgaLivre || []).length ? 'Nos dias ' + R.folgaLivre.map(x => x.split('-').reverse().join('/')).join(' e ') + ' a folga em dia útil é permitida.' : ''} Não mude esses blocos.
+8a. Natal e Ano Novo (blocos fixos de 2 dias, espelho do ano anterior): ${(R.blocos || []).map(b => b.nome + ' (' + b.dates.map(E.fmt).join(' e ') + '): trabalham ' + b.trabalha.join(', ') + '; folgam ' + b.folga.join(', ')).join(' | ')}. ${(R.folgaLivre || []).length ? 'Nos dias ' + R.folgaLivre.map(x => x.split('-').reverse().join('/')).join(' e ') + ' a folga em dia útil é permitida.' : ''} Não mude esses blocos. Preferência: quem trabalhou um bloco folga o sábado e o domingo seguintes (folga casada), respeitando 8 no sábado, 3 no domingo e no máximo 2 folgas Sáb+Dom por fim de semana.
 8b. Cada pessoa tem de ${R.folgasMin} a ${R.folgasMax} folgas no período (31 dias), e no máximo ${R.folgaUtilMax} técnicos de folga no mesmo dia útil.${R.folgaUtilRegra ? ' Folga em dia útil só é permitida na segunda-feira de uma folga casada Domingo+Segunda; nos outros dias úteis ninguém folga.' : ''}
 8. Cada colaborador precisa de pelo menos ${R.casadaMin} folga casada no período; ninguém passa de ${R.casada100Max} folgas Sáb+Dom enquanto outro tem zero.
 9. Regras pontuais: ${R.fixed.map(f => f.name + ' ' + f.status + ' em ' + E.fmt(f.date)).join('; ') || 'nenhuma'}.
