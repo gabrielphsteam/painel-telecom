@@ -350,10 +350,11 @@ footer{color:var(--muted);font-size:12px;text-align:center}
     fixed: [{ name: 'LEANDRO', date: '2026-11-14', status: 'PRESENTE' }],
     folgaLivre: ['12-24', '12-31'],
     blocos: [
-      { nome: 'Natal 2026', dates: ['2026-12-24', '2026-12-25'], trabalha: ['AURELIANO', 'JORGE', 'WELLINGTON', 'ELIAS', 'PAULO', 'RHONIS'], folga: ['GLAUCO', 'LENILTON', 'TAYNA', 'FERNANDO', 'LEANDRO'] },
-      { nome: 'Ano Novo 2026/27', dates: ['2026-12-31', '2027-01-01'], trabalha: ['GLAUCO', 'LENILTON', 'TAYNA', 'FERNANDO', 'LEANDRO'], folga: ['AURELIANO', 'JORGE', 'WELLINGTON', 'ELIAS', 'PAULO', 'RHONIS'] }
-    ]
-  };
+      { nome: 'Natal 24 e 25', dates: ['2026-12-24', '2026-12-25'], livre: true, trabalha: ['AURELIANO', 'JORGE', 'WELLINGTON', 'ELIAS', 'PAULO', 'RHONIS'], folga: ['GLAUCO', 'LENILTON', 'TAYNA', 'FERNANDO', 'LEANDRO'] },
+      { nome: 'Folga casada 26 e 27', dates: ['2026-12-26', '2026-12-27'], livre: true, trabalha: ['GLAUCO', 'LENILTON', 'TAYNA', 'FERNANDO', 'LEANDRO'], folga: ['AURELIANO', 'JORGE', 'WELLINGTON', 'ELIAS', 'PAULO', 'RHONIS'] },
+      { nome: 'Ano Novo 31 e 01', dates: ['2026-12-31', '2027-01-01'], livre: true, trabalha: ['GLAUCO', 'LENILTON', 'TAYNA', 'FERNANDO', 'LEANDRO'], folga: ['AURELIANO', 'JORGE', 'WELLINGTON', 'ELIAS', 'PAULO', 'RHONIS'] },
+      { nome: 'Folga casada 02 e 03', dates: ['2027-01-02', '2027-01-03'], livre: true, trabalha: ['AURELIANO', 'JORGE', 'WELLINGTON', 'ELIAS', 'PAULO', 'RHONIS'], folga: ['GLAUCO', 'LENILTON', 'TAYNA', 'FERNANDO', 'LEANDRO'] }
+    ]  };
   const JOR = { PRES: 'Presencial', HO: 'Home office', EST: 'Plantão estendido 08–20h', INT: 'Plantão integral 08–20h', NOR: 'Plantão normal 08–18h', RED: 'Plantão reduzido 08–13h' };
   const _nc = new Map();
   const norm = t => { const k = String(t || ''); let v = _nc.get(k); if (v === undefined) { v = k.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toUpperCase(); _nc.set(k, v); } return v; };
@@ -403,6 +404,7 @@ footer{color:var(--muted);font-size:12px;text-align:center}
     const per = periods[pIdx];
     const days = per.days, people = per.people;
     const dayIdx = {}; days.forEach((d, i) => dayIdx[d.date] = i);
+    const livreSet = new Set(); (rules.blocos || []).forEach(b => { if (b.livre) b.dates.forEach(x => livreSet.add(x)); }); const livre = x => livreSet.has(x);
     const hol = new Set(days.filter(d => d.hol).map(d => d.date));
     const kind = iso => hol.has(iso) ? 'fer' : dow(iso) === 6 ? 'sab' : dow(iso) === 0 ? 'dom' : 'util';
     const tl = timeline(periods);
@@ -464,6 +466,7 @@ footer{color:var(--muted);font-size:12px;text-align:center}
     const holMin = Math.floor(nTech * rules.holPct / 100), holMax = Math.ceil(nTech * rules.holPct / 100);
     // R2 – sábado: quantidade
     days.forEach((d, di) => {
+      if (livre(d.date)) return;
       const k = kind(d.date), pr = presBy(di);
       if (k === 'sab') {
         const n = pr.all.length, target = rules.satQty;
@@ -504,7 +507,7 @@ footer{color:var(--muted);font-size:12px;text-align:center}
     (function () {
       const plan = people.map((p, pi) => grp(p) === 'plan' ? pi : -1).filter(x => x >= 0);
       const allHol = [];
-      periods.forEach(P2 => P2.days.forEach((d, i) => { if (d.hol) allHol.push({ date: d.date, P: P2, i }); }));
+      periods.forEach(P2 => P2.days.forEach((d, i) => { if (d.hol && !livre(d.date)) allHol.push({ date: d.date, P: P2, i }); }));
       allHol.sort((x, y) => x.date < y.date ? -1 : 1);
       let prevWho = null, prevDate = null;
       allHol.forEach(h => {
@@ -532,7 +535,7 @@ footer{color:var(--muted);font-size:12px;text-align:center}
       });
       const w = { sat: d.date, sun, mon, di, si, mi, sd, dsg, monKnown: mi != null };
       weekends.push(w);
-      if (sd.length !== rules.folgaSabDom)
+      if (!livre(d.date) && sd.length !== rules.folgaSabDom)
         add({ rule: 'folgaSD', sev: 'erro', title: 'Fim de semana ' + fmt(d.date) + ': ' + sd.length + ' folga(s) Sáb/Dom (meta ' + rules.folgaSabDom + ')',
           detail: 'Técnicos com FOLGA no sábado ' + fmt(d.date) + ' e no domingo ' + fmt(sun) + ': ' + (sd.length ? sd.map(pi => short(people[pi].name)).join(', ') : 'nenhum') + '. A regra pede ' + rules.folgaSabDom + '.',
           people: sd, dates: [d.date, sun] }, sd.flatMap(pi => [[pi, di], [pi, si]]), [di, si]);
@@ -573,7 +576,7 @@ footer{color:var(--muted);font-size:12px;text-align:center}
       if (A < 0 || B < 0) return;
       days.forEach((d, di) => {
         const k = kind(d.date);
-        if (!(pr.days || {})[k]) return;
+        if (!(pr.days || {})[k] || livre(d.date)) return;
         if (isWork(st(A, di)) && isWork(st(B, di)))
           add({ rule: 'par', sev: 'erro', title: short(people[A].name) + ' e ' + short(people[B].name) + ' juntos em ' + fmtW(d.date),
             detail: people[A].name + ' e ' + people[B].name + ' estão escalados no mesmo dia (' + fmtW(d.date) + '). Essa dupla nunca trabalha junta ' + ({ sab: 'aos sábados', dom: 'aos domingos', fer: 'em feriados', util: 'em dias úteis' }[k]) + '.',
@@ -587,7 +590,7 @@ footer{color:var(--muted);font-size:12px;text-align:center}
     const coverage = days.map((d, di) => PLAN.some(pi => isWork(st(pi, di))));
     if (rules.supCover && S >= 0 && PLAN.length) {
       days.forEach((d, di) => {
-        const k = kind(d.date);
+        const k = kind(d.date); if (livre(d.date)) return;
         if (!coverage[di] && !isWork(st(S, di)))
           add({ rule: 'sup', sev: 'erro', title: 'Planilhas descobertas em ' + fmtW(d.date),
             detail: names(PLAN) + ' não estão atuando em ' + fmtW(d.date) + ' e Gabriel está ' + (st(S, di) || 'sem status') + '. Gabriel precisa entrar de plantão para cobrir Planilhas.',
@@ -621,6 +624,7 @@ footer{color:var(--muted);font-size:12px;text-align:center}
     const jcount = days.map((d, di) => { const o = { PRES: [], HO: [], EST: [], INT: [], NOR: [], RED: [], und: [] }; people.forEach((p, pi) => { if (grp(p) === 'sup') return; const s = st(pi, di); if (!isWork(s)) return; const j = jor[pi][di]; (j ? o[j] : o.und).push(pi); }); return o; });
     if (rules.jornadaOn) {
       days.forEach((d, di) => {
+        if (livre(d.date)) return;
         const k = kind(d.date), c = jcount[di];
         if (k === 'util' && c.EST.length !== rules.estPorDia)
           add({ rule: 'jornada', sev: 'alerta', title: fmtW(d.date) + ': ' + c.EST.length + ' em plantão estendido (padrão ' + rules.estPorDia + ')',
@@ -1427,7 +1431,7 @@ REGRAS:
 5. Espelhamento: ${R.supCover ? 'sempre que Leandro e Paulo Enoque não estiverem atuando, Gabriel (supervisor) precisa estar trabalhando no lugar deles.' : 'desligado.'}
 6. Fadiga: máximo absoluto de ${R.maxConsec} dias seguidos trabalhando (conta a sequência que vem do período anterior). Ao bater o limite, folga obrigatória.
 7. Por fim de semana: exatamente ${R.folgaSabDom} folgas casadas 100% (técnico de FOLGA sábado e domingo) e exatamente ${R.folgaDomSeg} folga casada estendida (FOLGA domingo e segunda) — não mais, para não esvaziar a segunda.
-8a. Natal e Ano Novo (blocos fixos de 2 dias, espelho do ano anterior): ${(R.blocos || []).map(b => b.nome + ' (' + b.dates.map(E.fmt).join(' e ') + '): trabalham ' + b.trabalha.join(', ') + '; folgam ' + b.folga.join(', ')).join(' | ')}. ${(R.folgaLivre || []).length ? 'Nos dias ' + R.folgaLivre.map(x => x.split('-').reverse().join('/')).join(' e ') + ' a folga em dia útil é permitida.' : ''} Não mude esses blocos. Preferência: quem trabalhou um bloco folga o sábado e o domingo seguintes (folga casada), respeitando 8 no sábado, 3 no domingo e no máximo 2 folgas Sáb+Dom por fim de semana.
+8a. Natal e Ano Novo, em blocos fixos de 2 dias (24-25, 26-27, 31-01, 02-03): ${(R.blocos || []).map(b => b.nome + ' (' + b.dates.map(E.fmt).join(' e ') + '): trabalham ' + b.trabalha.join(', ') + '; folgam ' + b.folga.join(', ')).join(' | ')}. Nesses 8 dias NÃO valem as regras de quantidade de presentes, composição, folgas Sáb+Dom, plantão estendido nem folga em dia útil. Lenilton e Wellington ficam sempre em blocos opostos (separados por folgas casadas), e Leandro e Paulo também. Não mude esses blocos.
 8b. Cada pessoa tem de ${R.folgasMin} a ${R.folgasMax} folgas no período (31 dias), e no máximo ${R.folgaUtilMax} técnicos de folga no mesmo dia útil.${R.folgaUtilRegra ? ' Folga em dia útil só é permitida na segunda-feira de uma folga casada Domingo+Segunda; nos outros dias úteis ninguém folga.' : ''}
 8. Cada colaborador precisa de pelo menos ${R.casadaMin} folga casada no período; ninguém passa de ${R.casada100Max} folgas Sáb+Dom enquanto outro tem zero.
 9. Regras pontuais: ${R.fixed.map(f => f.name + ' ' + f.status + ' em ' + E.fmt(f.date)).join('; ') || 'nenhuma'}.
