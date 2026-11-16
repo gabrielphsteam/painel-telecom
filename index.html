@@ -1297,10 +1297,10 @@ const tdc = (v, o = {}) => `<td class="px-2 py-1 border-t border-slate-100 dark:
 /* ============================================================
    JUMPER: jumpers pendentes (planilha ANL_BAS_JUMPER do bucket), tudo clicável.
    Fonte: jumper.json { ext, l: [[ba, cp, setor, estado, aberta, previsto, faixa, codin, gpon, estacao]], feitos: {dia: {NIO, TIM}} }
-   "Feitos" = BA que estava na planilha anterior e saiu da fila. Sem técnico, documento ou dados de cliente.
+   "Feitos" = BA com estado "Concluído com sucesso". Sem técnico, documento ou dados de cliente.
    ============================================================ */
 const JMP_FX = ['ATÉ 1 DIA', '2 DIAS', '3 DIAS', '4 A 5 DIAS', '6 A 10 DIAS', 'MAIS DE 10 DIAS'];
-const JMP_QL = { nao: 'Não atribuídos', velho: 'Mais de 3 dias', cod: 'Sem Codin' };
+const JMP_QL = { nao: 'Não atribuídos', velho: 'Mais de 3 dias', cod: 'Sem Codin', feito: 'Feitos (concluídos)' };
 const jmpMs = s => s ? Date.UTC(+s.slice(0, 4), +s.slice(5, 7) - 1, +s.slice(8, 10), +s.slice(11, 13) || 0, +s.slice(14, 16) || 0) : NaN;
 const jmpDm = s => s ? s.slice(8, 10) + '/' + s.slice(5, 7) + ' ' + s.slice(11, 16) : '';
 const jmpTc = s => String(s || '').toLowerCase().replace(/(^|\s)\S/g, m => m.toUpperCase());
@@ -1315,13 +1315,17 @@ async function loadJmpInfo() {
 }
 function jmpRows() {
   const J = S.jmp, ext = jmpMs(J.ext);
-  return (J.l || []).map(a => ({ ba: a[0], cp: a[1], setor: a[2], est: a[3], ab: a[4], prev: a[5], faixa: a[6], cod: a[7], gpon: a[8], estacao: a[9], acesso: a[10] || '', h: isNaN(ext) || !a[4] ? 0 : (ext - jmpMs(a[4])) / 36e5 }));
+  return (J.l || []).map(a => ({ ba: a[0], cp: a[1], setor: a[2], est: a[3], ab: a[4], prev: a[5], faixa: a[6], cod: a[7], gpon: a[8], estacao: a[9], acesso: a[10] || '', fim: a[11] || '', done: /^conclu/i.test(a[3] || ''), h: isNaN(ext) || !a[4] ? 0 : (ext - jmpMs(a[4])) / 36e5 }));
 }
+/* "Concluído com sucesso" = cordão executado (feito). Os feitos ficam fora das pendentes e aparecem no card FEITOS. */
 function jmpOk(r, F, skip) {
   if (skip !== 'op' && F.op && r.cp !== F.op) return false;
   if (skip !== 'faixa' && F.faixa && r.faixa !== F.faixa) return false;
   if (skip !== 'setor' && F.setor && r.setor !== F.setor) return false;
-  if (skip !== 'qf' && F.qf) {
+  if (skip !== 'estacao' && F.estacao && r.estacao !== F.estacao) return false;
+  if (skip !== 'qf') {
+    if (F.qf === 'feito') return r.done;
+    if (r.done) return false;
     if (F.qf === 'nao' && r.est !== 'Não atribuído') return false;
     if (F.qf === 'velho' && r.h < 72) return false;
     if (F.qf === 'cod' && r.cod !== 'Sem Codin') return false;
@@ -1331,13 +1335,13 @@ function jmpOk(r, F, skip) {
 function jmpSet(k, v) { const F = S.jmpF; F[k] = (F[k] === v) ? '' : v; renderActive(); }
 function jmpQf(v) { const F = S.jmpF; F.qf = (!v || F.qf === v) ? '' : v; renderActive(); }
 function jmpSop(setor, op) { const F = S.jmpF; if (F.setor === setor && F.op === op) { F.setor = ''; F.op = ''; } else { F.setor = setor; F.op = op; } renderActive(); }
-function jmpClear() { S.jmpF = { op: '', faixa: '', setor: '', qf: '' }; renderActive(); }
+function jmpClear() { S.jmpF = { op: '', faixa: '', setor: '', estacao: '', qf: '' }; renderActive(); }
 function jmpDetalhe(ba) {
   const r = jmpRows().find(x => x.ba === ba); if (!r) return;
   const old = document.getElementById('jmpOv'); if (old) old.remove();
   const ov = document.createElement('div'); ov.id = 'jmpOv';
   ov.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:60;display:flex;align-items:center;justify-content:center;padding:16px';
-  const dl = [['Operadora', r.cp], ['Setor', r.setor], ['Acesso GPON', r.acesso], ['Estação', r.estacao], ['Aberta em', jmpDm(r.ab)], ['Idade', jmpIdade(r.h) + ' (' + jmpTc(r.faixa) + ')'], ['Estado da nota', r.est], ['Execução prevista', r.prev ? jmpDm(r.prev) : '—'], ['Acesso', r.cod], ['GPON atendido', r.gpon]];
+  const dl = [['Operadora', r.cp], ['Estação', r.estacao], ['Setor', r.setor], ['Acesso GPON', r.acesso], ['Aberta em', jmpDm(r.ab)], ['Idade', jmpIdade(r.h) + ' (' + jmpTc(r.faixa) + ')'], ['Estado da nota', r.est], [r.done && r.fim ? 'Executado em' : 'Execução prevista', r.done && r.fim ? jmpDm(r.fim) : (r.prev ? jmpDm(r.prev) : '—')], ['Acesso', r.cod], ['GPON atendido', r.gpon]];
   ov.innerHTML = `<div class="bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-100 rounded-2xl shadow-2xl p-5 w-full" style="max-width:26rem"><div class="flex justify-between items-center mb-3"><div class="font-extrabold text-base">${esc(r.ba)}</div><button class="text-slate-400 hover:text-slate-700 text-lg leading-none" onclick="document.getElementById('jmpOv').remove()">✕</button></div><div class="grid gap-y-1.5 text-sm" style="grid-template-columns:9rem 1fr">${dl.map(([k, v]) => `<div class="text-slate-500">${k}</div><div class="font-semibold" ${k === 'Idade' ? `style="color:${jmpCor(r.h)}"` : ''}>${esc(v || '—')}</div>`).join('')}</div></div>`;
   ov.addEventListener('click', e => { if (e.target === ov) ov.remove(); });
   document.body.appendChild(ov);
@@ -1346,21 +1350,26 @@ document.addEventListener('keydown', e => { if (e.key === 'Escape') { const o = 
 
 function renderJumper() {
   const el = $('#v-jumper'), J = S.jmp;
-  S.jmpF = S.jmpF || { op: '', faixa: '', setor: '', qf: '' };
+  S.jmpF = S.jmpF || { op: '', faixa: '', setor: '', estacao: '', qf: '' };
   const F = S.jmpF;
   const extTxt = J && J.ext ? J.ext.slice(8, 10) + '/' + J.ext.slice(5, 7) + '/' + J.ext.slice(0, 4) + ' ' + J.ext.slice(11, 16) : '';
-  let h = bandTitle('JUMPER · PENDENTES DE INSTALAÇÃO', (extTxt ? 'Planilha de ' + extTxt + ' · ' : '') + 'clique em qualquer card, barra, setor ou linha para filtrar · independe dos filtros da barra de cima');
+  let h = bandTitle('JUMPER · PENDENTES DE INSTALAÇÃO', (extTxt ? 'Planilha de ' + extTxt + ' · ' : '') + 'clique em qualquer card, barra, setor, estação ou linha para filtrar · independe dos filtros da barra de cima');
   if (!J || !J.l) { el.innerHTML = h + `<div class="card p-8 text-center text-slate-500">A fila de jumpers aparece quando o script do Drive (versão nova) publicar a próxima planilha ANL_BAS_JUMPER.</div>`; return; }
-  const D = jmpRows();
+  const D = jmpRows(), hojeIso = (J.ext || '').slice(0, 10);
+  // feitos por dia = o que o robô contou + o que está concluído na planilha agora (o maior vale, por operadora)
+  const FD = JSON.parse(JSON.stringify(J.v === 2 ? (J.feitos || {}) : {})); // contagem antiga (robô sem o v2) é ignorada
+  D.filter(r => r.done).forEach(r => { const d = (r.fim || '').slice(0, 10) || hojeIso; (FD[d] = FD[d] || { NIO: 0, TIM: 0 })['_' + r.cp] = ((FD[d]['_' + r.cp]) || 0) + 1; });
+  Object.keys(FD).forEach(d => { ['NIO', 'TIM'].forEach(c => { FD[d][c] = Math.max(FD[d][c] || 0, FD[d]['_' + c] || 0); delete FD[d]['_' + c]; }); });
   // filtros ativos
-  const ch = []; if (F.op) ch.push(['op', 'Operadora: ' + F.op]); if (F.faixa) ch.push(['faixa', 'Faixa: ' + jmpTc(F.faixa)]); if (F.setor) ch.push(['setor', 'Setor: ' + F.setor]); if (F.qf) ch.push(['qf', JMP_QL[F.qf]]);
-  h += `<div class="flex flex-wrap items-center gap-2 mb-3 text-xs text-slate-500 min-h-[1.75rem]">${ch.length ? 'Filtros:' + ch.map(c => `<span onclick="jmpSet('${c[0]}','${c[0] === 'qf' ? F.qf : F[c[0]]}')" class="cursor-pointer rounded-full px-3 py-1 font-semibold text-white" style="background:#2563eb">${esc(c[1])} ×</span>`).join('') + `<span onclick="jmpClear()" class="cursor-pointer underline font-semibold" style="color:#2563eb">limpar tudo</span>` : 'Nenhum filtro ativo · ' + D.length + ' pendentes'}</div>`;
-  // cards
-  const B = D.filter(r => jmpOk(r, F, 'qf')), nio = B.filter(r => r.cp === 'NIO').length;
-  const hojeIso = (J.ext || '').slice(0, 10), fh = (J.feitos || {})[hojeIso], hasHist = J.feitos && Object.keys(J.feitos).length;
-  const card = (t, cor, v, sub, q, on) => `<div onclick="jmpQf('${q}')" title="Clique para filtrar" class="rounded-xl overflow-hidden border border-slate-200 dark:border-slate-700 shadow-sm cursor-pointer transition hover:shadow-md ${on ? 'ring-2 ring-blue-500' : ''}"><div class="text-white text-center text-[11px] font-bold tracking-wide py-1.5" style="background:${cor}">${t}</div><div class="text-center py-3 bg-white dark:bg-slate-900"><div class="text-4xl font-extrabold" style="color:${cor}">${fmt(v)}</div><div class="text-[11px] text-slate-500">${sub}</div></div></div>`;
-  const cFeitos = `<div class="rounded-xl overflow-hidden border border-dashed border-slate-300 dark:border-slate-600 shadow-sm" title="BAs que estavam na planilha anterior e saíram da fila"><div class="text-white text-center text-[11px] font-bold tracking-wide py-1.5" style="background:#16a34a">FEITOS HOJE</div><div class="text-center py-3 bg-white dark:bg-slate-900"><div class="text-4xl font-extrabold" style="color:#16a34a">${hasHist ? fmt((fh ? fh.NIO + fh.TIM : 0)) : '—'}</div><div class="text-[11px] text-slate-500">${hasHist ? (fh ? fh.NIO + ' NIO · ' + fh.TIM + ' TIM' : 'saíram da fila hoje') : 'conta a partir da próxima planilha'}</div></div></div>`;
-  h += `<div class="grid grid-cols-2 lg:grid-cols-5 gap-3 mb-4">${card('PENDENTES', '#1f3864', B.length, nio + ' NIO · ' + (B.length - nio) + ' TIM', '', !F.qf)}${card('NÃO ATRIBUÍDOS', '#ea580c', B.filter(r => r.est === 'Não atribuído').length, B.filter(r => r.est !== 'Não atribuído').length + ' já atribuídos', 'nao', F.qf === 'nao')}${card('MAIS DE 3 DIAS', '#dc2626', B.filter(r => r.h >= 72).length, 'pedem ação hoje', 'velho', F.qf === 'velho')}${card('SEM CODIN', '#ea580c', B.filter(r => r.cod === 'Sem Codin').length, 'acesso sem Codin', 'cod', F.qf === 'cod')}${cFeitos}</div>`;
+  const ch = []; if (F.op) ch.push(['op', 'Operadora: ' + F.op]); if (F.faixa) ch.push(['faixa', 'Faixa: ' + jmpTc(F.faixa)]); if (F.setor) ch.push(['setor', 'Setor: ' + F.setor]); if (F.estacao) ch.push(['estacao', 'Estação: ' + F.estacao]); if (F.qf) ch.push(['qf', JMP_QL[F.qf]]);
+  const pend = D.filter(r => !r.done).length;
+  h += `<div class="flex flex-wrap items-center gap-2 mb-3 text-xs text-slate-500 min-h-[1.75rem]">${ch.length ? 'Filtros:' + ch.map(c => `<span onclick="jmpSet('${c[0]}','${c[0] === 'qf' ? F.qf : F[c[0]]}')" class="cursor-pointer rounded-full px-3 py-1 font-semibold text-white" style="background:#2563eb">${esc(c[1])} ×</span>`).join('') + `<span onclick="jmpClear()" class="cursor-pointer underline font-semibold" style="color:#2563eb">limpar tudo</span>` : 'Nenhum filtro ativo · ' + pend + ' pendentes'}</div>`;
+  // cards (pendentes e feitos respeitam os filtros de operadora, faixa, setor e estação)
+  const B = D.filter(r => jmpOk(r, F, 'qf') && !r.done), Bd = D.filter(r => jmpOk(r, F, 'qf') && r.done), nio = B.filter(r => r.cp === 'NIO').length;
+  const semFiltro = !F.op && !F.faixa && !F.setor && !F.estacao, fh = FD[hojeIso] || { NIO: 0, TIM: 0 };
+  const fN = semFiltro ? Math.max(fh.NIO, Bd.filter(r => r.cp === 'NIO').length) : Bd.filter(r => r.cp === 'NIO').length, fT = semFiltro ? Math.max(fh.TIM, Bd.filter(r => r.cp === 'TIM').length) : Bd.filter(r => r.cp === 'TIM').length;
+  const card = (t, cor, v, sub, q, on, tip) => `<div onclick="jmpQf('${q}')" title="${tip || 'Clique para filtrar'}" class="rounded-xl overflow-hidden border border-slate-200 dark:border-slate-700 shadow-sm cursor-pointer transition hover:shadow-md ${on ? 'ring-2 ring-blue-500' : ''}"><div class="text-white text-center text-[11px] font-bold tracking-wide py-1.5" style="background:${cor}">${t}</div><div class="text-center py-3 bg-white dark:bg-slate-900"><div class="text-4xl font-extrabold" style="color:${cor}">${fmt(v)}</div><div class="text-[11px] text-slate-500">${sub}</div></div></div>`;
+  h += `<div class="grid grid-cols-2 lg:grid-cols-5 gap-3 mb-4">${card('PENDENTES', '#1f3864', B.length, nio + ' NIO · ' + (B.length - nio) + ' TIM', '', !F.qf)}${card('NÃO ATRIBUÍDOS', '#ea580c', B.filter(r => r.est === 'Não atribuído').length, B.filter(r => r.est !== 'Não atribuído').length + ' já atribuídos', 'nao', F.qf === 'nao')}${card('MAIS DE 3 DIAS', '#dc2626', B.filter(r => r.h >= 72).length, 'pedem ação hoje', 'velho', F.qf === 'velho')}${card('SEM CODIN', '#ea580c', B.filter(r => r.cod === 'Sem Codin').length, 'acesso sem Codin', 'cod', F.qf === 'cod')}${card('FEITOS HOJE', '#16a34a', fN + fT, fN + ' NIO · ' + fT + ' TIM', 'feito', F.qf === 'feito', 'Concluído com sucesso (cordão executado) · clique para ver as BAs')}</div>`;
   // idade (barras) + setores
   const BF = D.filter(r => jmpOk(r, F, 'faixa')), mx = Math.max(1, ...JMP_FX.map(x => BF.filter(r => r.faixa === x).length));
   const bars = JMP_FX.map(x => {
@@ -1375,15 +1384,16 @@ function renderJumper() {
   const lS = ks.map(k => { const t = SS[k].NIO + SS[k].TIM; return `<tr onclick="jmpSet('setor','${esc(k)}')" class="cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-800 ${F.setor === k ? 'bg-blue-50 dark:bg-blue-900/30' : ''}">${tdc(esc(k), { b: 1, w: 1 })}${cell(k, 'NIO', SS[k].NIO)}${cell(k, 'TIM', SS[k].TIM)}${tdc(t, { r: 1, b: 1 })}<td class="px-2 py-1 border-t border-slate-100 dark:border-slate-800" style="width:34%"><div class="rounded bg-slate-200 dark:bg-slate-700" style="height:10px"><div style="height:10px;border-radius:4px;width:${t / ms * 100}%;background:#1f3864"></div></div></td></tr>`; });
   lS.push(`<tr onclick="jmpClear()" class="cursor-pointer font-bold bg-slate-100 dark:bg-slate-800">${tdc('Total geral')}${tdc(BS.filter(r => r.cp === 'NIO').length, { r: 1 })}${tdc(BS.filter(r => r.cp === 'TIM').length, { r: 1 })}${tdc(BS.length, { r: 1 })}<td></td></tr>`);
   h += `<div class="grid grid-cols-1 lg:grid-cols-5 gap-4 mb-4"><div class="card p-4 lg:col-span-2"><div class="font-semibold text-sm">Idade da pendência</div><div class="text-xs text-slate-500 dark:text-slate-400 mb-2">tempo desde a abertura da BA · clique numa faixa para filtrar</div>${bars}<div class="flex gap-2 text-xs text-slate-500 mt-3 items-center">${leg}<span>clique para filtrar</span></div></div>
-    <div class="lg:col-span-3">${r7Tabela('PENDENTES POR SETOR', '#1f3864', [{ t: 'SETOR' }, { t: 'NIO', r: 1 }, { t: 'TIM', r: 1 }, { t: 'TOTAL', r: 1 }, { t: '' }], ks.length ? lS : [], 'clique no setor, ou no número de NIO/TIM')}</div></div>`;
+    <div class="lg:col-span-3">${r7Tabela(F.qf === 'feito' ? 'FEITOS POR SETOR' : 'PENDENTES POR SETOR', F.qf === 'feito' ? '#16a34a' : '#1f3864', [{ t: 'SETOR' }, { t: 'NIO', r: 1 }, { t: 'TIM', r: 1 }, { t: 'TOTAL', r: 1 }, { t: '' }], ks.length ? lS : [], 'clique no setor, ou no número de NIO/TIM')}</div></div>`;
   // fila
-  const L = D.filter(r => jmpOk(r, F)).sort((a, b) => b.h - a.h);
-  const lL = L.map(r => `<tr onclick="jmpDetalhe('${esc(r.ba)}')" class="cursor-pointer hover:bg-blue-50 dark:hover:bg-slate-800">${tdc(esc(r.ba), { b: 1, w: 1 })}${tdc(r.cp, { w: 1 })}${tdc(esc(r.setor), { w: 1 })}${tdc(r.acesso ? esc(r.acesso) : '<span class="text-slate-400">—</span>', { w: 1 })}${tdc(jmpDm(r.ab), { w: 1 })}${tdc(jmpIdade(r.h), { r: 1, b: 1, w: 1, st: `style="color:${jmpCor(r.h)}"` })}${tdc(jmpTc(r.faixa), { w: 1 })}${tdc(`<span class="px-2 py-0.5 rounded-full text-[11px] font-semibold" style="${r.est === 'Atribuído' ? 'background:#dcfce7;color:#166534' : 'background:#e2e8f0;color:#334155'}">${esc(r.est)}</span>`, { w: 1 })}${tdc(r.prev ? jmpDm(r.prev) : '<span class="text-slate-400">—</span>', { w: 1 })}${tdc(r.cod === 'Sem Codin' ? '<span class="px-2 py-0.5 rounded-full text-[11px] font-semibold" style="background:#ffedd5;color:#9a3412">Sem Codin</span>' : 'Codin', { r: 1, w: 1 })}</tr>`);
-  h += `<div class="mb-4">${r7Tabela('FILA DE JUMPERS · ' + L.length + ' de ' + D.length, '#14284b', [{ t: 'BA' }, { t: 'OP.' }, { t: 'SETOR' }, { t: 'ACESSO GPON' }, { t: 'ABERTA EM' }, { t: 'IDADE', r: 1 }, { t: 'FAIXA' }, { t: 'ESTADO DA NOTA' }, { t: 'PREVISTO' }, { t: 'CODIN', r: 1 }], lL, 'do mais antigo para o mais novo · vermelho: 3 dias ou mais · laranja: 2 dias · cinza: até 1 dia · clique numa linha para ver os detalhes')}</div>`;
+  const L = D.filter(r => jmpOk(r, F)).sort((a, b) => b.h - a.h), tot = D.filter(r => F.qf === 'feito' ? r.done : !r.done).length;
+  const pill = r => r.done ? `<span class="px-2 py-0.5 rounded-full text-[11px] font-semibold" style="background:#16a34a;color:#fff">${esc(r.est)}</span>` : `<span class="px-2 py-0.5 rounded-full text-[11px] font-semibold" style="${r.est === 'Atribuído' ? 'background:#dbeafe;color:#1e40af' : 'background:#e2e8f0;color:#334155'}">${esc(r.est)}</span>`;
+  const lL = L.map(r => `<tr onclick="jmpDetalhe('${esc(r.ba)}')" class="cursor-pointer hover:bg-blue-50 dark:hover:bg-slate-800">${tdc(esc(r.ba), { b: 1, w: 1 })}${tdc(r.cp, { w: 1 })}<td onclick="event.stopPropagation();jmpSet('estacao','${esc(r.estacao)}')" class="px-2 py-1 border-t border-slate-100 dark:border-slate-800 whitespace-nowrap cursor-pointer hover:bg-blue-100 dark:hover:bg-blue-900/40 ${F.estacao === r.estacao ? 'font-bold' : ''}">${esc(r.estacao || '—')}</td>${tdc(esc(r.setor), { w: 1 })}${tdc(r.acesso ? esc(r.acesso) : '<span class="text-slate-400">—</span>', { w: 1 })}${tdc(jmpDm(r.ab), { w: 1 })}${tdc(jmpIdade(r.h), { r: 1, b: 1, w: 1, st: `style="color:${jmpCor(r.h)}"` })}${tdc(jmpTc(r.faixa), { w: 1 })}${tdc(pill(r), { w: 1 })}${tdc(r.done && r.fim ? '✔ ' + jmpDm(r.fim) : r.prev ? jmpDm(r.prev) : '<span class="text-slate-400">—</span>', { w: 1 })}${tdc(r.cod === 'Sem Codin' ? '<span class="px-2 py-0.5 rounded-full text-[11px] font-semibold" style="background:#ffedd5;color:#9a3412">Sem Codin</span>' : 'Codin', { r: 1, w: 1 })}</tr>`);
+  h += `<div class="mb-4">${r7Tabela((F.qf === 'feito' ? 'JUMPERS FEITOS · ' : 'FILA DE JUMPERS · ') + L.length + ' de ' + tot, F.qf === 'feito' ? '#16a34a' : '#14284b', [{ t: 'BA' }, { t: 'OP.' }, { t: 'ESTAÇÃO' }, { t: 'SETOR' }, { t: 'ACESSO GPON' }, { t: 'ABERTA EM' }, { t: 'IDADE', r: 1 }, { t: 'FAIXA' }, { t: 'ESTADO DA NOTA' }, { t: 'PREVISTO' }, { t: 'CODIN', r: 1 }], lL, 'do mais antigo para o mais novo · vermelho: 3 dias ou mais · laranja: 2 dias · cinza: até 1 dia · clique numa linha para ver os detalhes, ou na estação para filtrar')}</div>`;
   // feitos por dia
-  const dd = Object.keys(J.feitos || {}).sort().reverse().slice(0, 14);
-  h += dd.length ? `<div class="mb-4">${r7Tabela('FEITOS POR DIA', '#16a34a', [{ t: 'DIA' }, { t: 'NIO', r: 1 }, { t: 'TIM', r: 1 }, { t: 'TOTAL', r: 1 }], dd.map(d => { const o = J.feitos[d]; return `<tr>${tdc(d.slice(8, 10) + '/' + d.slice(5, 7), { b: 1 })}${tdc(o.NIO || 0, { r: 1 })}${tdc(o.TIM || 0, { r: 1 })}${tdc((o.NIO || 0) + (o.TIM || 0), { r: 1, b: 1 })}</tr>`; }), 'BA que estava na planilha anterior e saiu da fila (feita ou cancelada) · conta a partir da 1ª planilha lida pelo painel')}</div>`
-    : `<div class="card p-4 text-xs text-slate-500 border-dashed">Feitos: o painel compara cada planilha com a anterior; a BA que sai da fila entra aqui como feita. A contagem começa na próxima planilha.</div>`;
+  const dd = Object.keys(FD).sort().reverse().slice(0, 14);
+  h += dd.length ? `<div class="mb-4">${r7Tabela('FEITOS POR DIA', '#16a34a', [{ t: 'DIA' }, { t: 'NIO', r: 1 }, { t: 'TIM', r: 1 }, { t: 'TOTAL', r: 1 }], dd.map(d => { const o = FD[d]; return `<tr>${tdc(d.slice(8, 10) + '/' + d.slice(5, 7), { b: 1 })}${tdc(o.NIO || 0, { r: 1 })}${tdc(o.TIM || 0, { r: 1 })}${tdc((o.NIO || 0) + (o.TIM || 0), { r: 1, b: 1 })}</tr>`; }), 'jumper com estado "Concluído com sucesso" (cordão executado) · conta a partir da 1ª planilha lida pelo painel')}</div>`
+    : `<div class="card p-4 text-xs text-slate-500 border-dashed">Feitos: BA com estado "Concluído com sucesso" entra aqui como feita.</div>`;
   el.innerHTML = h;
 }
 
