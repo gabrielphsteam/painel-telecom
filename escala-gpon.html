@@ -15,7 +15,7 @@
   --pl:#e7ebef; --pl-ink:#3d4b57; --pre:#0b6e8e; --pre-ink:#ffffff; --fol:#f6e6c4; --fol-ink:#7a5410;
   --err:#c4362b; --err-soft:#fbe3e0; --warn:#b7791f; --warn-soft:#fbefd9; --ok:#1f8a5b; --ok-soft:#dcf2e7; --info:#4a6378; --info-soft:#e3eaf0;
   --wk:#e9eef3;
-  --j-azul:#4472c4; --j-azul-ink:#ffffff; --j-verde:#92d050; --j-verde-ink:#1d3a06; --j-amarelo:#ffd966; --j-amarelo-ink:#4d3a00; --j-laranja:#f4b183; --j-laranja-ink:#6b2f07; --j-pn:#fbdcc4; --j-pn-ink:#6b2f07;
+  --j-azul:#4472c4; --j-azul-ink:#ffffff; --j-verde:#92d050; --j-verde-ink:#1d3a06; --j-amarelo:#ffd966; --j-amarelo-ink:#4d3a00; --j-laranja:#f4b183; --j-laranja-ink:#6b2f07; --j-pn:#f4b183; --j-pn-ink:#6b2f07;
   --display:"Archivo", "Helvetica Neue", Arial, sans-serif; --body:"IBM Plex Sans", "Segoe UI", Arial, sans-serif; --mono:"IBM Plex Mono", ui-monospace, Consolas, monospace;
   color-scheme:light;
 }
@@ -180,6 +180,30 @@ details.rules[open] summary::after{content:"Fechar ▴"}
 .copybox{width:100%;min-height:120px;font:12px var(--mono);border:1px solid var(--line);border-radius:8px;padding:8px;background:var(--surface-2)}
 footer{color:var(--muted);font-size:12px;text-align:center}
 @media (prefers-reduced-motion: reduce){*{transition:none !important}}
+/* ===== visual limpo v2 ===== */
+:root{--bg:#f6f8fa;--line:#e3e8ee;--r:14px}
+.wrap{gap:14px;padding-top:14px}
+.card{border-radius:var(--r);box-shadow:0 1px 2px rgba(16,24,40,.04),0 1px 8px rgba(16,24,40,.04);border-color:var(--line)}
+.top{position:sticky;top:0;z-index:30;background:var(--bg);padding:10px 0;border-bottom:1px solid var(--line)}
+.more{position:relative}.more>summary{list-style:none}.more>summary::-webkit-details-marker{display:none}
+.more .menu{position:absolute;right:0;top:calc(100% + 6px);background:var(--surface);border:1px solid var(--line);border-radius:12px;box-shadow:0 12px 32px rgba(16,24,40,.16);padding:6px;display:grid;min-width:230px;z-index:40}
+.mi{border:0;background:none;text-align:left;padding:9px 12px;border-radius:8px;cursor:pointer;font-weight:500}.mi:hover{background:var(--surface-2)}
+.health{display:flex;align-items:center;gap:14px;flex-wrap:wrap;padding:14px 18px;border-radius:var(--r);border:1px solid var(--line);background:var(--surface)}
+.health.bad{background:var(--err-soft);border-color:color-mix(in srgb,var(--err) 35%,transparent)}
+.health.ok{background:var(--ok-soft);border-color:color-mix(in srgb,var(--ok) 35%,transparent)}
+.health .big{font:800 20px var(--display)}.health .sub{color:var(--muted);font-size:13px}
+.health .act{margin-left:auto;display:flex;gap:8px;flex-wrap:wrap}
+.tabs{display:flex;gap:4px;border-bottom:1px solid var(--line);overflow-x:auto}
+.tabs button{border:0;background:none;padding:10px 16px;cursor:pointer;font-weight:600;color:var(--muted);border-bottom:3px solid transparent;white-space:nowrap}
+.tabs button[aria-selected="true"]{color:var(--ink);border-bottom-color:var(--accent)}
+.tabs .badge{display:inline-block;min-width:20px;padding:0 6px;border-radius:10px;background:var(--err);color:#fff;font-size:12px;line-height:18px;text-align:center}
+.tabs .badge:empty{display:none}
+[data-pane]{display:grid;gap:14px}[data-pane][hidden]{display:none}
+[data-pane="escala"] .main{grid-template-columns:1fr!important}
+.main1{display:grid;gap:14px}
+.legbox>summary{cursor:pointer;color:var(--muted);font-size:13px;margin:4px 0 8px}
+.kpis{grid-template-columns:repeat(auto-fit,minmax(170px,1fr))}
+#issues{max-height:none!important}
 </style>
 </head>
 <body>
@@ -191,16 +215,27 @@ footer{color:var(--muted);font-size:12px;text-align:center}
     </div>
     <div class="controls">
       <div class="seg" id="perSeg" role="group" aria-label="Período"></div>
-      <button class="btn" id="btnNext" type="button">Criar próximo período</button>
-      <button class="btn" id="btnEdit" type="button" aria-pressed="false">Simular trocas</button>
-      <button class="btn" id="btnUndo" type="button" disabled>Desfazer trocas</button>
-      <button class="btn" id="btnCopy" type="button">Copiar para o Sheets</button>
-      <button class="btn primary" id="btnXlsx" type="button">Baixar Excel</button>
-      <label class="btn" for="fileIn">Carregar planilha .xlsx</label>
+      <button class="btn primary" id="btnXlsx" type="button">⬇ Baixar Excel</button>
+      <details class="more"><summary class="btn">Mais ▾</summary>
+        <div class="menu">
+          <button class="mi" id="btnNext" type="button">📅 Criar próximo período</button>
+          <button class="mi" id="btnCopy" type="button">📋 Copiar para o Sheets</button>
+          <label class="mi" for="fileIn">📂 Carregar planilha .xlsx</label>
+          <button class="mi" id="btnTheme" type="button">🌓 Tema claro/escuro</button>
+        </div></details>
       <input type="file" id="fileIn" accept=".xlsx,.xls" hidden>
     </div>
   </header>
 
+  <div class="health" id="health"></div>
+  <nav class="tabs" role="tablist" aria-label="Seções">
+    <button role="tab" data-tab="escala" aria-selected="true">📅 Escala</button>
+    <button role="tab" data-tab="problemas" aria-selected="false">⚠ Problemas <span class="badge" id="tabBadge"></span></button>
+    <button role="tab" data-tab="ia" aria-selected="false">✨ Assistente IA</button>
+    <button role="tab" data-tab="analises" aria-selected="false">📊 Análises</button>
+    <button role="tab" data-tab="regras" aria-selected="false">⚙ Regras</button>
+  </nav>
+  <div data-pane="escala">
   <section class="kpis" id="kpis" aria-label="Resumo"></section>
 
   <div class="main">
@@ -213,7 +248,7 @@ footer{color:var(--muted);font-size:12px;text-align:center}
           <span><span class="sw" style="outline:1.5px dashed var(--muted);outline-offset:-2px"></span>Sem cor de jornada</span>
         </div>
       </div>
-      <div class="jleg" id="jleg">
+      <details class="legbox"><summary>Legenda das cores</summary><div class="jleg" id="jleg">
         <div><span class="sw" style="background:var(--j-azul);color:var(--j-azul-ink)">PL</span>Presencial · seg a sex</div>
         <div><span class="sw" style="background:var(--j-verde);color:var(--j-verde-ink)">HO</span>Home office · seg a sex</div>
         <div><span class="sw" style="background:var(--j-amarelo);color:var(--j-amarelo-ink)">PE</span>Plantão estendido 08–20h · seg a sex</div>
@@ -221,10 +256,13 @@ footer{color:var(--muted);font-size:12px;text-align:center}
         <div><span class="sw" style="background:var(--j-pn);color:var(--j-pn-ink)">PN</span>Plantão normal 08–18h · fim de semana/feriado</div>
         <div><span class="sw" style="background:var(--j-verde);color:var(--j-verde-ink)">PR</span>Plantão reduzido 08–13h · fim de semana/feriado</div>
         <div><span class="sw" style="background:var(--j-laranja);color:var(--j-laranja-ink)">F</span>Folga · qualquer dia</div>
-      </div>
+      </div></details>
       <div class="filters" role="group" aria-label="Mostrar colunas">
         <button class="chip" type="button" data-view="all" aria-pressed="true">Todos os dias</button>
         <button class="chip" type="button" data-view="wk" aria-pressed="false">Só sáb, dom e feriado</button>
+        <span style="flex:1"></span>
+        <button class="btn" id="btnEdit" type="button" aria-pressed="false">✏ Simular trocas</button>
+        <button class="btn" id="btnUndo" type="button" disabled>↩ Desfazer</button>
         <span class="muted" id="editHint" style="font-size:12.5px;display:none">Clique numa célula para trocar. Dia útil: PL → HO → PE → F. Fim de semana/feriado: PI → PN → PR → F. A auditoria refaz na hora.</span>
       </div>
       <div class="note warn" id="draftBar" style="display:none;gap:8px 12px;flex-wrap:wrap;align-items:center;margin-bottom:10px">
@@ -236,6 +274,8 @@ footer{color:var(--muted);font-size:12px;text-align:center}
       <p class="muted" style="font-size:12.5px;margin:8px 0 0">Clique no nome para ver o histórico do colaborador, ou no dia para ver quem está escalado. A contagem de presentes considera só técnicos (o supervisor fica fora).</p>
     </section>
 
+  </div></div>
+  <div data-pane="problemas" hidden><div class="main1">
     <aside class="card" id="auditCard">
       <div class="card-h"><h2>Auditoria</h2><span class="muted num" id="auditCount"></span></div>
       <div class="filters" id="ruleChips" role="group" aria-label="Filtrar por regra"></div>
@@ -243,6 +283,8 @@ footer{color:var(--muted);font-size:12px;text-align:center}
     </aside>
   </div>
 
+  </div>
+  <div data-pane="analises" hidden>
   <div class="two">
     <section class="card">
       <div class="card-h"><h2>Equilíbrio de plantões</h2><span class="legend"><span><span class="sw" style="background:var(--pre)"></span>Sábado</span><span><span class="sw" style="background:#7a9fb5"></span>Domingo</span><span><span class="sw" style="background:var(--warn)"></span>Feriado</span></span></div>
@@ -263,14 +305,18 @@ footer{color:var(--muted);font-size:12px;text-align:center}
     <div class="tbox"><table class="t" id="wkTable"></table></div>
   </section>
 
+  </div>
+  <div data-pane="regras" hidden>
   <section class="card">
-    <details class="rules" id="rulesBox">
+    <details class="rules" id="rulesBox" open>
       <summary>Regras aplicadas</summary>
       <div class="rgrid" id="rulesForm"></div>
       <div class="row" style="margin-top:12px"><button class="btn" type="button" id="rulesReset">Voltar às regras padrão</button><span class="muted" style="font-size:12.5px">Mudanças aqui refazem a auditoria na hora e ficam salvas neste navegador.</span></div>
     </details>
   </section>
 
+  </div>
+  <div data-pane="ia" hidden>
   <section class="card" id="aiCard">
     <div class="card-h"><h2>Assistente IA</h2>
       <div class="seg" role="group" aria-label="Escolher IA">
@@ -321,6 +367,7 @@ footer{color:var(--muted);font-size:12px;text-align:center}
     </div>
   </section>
 
+  </div>
   <footer>Painel Escala GPON · TEL Telecom · Supervisão Gabriel de Souza Paschoa</footer>
 </div>
 
@@ -875,7 +922,7 @@ function cellInfo(pi, di) {
   if (s === 'PRESENTE') return { cls: 'j-UND', lab: 'P?', name: 'Presente, sem cor de jornada' };
   return { cls: s, lab: abbr(s), name: s };
 }
-const XCOL = { PRES: '4472C4', HO: '92D050', EST: 'FFD966', INT: 'FFD966', NOR: 'FBDCC4', RED: '92D050', FOLGA: 'F4B183', UND: 'FFFFFF', SUP: 'D9D9D9' };
+const XCOL = { PRES: '4472C4', HO: '92D050', EST: 'FFD966', INT: 'FFD966', NOR: 'F4B183', RED: '92D050', FOLGA: 'F4B183', UND: 'FFFFFF', SUP: 'D9D9D9' };
 const XINK = { PRES: 'FFFFFF', HO: '1D3A06', EST: '4D3A00', INT: '4D3A00', NOR: '6B2F07', RED: '1D3A06', FOLGA: '6B2F07', UND: '7F7F7F', SUP: '3D4B57' };
 function xKey(pi, di) { const s = per().people[pi].st[di], j = state.res.jor[pi][di]; if (s === 'FOLGA') return 'FOLGA'; if (!s) return null; if (state.res.groupsOf[pi] === 'sup' && !(per().people[pi].jr || [])[di]) return 'SUP'; return j || (s === 'PRESENTE' ? 'UND' : 'PRES'); }
 const cellCode = (pi, di) => { const s = per().people[pi].st[di], j = state.res.jor[pi][di]; return s === 'FOLGA' ? 'F' : !s ? '' : j ? JAB[j] : s === 'PRESENTE' ? 'P?' : 'PL'; };
@@ -884,12 +931,26 @@ const esc = s => String(s == null ? '' : s).replace(/[&<>"]/g, c => ({ '&': '&am
 function toast(msg) { const t = $('#toast'); t.textContent = msg; t.style.display = 'block'; clearTimeout(toast.t); toast.t = setTimeout(() => t.style.display = 'none', 2600); }
 function periodLabel(P) { const a = P.days[0].date, b = P.days[P.days.length - 1].date; return E.fmt(a) + ' – ' + E.fmt(b); }
 
+function showTab(k) {
+  document.querySelectorAll('.tabs [data-tab]').forEach(b => b.setAttribute('aria-selected', String(b.dataset.tab === k)));
+  document.querySelectorAll('[data-pane]').forEach(p => p.hidden = p.dataset.pane !== k);
+  try { store.set('tab', k); } catch (e) {}
+}
+function renderHealth() {
+  const r = state.res, P = per(), ne = r.issues.filter(i => i.sev === 'erro').length, na = r.issues.filter(i => i.sev === 'alerta').length;
+  const h = $('#health'); h.className = 'health ' + (ne ? 'bad' : 'ok');
+  const top = r.issues.filter(i => i.sev === 'erro').slice(0, 3).map(i => esc(i.title)).join(' · ');
+  h.innerHTML = `<div style="font-size:28px">${ne ? '⚠' : '✅'}</div><div><div class="big">${ne ? ne + (ne > 1 ? ' regras quebradas' : ' regra quebrada') : 'Escala dentro das regras'}</div>
+    <div class="sub">${esc(periodLabel(P))}${P.generated ? ' · rascunho' : ''}${nEdits() ? ' · ' + nEdits() + ' troca(s) simulada(s)' : ''} · ${na} aviso(s)${ne ? ' · ' + top : ''}</div></div>
+    <div class="act">${ne ? '<button class="btn" type="button" data-go="problemas">Ver problemas</button><button class="btn primary" type="button" data-go="iafix">✨ Pedir à IA para corrigir</button>' : '<button class="btn primary" type="button" data-go="xlsx">⬇ Baixar Excel</button>'}</div>`;
+  $('#tabBadge').textContent = ne || '';
+}
 function render() {
   applyEdits();
   state.res = E.audit(state.periods, state.p, state.rules);
-  renderHeader(); renderKpis(); renderGrid(); renderIssues(); renderBars(); renderWeekends(); renderCasadas(); renderJornadas(); renderRules(); renderProposal();
+  renderHeader(); renderKpis(); renderGrid(); renderIssues(); renderBars(); renderWeekends(); renderCasadas(); renderJornadas(); renderRules(); renderProposal(); renderHealth();
   $('#btnUndo').disabled = !nEdits();
-  $('#btnUndo').textContent = nEdits() ? 'Desfazer trocas (' + nEdits() + ')' : 'Desfazer trocas';
+  $('#btnUndo').textContent = nEdits() ? '↩ Desfazer (' + nEdits() + ')' : '↩ Desfazer';
 }
 
 function renderHeader() {
@@ -1299,6 +1360,14 @@ async function exportXlsx() {
   }
   toast('Excel gerado: ' + nm + (nEdits() ? ' (com as suas trocas)' : ''));
 }
+document.querySelectorAll('.tabs [data-tab]').forEach(b => b.onclick = () => showTab(b.dataset.tab));
+$('#health').addEventListener('click', e => { const g = e.target.closest('[data-go]'); if (!g) return; const k = g.dataset.go;
+  if (k === 'problemas') showTab('problemas'); else if (k === 'xlsx') $('#btnXlsx').click(); else if (k === 'iafix') { showTab('ia'); const q = document.querySelector('#quick [data-q="melhor"]'); if (q) q.click(); setTimeout(() => $('#aiSend').click(), 50); } });
+$('#issues').addEventListener('click', e => { if (e.target.closest('[data-iss]')) setTimeout(() => { showTab('escala'); $('#gridCard').scrollIntoView({ behavior: 'smooth', block: 'start' }); }, 0); });
+document.addEventListener('click', e => { const m = document.querySelector('.more[open]'); if (m && !m.contains(e.target)) m.open = false; if (e.target.closest('.menu .mi')) setTimeout(() => { const o = document.querySelector('.more[open]'); if (o) o.open = false; }, 0); });
+$('#btnTheme').onclick = () => { const c = document.documentElement.dataset.theme || (matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'); const n = c === 'dark' ? 'light' : 'dark'; document.documentElement.dataset.theme = n; try { store.set('theme', n); } catch (e) {} };
+try { const th = store.get('theme', null); if (th) document.documentElement.dataset.theme = th; } catch (e) {}
+setTimeout(() => showTab(store.get('tab', 'escala')), 0);
 $('#btnXlsx').onclick = () => exportXlsx().catch(e => toast('Não consegui gerar o Excel: ' + (e.message || e)));
 
 $('#rulesForm').addEventListener('change', e => {
@@ -1445,6 +1514,16 @@ function buildPrompt(q, withTools) {
   return `Você é o assistente de escala do supervisor Gabriel, da sala GPON de uma empresa de telecom. Responda em português do Brasil, direto, com títulos curtos, listas e tabelas quando ajudar. Use só os dados abaixo.
 
 ${rulesText(R)}
+
+CHECKLIST OBRIGATÓRIO (confira item por item antes de responder; não pule nenhum):
+1. Cada troca respeita o tipo do dia: dia útil só PL (azul presencial, verde home office, amarelo estendido 08–20h) ou FOLGA; sábado, domingo e feriado só PRESENTE (amarelo integral 08–20h, laranja normal 08–18h, verde reduzido 08–13h) ou FOLGA.
+2. Quantidade de presentes e composição (atendimento, monitoramento, planilhas) em cada sábado, domingo e feriado, exceto nos dias dos blocos de Natal e Ano Novo.
+3. Folgas casadas (Sáb+Dom e Dom+Seg) por fim de semana e por pessoa, e ninguém com folga em dia útil fora das exceções.
+4. Dias seguidos: limite de ${R.maxConsec}, contando o que cada um traz do período anterior.
+5. Duplas proibidas e pessoas que precisam estar em blocos opostos (Lenilton x Wellington, Leandro x Paulo).
+6. Blocos fixos e regras pontuais: nunca mexa neles.
+7. Depois de montar a proposta, rode testar_trocas com o CONJUNTO FINAL inteiro e só apresente se não surgir nenhum erro novo. Se sobrar erro, diga qual, por que não dá para resolver e qual regra teria de ceder.
+Na resposta, mostre a tabela das trocas (colaborador, dia, de → para, jornada/cor) e o resultado da auditoria antes x depois.
 
 PERÍODO: ${periodLabel(P)}${P.generated ? ' (RASCUNHO do próximo período: ainda não está na planilha, pode mudar tudo)' : ''}${nEdits() ? ' (já com ' + nEdits() + ' troca(s) simuladas pelo Gabriel)' : ''}
 CONTINUIDADE: ${carry || 'ninguém chega com sequência do período anterior'}
@@ -1627,7 +1706,7 @@ function renderProposal() {
   $('#prApply').onclick = () => {
     pr.swaps.forEach(s => { const p = state.base[state.p].people[s.pi], d = state.base[state.p].days[s.di], k = editKey(state.p, p, d); const v = s.st === 'FOLGA' ? 'FOLGA' : s.st + ':' + s.jr, o = p.st[s.di] === 'FOLGA' ? 'FOLGA' : p.st[s.di] + ':' + ((p.jr || [])[s.di] || (p.st[s.di] === 'PL' ? 'PRES' : '')); if (v === o) delete state.edits[k]; else state.edits[k] = v; });
     store.set('edits', state.edits); state.proposal = null; render(); toast('Trocas aplicadas na simulação. Confira a auditoria; para levar à planilha, use "Copiar para o Sheets".');
-    $('#gridCard').scrollIntoView({ behavior: 'smooth' });
+    showTab('escala'); $('#gridCard').scrollIntoView({ behavior: 'smooth' });
   };
   $('#prDrop').onclick = () => { state.proposal = null; renderProposal(); };
 }
