@@ -983,7 +983,7 @@ function nafClass(r) {
   return 'nd';
 }
 /* área de risco: com o cruzamento (coluna area_risco) conta a BA cuja CDO está bloqueada na base; sem ele, usa a descrição */
-const arLivre = v => !v || /^(liberad|n[ãa]o consta|sem cdo)/i.test(v);
+const arLivre = v => !v || /^(liberad|n[ãa]o consta|sem cdo|as-?\s?built|teste [oó]ptico|rede constru|obra n[ãa]o iniciada|documentos)/i.test(v); // status de obra concluída/sem impedimento não é bloqueio
 const isRisco = r => { const R = TR(); if (R.ar) return !arLivre(r[R.ar]); const d = R.desc; return !!d && /risco/i.test(r[d]); };
 const arSub = () => TR().ar ? 'BAs em CDO bloqueada' : 'marcados na descrição';
 const facilKey = r => { const R = TR(); const o = R.olt && r[R.olt]; if (!o) return ''; const p = R.pon ? (r[R.pon] || '').replace(/\//g, '-') : ''; return p ? o + ':' + p : o; };
