@@ -393,7 +393,7 @@ footer{color:var(--muted);font-size:12px;text-align:center}
     pairs: [{ a: 'LENILTON', b: 'WELLINGTON', days: { dom: true } }, { a: 'LEANDRO', b: 'PAULO ENOQUE', days: { dom: true } }, { a: 'PAULO ENOQUE', b: 'RHONIS', days: { dom: true } }],
     supCover: false,
     folgasMin: 4, folgasMax: 7, folgaUtilMax: 2,
-    estPorDia: 2, intMin: 1, presSemCor: 'NOR', jornadaOn: true, folgaUtilRegra: true,
+    estPorDia: 2, intMin: 1, fdsUmAte20: true, presSemCor: 'NOR', jornadaOn: true, folgaUtilRegra: true,
     fixed: [{ name: 'LEANDRO', date: '2026-11-14', status: 'PRESENTE' }],
     folgaLivre: ['12-24', '12-31'],
     blocos: [
@@ -671,12 +671,20 @@ footer{color:var(--muted);font-size:12px;text-align:center}
     const jcount = days.map((d, di) => { const o = { PRES: [], HO: [], EST: [], INT: [], NOR: [], RED: [], und: [] }; people.forEach((p, pi) => { if (grp(p) === 'sup') return; const s = st(pi, di); if (!isWork(s)) return; const j = jor[pi][di]; (j ? o[j] : o.und).push(pi); }); return o; });
     if (rules.jornadaOn) {
       days.forEach((d, di) => {
-        if (livre(d.date)) return;
         const k = kind(d.date), c = jcount[di];
+        if (k !== 'util' && rules.fdsUmAte20 !== false && livre(d.date) && (c.INT.length !== 1 || c.RED.length))
+          add({ rule: 'jornada', sev: 'erro', title: fmtW(d.date) + ': ' + c.INT.length + ' até 20h (deve ser 1)',
+            detail: 'Em sábado, domingo e feriado todos trabalham 08h às 18h e só 1 fica até 20h. Em ' + fmtW(d.date) + ': até 20h ' + (names(c.INT) || 'ninguém') + '.',
+            people: c.INT.concat(c.RED), dates: [d.date] }, c.INT.concat(c.RED).map(pi => [pi, di]), [di]);
+        if (livre(d.date)) return;
         if (k === 'util' && c.EST.length !== rules.estPorDia)
           add({ rule: 'jornada', sev: 'alerta', title: fmtW(d.date) + ': ' + c.EST.length + ' em plantão estendido (padrão ' + rules.estPorDia + ')',
             detail: 'Em ' + fmtW(d.date) + ' estão de plantão estendido (PL amarelo, 08h às 20h): ' + names(c.EST) + '. O padrão é ' + rules.estPorDia + ' por dia útil, para a sala ficar coberta até 20h.',
             people: c.EST, dates: [d.date] }, c.EST.map(pi => [pi, di]), [di]);
+        if (k !== 'util' && rules.fdsUmAte20 !== false && (c.INT.length > 1 || c.RED.length))
+          add({ rule: 'jornada', sev: 'erro', title: fmtW(d.date) + ': ' + (c.INT.length > 1 ? c.INT.length + ' até 20h (deve ser só 1)' : c.RED.length + ' em reduzido 08–13h'),
+            detail: 'Em sábado, domingo e feriado todos trabalham 08h às 18h (PRESENTE laranja) e só 1 fica até 20h (PRESENTE amarelo). Em ' + fmtW(d.date) + ': até 20h ' + (names(c.INT) || 'ninguém') + (c.RED.length ? '; reduzido ' + names(c.RED) : '') + '.',
+            people: c.INT.concat(c.RED), dates: [d.date] }, c.INT.concat(c.RED).map(pi => [pi, di]), [di]);
         if (k !== 'util' && c.INT.length < rules.intMin)
           add({ rule: 'jornada', sev: 'alerta', title: fmtW(d.date) + ': ' + (c.und.length ? 'plantão até 20h não definido' : 'ninguém até 20h'),
             detail: 'Em ' + fmtW(d.date) + (k === 'fer' ? ' (feriado)' : '') + ' ninguém está em plantão integral (PRESENTE amarelo, 08h às 20h)' + (c.und.length ? '; há ' + c.und.length + ' presente(s) sem cor de jornada: ' + names(c.und) : '') + '. É preciso pelo menos ' + rules.intMin + ' até 20h.',
@@ -804,7 +812,7 @@ footer{color:var(--muted);font-size:12px;text-align:center}
     const fixed = new Set(fx.filter(f => f.status !== 'TRABALHA').map(f => { const pi = P.people.findIndex(p => E.norm(p.name).includes(E.norm(f.name))), di = P.days.findIndex(d => d.date === f.date); return pi + ':' + di; }));
     const opts1 = (pi, di) => { const k = kind(di); if (isSup(pi)) return k === 'util' ? [['PL', null], ['FOLGA', null]] : [['PRESENTE', null], ['FOLGA', null]];
       if (k === 'util') return [['PL', 'PRES'], ['PL', 'HO'], ['PL', 'EST']].concat(!rules.folgaUtilRegra || E.dow(P.days[di].date) === 1 ? [['FOLGA', null]] : []);
-      return [['PRESENTE', 'INT'], ['PRESENTE', 'NOR'], ['PRESENTE', 'RED'], ['FOLGA', null]]; };
+      return [['PRESENTE', 'INT'], ['PRESENTE', 'NOR']].concat(rules.fdsUmAte20 === false ? [['PRESENTE', 'RED']] : []).concat([['FOLGA', null]]); };
     // preferência: quem trabalhou o bloco de feriado folga o sábado e o domingo seguintes
     const posBloco = () => { let pen = 0; (rules.blocos || []).forEach(b => { if (rules.blocoCasada === false) return; const last = b.dates.slice().sort().pop(), dSat = P.days.findIndex(d => d.date === E.addDays(last, 1)), dSun = P.days.findIndex(d => d.date === E.addDays(last, 2));
       if (dSat < 0 || dSun < 0 || E.dow(P.days[dSat].date) !== 6) return;
@@ -893,6 +901,7 @@ let state = {
 // regras confirmadas em 14/11: PRESENTE laranja = plantão normal; folga em dia útil só na segunda da casada
 if (!store.get('mig2', 0)) { state.rules.presSemCor = 'NOR'; state.rules.folgaUtilRegra = true; if (store.get('rules2', null)) store.set('rules2', state.rules); store.set('mig2', 1); }
 if (!store.get('mig3', 0)) { if (state.rules.maxConsec === 8) { state.rules.maxConsec = 12; if (store.get('rules2', null)) store.set('rules2', state.rules); } store.set('mig3', 1); }
+if (!store.get('mig5', 0)) { state.rules.fdsUmAte20 = true; if (store.get('rules2', null)) store.set('rules2', state.rules); store.set('mig5', 1); }
 if (!store.get('mig4', 0)) { state.rules.supCover = false; if (store.get('rules2', null)) store.set('rules2', state.rules); store.set('mig4', 1); }
 (function restoreGen() {
   const gen = store.get('gen', []), lastEnd = () => { const L = state.base[state.base.length - 1]; return L.days[L.days.length - 1].date; };
@@ -1516,7 +1525,7 @@ function buildPrompt(q, withTools) {
 ${rulesText(R)}
 
 CHECKLIST OBRIGATÓRIO (confira item por item antes de responder; não pule nenhum):
-1. Cada troca respeita o tipo do dia: dia útil só PL (azul presencial, verde home office, amarelo estendido 08–20h) ou FOLGA; sábado, domingo e feriado só PRESENTE (amarelo integral 08–20h, laranja normal 08–18h, verde reduzido 08–13h) ou FOLGA.
+1. Cada troca respeita o tipo do dia: dia útil só PL (azul presencial, verde home office, amarelo estendido 08–20h) ou FOLGA. Sábado, domingo e feriado: TODOS os presentes em PRESENTE laranja (normal 08–18h, jornada NOR) e EXATAMENTE 1 técnico em PRESENTE amarelo (integral 08–20h, jornada INT) por dia; nunca use reduzido (RED) nesses dias.
 2. Quantidade de presentes e composição (atendimento, monitoramento, planilhas) em cada sábado, domingo e feriado, exceto nos dias dos blocos de Natal e Ano Novo.
 3. Folgas casadas (Sáb+Dom e Dom+Seg) por fim de semana e por pessoa, e ninguém com folga em dia útil fora das exceções.
 4. Dias seguidos: limite de ${R.maxConsec}, contando o que cada um traz do período anterior.
