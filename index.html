@@ -334,7 +334,7 @@ const GEN_TABS = [['dashboard', 'Dashboard'], ['tabela', 'Dados'], ['comparativo
 const TEL_TABS = [['painel', '📡 Painel operacional'], ['ofensores', 'Ofensores'], ['reinc', 'Reincidência'], ['backlog', '⏳ Backlog'], ['controle', 'Controle por hora'], ['risco', 'Área de risco'], ['entrantes', '📈 Entrantes'], ['jumper', '🔌 Jumper']];
 const ALL_IDS = ['painel', 'ofensores', 'reinc', 'backlog', 'controle', 'risco', 'entrantes', 'jumper', 'dashboard', 'tabela', 'comparativo'];
 const telOn = () => !!(S.tel && S.tel.on);
-const tabsList = () => telOn() ? TEL_TABS.concat(GEN_TABS.filter(t => t[0] !== 'comparativo')) : GEN_TABS; // no modo telecom, Entrantes substitui o Comparativo
+const tabsList = () => telOn() ? TEL_TABS.concat(GEN_TABS.filter(t => t[0] !== 'comparativo' && t[0] !== 'dashboard')) : GEN_TABS; // no modo telecom, Entrantes substitui o Comparativo
 const OPLBL = { key: '=', in: 'em', eq: '=', neq: '≠', contains: 'contém', gt: '>', gte: '≥', lt: '<', lte: '≤', empty: 'vazio', notempty: 'preenchido' };
 const MESES = ['jan', 'fev', 'mar', 'abr', 'mai', 'jun', 'jul', 'ago', 'set', 'out', 'nov', 'dez'];
 const DIAS = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
