@@ -544,7 +544,7 @@ function applyFilters() {
   });
   S.filteredNoNaf = base;
   const nv = tel ? S.tel.naf : '';
-  S.filtered = nv ? base.filter(r => nv === 'risco' ? isRisco(r) : nafClass(r) === nv) : base;
+  S.filtered = nv ? base.filter(r => nv === 'risco' ? isRisco(r) : nv === 'massivo' ? isMassivo(r) : nafClass(r) === nv) : base;
 }
 function renderChips() {
   $('#chips').innerHTML = scopeBadges() + S.filters.map((f, i) => `<span class="badge bg-indigo-100 text-indigo-700 dark:bg-indigo-950 dark:text-indigo-300 flex items-center gap-1 !py-1"><b>${esc(trunc(f.col, 28))}</b> ${OPLBL[f.op]} ${f.op === 'empty' || f.op === 'notempty' ? '' : esc(trunc(fval(f), 60))}<button class="ml-1 font-bold hover:text-rose-500" onclick="rmFilter(${i})">×</button></span>`).join('');
@@ -954,13 +954,13 @@ const TEL_ROLES = {
   ba: 'cd_nrba', setor: 'cd_setor', estado: 'ds_estado', macro: 'ds_macro_atividade', atividade: 'ds_atividade', cp: 'cp', naf: 'status_naf', flag: 'flag_reparo',
   olt: 'olt', pon: 'porta_pon', cdo: 'cdo', estacao: 'cd_estacao', uf: 'cd_uf', celula: 'celula', cabo2: 'cabo_secundario', gpon: 'cd_gpon',
   pont: 'potencia_na_ont', polt: 'potencia_na_olt', desc: 'ds_descricao', logr: 'ds_logradouro', extr: 'dh_extracao',
-  ar: 'area_risco', arm: 'area_risco_motivo', arp: 'status_cdo',
+  ar: 'area_risco', arm: 'area_risco_motivo', arp: 'status_cdo', mc: 'massivo_comunicado', mb: 'massivo_ba', ma: 'massivo_arquivo',
   r7: 'r7_tipo', r7d: 'r7_ant_data', r7h: 'r7_ant_horas', r7am: 'r7_ant_mat', r7ac: 'r7_ant_colab', r7as: 'r7_ant_sup', r7ao: 'r7_ant_coord',
   r7um: 'r7_atu_mat', r7uc: 'r7_atu_colab', r7us: 'r7_atu_sup', r7uo: 'r7_atu_coord', r7q: 'r7_qtd', abos: 'dh_dataaberturaos', ab: 'dh_abertura_ba'
 };
 const SLOTS = ['ontem', '07:00', '08:00', '09:00', '10:00', '11:00', '12:00', '13:00', '14:00', '15:00', '16:00', '17:00', '18:00', '19:00', '20:00', '21:00'];
 const SNAP_KEY = 'datalens-telecom-snaps-v1';
-const NAF_LBL = { com: 'Com potência', sem: 'Sem potência', degr: 'Degradação', risco: 'Área de risco' };
+const NAF_LBL = { com: 'Com potência', sem: 'Sem potência', degr: 'Degradação', risco: 'Área de risco', massivo: 'Massivo (manutenção)' };
 const HEAT = { red: ['#d92b1f', '#ffffff'], orange: ['#f28c28', '#1a1a1a'], lorange: ['#f7b267', '#1a1a1a'], yellow: ['#fde047', '#1a1a1a'] };
 const TCOL = { navy: '#1f3864', green: '#375623', brown: '#843c0c', gold: '#7f6000', purple: '#7030a0' };
 
@@ -985,6 +985,8 @@ function nafClass(r) {
 /* área de risco: com o cruzamento (coluna area_risco) conta a BA cuja CDO está bloqueada na base; sem ele, usa a descrição */
 const arLivre = v => !v || /^(liberad|n[ãa]o consta|sem cdo)/i.test(v);
 const isRisco = r => { const R = TR(); if (R.ar) return !arLivre(r[R.ar]); const d = R.desc; return !!d && /risco/i.test(r[d]); };
+const isMassivo = r => { const R = TR(); return !!(R.mc && r[R.mc]); };
+const massArq = () => { const R = TR(); if (!R.ma) return ''; for (const r of S.rows) if (r[R.ma]) return String(r[R.ma]); return ''; };
 const arSub = () => TR().ar ? 'BAs em CDO bloqueada' : 'marcados na descrição';
 const facilKey = r => { const R = TR(); const o = R.olt && r[R.olt]; if (!o) return ''; const p = R.pon ? (r[R.pon] || '').replace(/\//g, '-') : ''; return p ? o + ':' + p : o; };
 const estCdoKey = r => { const R = TR(), c = R.cdo && r[R.cdo]; if (!c) return ''; return (R.uf && r[R.uf] ? r[R.uf] + '-' : '') + (R.estacao && r[R.estacao] ? r[R.estacao] + '-' : '') + c; };
@@ -1016,8 +1018,8 @@ function countBy(rows, fn, min = 1) {
   return [...m.entries()].filter(x => x[1] >= min).sort((a, b) => b[1] - a[1] || String(a[0]).localeCompare(String(b[0]), 'pt-BR', { numeric: true }));
 }
 function telCounts(rows) {
-  const c = { total: rows.length, com: 0, sem: 0, degr: 0, nd: 0, risco: 0 };
-  for (const r of rows) { c[nafClass(r)]++; if (isRisco(r)) c.risco++; }
+  const c = { total: rows.length, com: 0, sem: 0, degr: 0, nd: 0, risco: 0, massivo: 0 };
+  for (const r of rows) { c[nafClass(r)]++; if (isRisco(r)) c.risco++; if (isMassivo(r)) c.massivo++; }
   return c;
 }
 function telKPIs() {
@@ -1101,7 +1103,7 @@ function buildTelBar() {
         <div class="max-h-64 overflow-auto">${top.map(([v, n]) => `<label class="msel-it flex items-center gap-2 px-1 py-1 text-sm rounded hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer" data-v="${esc(v)}"><input type="checkbox" value="${esc(v)}"><span class="truncate flex-1">${esc(v)}</span><span class="text-xs text-slate-400">${n}</span></label>`).join('')}</div>
         <div class="flex justify-end gap-2 mt-2 pt-2 border-t border-slate-200 dark:border-slate-700"><button type="button" class="btn" onclick="mselClose()">Cancelar</button><button type="button" class="btn btn-primary" onclick="mselApply(this)">Aplicar</button></div>
       </div></div>`; }).join('')}
-    <div><label class="lbl">Situação de potência</label><select class="inp" onchange="S.tel.naf=this.value;refresh(true)">${opts([['', 'Todas'], ['com', 'Com potência'], ['sem', 'Sem potência'], ['degr', 'Degradação'], ['risco', 'Área de risco']], T.naf)}</select></div>
+    <div><label class="lbl">Situação de potência</label><select class="inp" onchange="S.tel.naf=this.value;refresh(true)">${opts([['', 'Todas'], ['com', 'Com potência'], ['sem', 'Sem potência'], ['degr', 'Degradação'], ['risco', 'Área de risco'], ['massivo', 'Massivo (manutenção)']], T.naf)}</select></div>
     <div><label class="lbl" title="ONT com leitura abaixo deste valor e status Com Potência é considerada degradação">Degradação abaixo de (dBm)</label><input type="number" step="0.5" class="inp w-28" value="${T.thr}" onchange="S.tel.thr=parseFloat(this.value)||-27;refresh(true)"></div>
   </div>`;
   syncQuick();
@@ -1221,7 +1223,12 @@ function renderPainel() {
   const tile = (key, label, val, color, sub, navy) => `<div class="rounded-xl overflow-hidden border border-slate-200 dark:border-slate-700 cursor-pointer shadow-sm transition hover:shadow-md ${S.tel.naf === key && key ? 'ring-2 ring-offset-2 ring-indigo-500 dark:ring-offset-slate-950' : ''}" onclick="setNaf('${key}')" title="Clique para filtrar esta situação"><div class="text-white text-center text-xs font-bold tracking-wide py-1.5" style="background:${color}">${label}</div><div class="text-center py-3 bg-white dark:bg-slate-900" style="background-image:linear-gradient(${color}1a,${color}1a)"><div class="text-4xl font-extrabold ${navy ? 'text-slate-800 dark:text-slate-100' : ''}" style="${navy ? '' : 'color:' + color}">${val}</div><div class="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">${sub}</div></div></div>`;
   const pc = v => pct(v, c.total).toFixed(1).replace('.', ',') + '%';
   let h = bandTitle('PAINEL OPERACIONAL DE MONITORAMENTO DE REPAROS', (ms ? 'Atualizado: ' + fmtEnviada(ms) + '  ·  ' : '') + F.length.toLocaleString('pt-BR') + ' BAs no recorte atual' + (S.tel.openOnly ? ' (somente abertas)' : ''));
-  h += `<div class="grid grid-cols-2 md:grid-cols-5 gap-3 mb-4">${tile('', 'TOTAL DE BAs', fmt(c.total), TCOL.navy, 'sem leitura NAF: ' + c.nd, true)}${tile('com', 'COM POTÊNCIA', fmt(c.com), '#00a651', pc(c.com))}${tile('sem', 'SEM POTÊNCIA', fmt(c.sem), '#d62828', pc(c.sem))}${tile('degr', 'DEGRADAÇÃO', fmt(c.degr), '#c08400', pc(c.degr) + ' · ONT &lt; ' + S.tel.thr + ' dBm')}${tile('risco', 'ÁREA DE RISCO', fmt(c.risco), TCOL.purple, arSub())}</div>`;
+  h += `<div class="grid grid-cols-2 md:grid-cols-6 gap-3 mb-4">${tile('', 'TOTAL DE BAs', fmt(c.total), TCOL.navy, 'sem leitura NAF: ' + c.nd, true)}${tile('com', 'COM POTÊNCIA', fmt(c.com), '#00a651', pc(c.com))}${tile('sem', 'SEM POTÊNCIA', fmt(c.sem), '#d62828', pc(c.sem))}${tile('degr', 'DEGRADAÇÃO', fmt(c.degr), '#c08400', pc(c.degr) + ' · ONT &lt; ' + S.tel.thr + ' dBm')}${tile('risco', 'ÁREA DE RISCO', fmt(c.risco), TCOL.purple, arSub())}${tile('massivo', 'MASSIVO (MANUT.)', fmt(c.massivo), '#0e7490', R.ma ? 'acesso em comunicado · base ' + esc(massArq().slice(8, 10) + '/' + massArq().slice(5, 7) + ' ' + massArq().slice(11, 16)) : 'aguardando o robô')}</div>`;
+  if (R.mc && c.massivo) {
+    const cm = new Map(); for (const r of S.filteredNoNaf) { if (!isMassivo(r)) continue; const k = r[R.mc]; const o = cm.get(k) || { b: r[R.mb] || '', NIO: 0, TIM: 0, st: new Map() }; const cp = R.cp ? r[R.cp] : ''; if (cp === 'NIO' || cp === 'TIM') o[cp]++; o.st.set(r[R.setor], (o.st.get(r[R.setor]) || 0) + 1); cm.set(k, o); }
+    const lm = [...cm.entries()].sort((a, b) => (b[1].NIO + b[1].TIM) - (a[1].NIO + a[1].TIM)).map(([k, o]) => `<tr onclick="setNaf('massivo')" class="cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-800">${tdc(esc(k), { b: 1, w: 1 })}${tdc(esc(o.b), { w: 1 })}${tdc(o.NIO || '', { r: 1 })}${tdc(o.TIM || '', { r: 1 })}${tdc(o.NIO + o.TIM, { r: 1, b: 1 })}${tdc(esc([...o.st.entries()].sort((a, b) => b[1] - a[1]).map(([s, n]) => s + ' (' + n + ')').join(' · ')))}</tr>`);
+    h += `<div class="mb-4">${r7Tabela('MASSIVO (MANUTENÇÃO) · BAs ABERTAS EM COMUNICADO DE INTERRUPÇÃO', '#0e7490', [{ t: 'COMUNICADO' }, { t: 'BA MASSIVO' }, { t: 'NIO', r: 1 }, { t: 'TIM', r: 1 }, { t: 'TOTAL', r: 1 }, { t: 'SETORES' }], lm, 'acesso GPON da BA consta na planilha ANL_BAS_MANUT_COMUNICADO (pasta Manutencao) · quem resolve é a manutenção · clique para filtrar')}</div>`;
+  }
   // top 10
   h += `<div class="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-4">`;
   h += chartCard('p_setor', 'TOP 10 OFENSORES - SETOR', '', 'Clique numa barra para filtrar');
@@ -1406,8 +1413,8 @@ function renderJumper() {
 const BL_B = [{ id: 'b24', lo: 24, hi: 48, t: '24 a 48h', cor: '#ca8a04' }, { id: 'b48', lo: 48, hi: 72, t: '48 a 72h', cor: '#ea580c' }, { id: 'b72', lo: 72, hi: 168, t: '72h a 7 dias', cor: '#dc2626' }, { id: 'b7', lo: 168, hi: Infinity, t: 'Mais de 7 dias', cor: '#7f1d1d' }];
 const BL_MIN = [[0, 'TOTAL ABERTO', '#1f3864'], [24, 'BACKLOG +24h', '#ca8a04'], [48, 'BACKLOG +48h', '#ea580c'], [72, 'BACKLOG +72h', '#dc2626'], [168, 'BACKLOG +7 DIAS', '#7f1d1d']];
 const BL_NAF = { sem: 'Sem potência', com: 'Com potência', degr: 'Degradação', nd: 'Sem leitura NAF' };
-const BL_QL = { op: 'Operadora', setor: 'Setor', pon: 'PON', cdo: 'CDOE', naf: 'Situação', est: 'Estado', rein: 'Reincidência' };
-const blDef = () => ({ op: '', band: '', min: 24, setor: '', pon: '', cdo: '', naf: '', est: '', rein: '' });
+const BL_QL = { op: 'Operadora', setor: 'Setor', pon: 'PON', cdo: 'CDOE', naf: 'Situação', est: 'Estado', rein: 'Reincidência', mass: 'Massivo' };
+const blDef = () => ({ op: '', band: '', min: 24, setor: '', pon: '', cdo: '', naf: '', est: '', rein: '', mass: '' });
 const blIdade = h => h >= 24 ? Math.floor(h / 24) + 'd ' + String(Math.floor(h % 24)).padStart(2, '0') + 'h' : Math.floor(h) + 'h';
 const blCor = h => h > 168 ? '#7f1d1d' : h > 72 ? '#dc2626' : h > 48 ? '#ea580c' : h > 24 ? '#ca8a04' : '#6b7280';
 function blRows() {
@@ -1417,7 +1424,7 @@ function blRows() {
   for (const r of baseRows()) {
     const cp = R.cp ? r[R.cp] : ''; if (R.cp && cp !== 'TIM' && cp !== 'NIO') continue;
     const ab = r.__d && r.__d[R.ab]; if (ab == null) continue;
-    D.push({ ba: r[R.ba], cp, setor: r[R.setor] || '—', est: r[R.estado] || '—', estacao: R.estacao ? (r[R.estacao] || '') : '', pon: facilKey(r), cdo: oltCdoKey(r), ab, h: (ext - ab) / 36e5, naf: nafClass(r), rein: R.r7q ? (numOf(r, R.r7q) || 0) > 0 : false, risco: isRisco(r) });
+    D.push({ ba: r[R.ba], cp, setor: r[R.setor] || '—', est: r[R.estado] || '—', estacao: R.estacao ? (r[R.estacao] || '') : '', pon: facilKey(r), cdo: oltCdoKey(r), ab, h: (ext - ab) / 36e5, naf: nafClass(r), rein: R.r7q ? (numOf(r, R.r7q) || 0) > 0 : false, risco: isRisco(r), mass: isMassivo(r), com: R.mc ? (r[R.mc] || '') : '' });
   }
   return { D, ext };
 }
@@ -1431,6 +1438,7 @@ function blOk(x, F, skip) {
   if (skip !== 'naf' && F.naf && x.naf !== F.naf) return false;
   if (skip !== 'est' && F.est && x.est !== F.est) return false;
   if (skip !== 'rein' && F.rein && (F.rein === '1') !== x.rein) return false;
+  if (skip !== 'mass' && F.mass && (F.mass === '1') !== x.mass) return false;
   return true;
 }
 function blSet(k, v) { const F = S.blF; F[k] = (F[k] === v) ? '' : v; renderActive(); }
@@ -1443,7 +1451,7 @@ function blDetalhe(ba) {
   const old = document.getElementById('blOv'); if (old) old.remove();
   const ov = document.createElement('div'); ov.id = 'blOv';
   ov.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:60;display:flex;align-items:center;justify-content:center;padding:16px';
-  const dl = [['Operadora', x.cp], ['Setor', x.setor], ['Estação', x.estacao], ['Facilidade (OLT : PON)', x.pon], ['CDOE / CDOI', x.cdo], ['Aberta em', fmtEnviada(x.ab)], ['Idade', blIdade(x.h)], ['Estado da BA', x.est], ['Situação NAF', BL_NAF[x.naf]], ['Reincidente 7D', x.rein ? 'Sim' : 'Não'], ['Área de risco', x.risco ? 'Sim' : 'Não']];
+  const dl = [['Operadora', x.cp], ['Setor', x.setor], ['Estação', x.estacao], ['Facilidade (OLT : PON)', x.pon], ['CDOE / CDOI', x.cdo], ['Aberta em', fmtEnviada(x.ab)], ['Idade', blIdade(x.h)], ['Estado da BA', x.est], ['Situação NAF', BL_NAF[x.naf]], ['Reincidente 7D', x.rein ? 'Sim' : 'Não'], ['Massivo (manutenção)', x.mass ? 'Sim · comunicado ' + x.com : 'Não'], ['Área de risco', x.risco ? 'Sim' : 'Não']];
   ov.innerHTML = `<div class="bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-100 rounded-2xl shadow-2xl p-5 w-full" style="max-width:28rem"><div class="flex justify-between items-center mb-3"><div class="font-extrabold text-base">${esc(x.ba)}</div><button class="text-slate-400 hover:text-slate-700 text-lg leading-none" onclick="document.getElementById('blOv').remove()">✕</button></div><div class="grid gap-y-1.5 text-sm" style="grid-template-columns:10rem 1fr">${dl.map(([k, v]) => `<div class="text-slate-500">${k}</div><div class="font-semibold" ${k === 'Idade' ? `style="color:${blCor(x.h)}"` : ''}>${esc(v || '—')}</div>`).join('')}</div></div>`;
   ov.addEventListener('click', e => { if (e.target === ov) ov.remove(); });
   document.body.appendChild(ov);
@@ -1457,7 +1465,7 @@ function renderBacklog() {
   let h = bandTitle('BACKLOG · REPAROS ANTIGOS (+24h · +48h · +72h · +7 dias)', (ext ? 'Atualizado: ' + fmtEnviada(ext) + ' · ' : '') + 'idade desde a abertura da BA · clique em card, faixa, setor, PON, CDOE ou linha para filtrar · independe dos filtros da barra de cima');
   if (!D.length) { el.innerHTML = h + `<div class="card p-8 text-center text-slate-500">Carregue a extração de reparos (precisa da coluna dh_abertura_ba) para ver o backlog.</div>`; return; }
   // filtros ativos
-  const ch = []; ['op', 'setor', 'pon', 'cdo', 'naf', 'est', 'rein'].forEach(k => { if (F[k]) ch.push([k, BL_QL[k] + ': ' + (k === 'naf' ? BL_NAF[F.naf] : k === 'rein' ? (F.rein === '1' ? 'Reincidentes' : 'Não reincidentes') : F[k])]); });
+  const ch = []; ['op', 'setor', 'pon', 'cdo', 'naf', 'est', 'rein', 'mass'].forEach(k => { if (F[k]) ch.push([k, BL_QL[k] + ': ' + (k === 'naf' ? BL_NAF[F.naf] : k === 'rein' ? (F.rein === '1' ? 'Reincidentes' : 'Não reincidentes') : k === 'mass' ? (F.mass === '1' ? 'só massivo (manutenção)' : 'sem massivo (operação)') : F[k])]); });
   if (F.band) ch.push(['band', 'Faixa: ' + BL_B.find(b => b.id === F.band).t]);
   if (F.min !== 24) ch.push(['min', 'Idade: ' + (F.min ? 'mais de ' + F.min + 'h' : 'todas as BAs abertas')]);
   h += `<div class="flex flex-wrap items-center gap-2 mb-3 text-xs text-slate-500 min-h-[1.75rem]">${ch.length ? 'Filtros:' + ch.map(c => `<span onclick="${c[0] === 'min' ? 'blMin(24)' : `blSet('${c[0]}','${c[0] === 'band' ? F.band : F[c[0]]}')`}" class="cursor-pointer rounded-full px-3 py-1 font-semibold text-white" style="background:#2563eb">${esc(c[1])} ×</span>`).join('') + `<span onclick="blClear()" class="cursor-pointer underline font-semibold" style="color:#2563eb">limpar tudo</span>` : 'Nenhum filtro ativo · mostrando o backlog acima de 24h'}</div>`;
@@ -1487,16 +1495,17 @@ function renderBacklog() {
   const lin = (k, key, lbl, n) => `<tr onclick="blSet('${k}','${esc(key)}')" class="cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-800 ${S.blF[k] === key ? 'bg-blue-50 dark:bg-blue-900/30' : ''}">${tdc(esc(lbl), { b: 1, w: 1 })}${tdc(n, { r: 1, b: 1 })}</tr>`;
   const tNaf = grp('naf', x => x.naf, null).map(([k, n]) => lin('naf', k, BL_NAF[k], n));
   const tEst = grp('est', x => x.est, null).map(([k, n]) => lin('est', k, k, n));
+  const tMas = grp('mass', x => x.mass ? '1' : '0', null, (a, b) => b[0].localeCompare(a[0])).map(([k, n]) => lin('mass', k, k === '1' ? 'Massivo (manutenção)' : 'Operação (sem massivo)', n));
   const tRei = grp('rein', x => x.rein ? '1' : '0', null, (a, b) => b[0].localeCompare(a[0])).map(([k, n]) => lin('rein', k, k === '1' ? 'Reincidentes 7D' : 'Não reincidentes', n));
   h += `<div class="grid grid-cols-1 lg:grid-cols-5 gap-4 mb-4"><div class="lg:col-span-3">${r7Tabela('BACKLOG POR SETOR', '#1f3864', [{ t: 'SETOR' }, { t: 'NIO', r: 1 }, { t: 'TIM', r: 1 }, { t: '+72h', r: 1 }, { t: 'TOTAL', r: 1 }, { t: '' }], lS, 'clique no setor, ou no número de NIO/TIM')}</div>
-    <div class="lg:col-span-2 grid gap-4 content-start">${r7Tabela('SITUAÇÃO DE POTÊNCIA', '#843c0c', [{ t: 'SITUAÇÃO' }, { t: 'BAs', r: 1 }], tNaf, '', null, true)}${r7Tabela('ESTADO DA BA', '#375623', [{ t: 'ESTADO' }, { t: 'BAs', r: 1 }], tEst, 'não atribuídas = sem técnico definido', null, true)}${r7Tabela('REINCIDÊNCIA 7 DIAS', '#d62828', [{ t: 'TIPO' }, { t: 'BAs', r: 1 }], tRei, '', null, true)}</div></div>`;
+    <div class="lg:col-span-2 grid gap-4 content-start">${r7Tabela('SITUAÇÃO DE POTÊNCIA', '#843c0c', [{ t: 'SITUAÇÃO' }, { t: 'BAs', r: 1 }], tNaf, '', null, true)}${r7Tabela('ESTADO DA BA', '#375623', [{ t: 'ESTADO' }, { t: 'BAs', r: 1 }], tEst, 'não atribuídas = sem técnico definido', null, true)}${r7Tabela('REINCIDÊNCIA 7 DIAS', '#d62828', [{ t: 'TIPO' }, { t: 'BAs', r: 1 }], tRei, '', null, true)}${r7Tabela('MASSIVO (MANUTENÇÃO)', '#0e7490', [{ t: 'RESPONSÁVEL' }, { t: 'BAs', r: 1 }], tMas, 'clique em Operação para tirar do backlog as BAs da manutenção', null, true)}</div></div>`;
   // PON e CDOE ofensoras do backlog
   const top = (skip, fld, k) => { const m = new Map(); D.filter(x => blOk(x, F, skip) && x[fld]).forEach(x => m.set(x[fld], (m.get(x[fld]) || 0) + 1)); return [...m.entries()].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0])).slice(0, 10).map(([key, n]) => `<tr onclick="blSet('${k}','${esc(key)}')" class="cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-800 ${S.blF[k] === key ? 'bg-blue-50 dark:bg-blue-900/30' : ''}">${tdc(esc(key), { b: 1, w: 1 })}${tdc(n, { r: 1, b: 1 })}</tr>`); };
   h += `<div class="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-4">${r7Tabela('TOP 10 · FACILIDADE (OLT : PON) NO BACKLOG', '#7030a0', [{ t: 'OLT : SLOT-PON' }, { t: 'BAs', r: 1 }], top('pon', 'pon', 'pon'), 'clique para filtrar', null, true)}${r7Tabela('TOP 10 · CDOE/CDOI NO BACKLOG', '#843c0c', [{ t: 'OLT + CDOE/I' }, { t: 'BAs', r: 1 }], top('cdo', 'cdo', 'cdo'), 'clique para filtrar', null, true)}</div>`;
   // fila
   const L = D.filter(x => blOk(x, F)).sort((a, b) => b.h - a.h);
-  const lL = L.map(x => `<tr onclick="blDetalhe('${esc(x.ba)}')" class="cursor-pointer hover:bg-blue-50 dark:hover:bg-slate-800">${tdc(esc(x.ba), { b: 1, w: 1 })}${tdc(x.cp, { w: 1 })}${tdc(esc(x.setor), { w: 1 })}${tdc(esc(x.estacao || '—'), { w: 1 })}${tdc(esc(x.pon || '—'), { w: 1 })}${tdc(esc(x.cdo || '—'), { w: 1 })}${tdc(fmtEnviada(x.ab), { w: 1 })}${tdc(blIdade(x.h), { r: 1, b: 1, w: 1, st: `style="color:${blCor(x.h)}"` })}${tdc(esc(x.est), { w: 1 })}${tdc(BL_NAF[x.naf], { w: 1 })}${tdc(x.rein ? '<b style="color:#d62828">Sim</b>' : '<span class="text-slate-400">—</span>', { r: 1 })}</tr>`);
-  h += `<div class="mb-4">${r7Tabela('FILA DO BACKLOG · ' + L.length + ' BAs', '#14284b', [{ t: 'BA' }, { t: 'OP.' }, { t: 'SETOR' }, { t: 'ESTAÇÃO' }, { t: 'FACILIDADE' }, { t: 'CDOE/I' }, { t: 'ABERTA EM' }, { t: 'IDADE', r: 1 }, { t: 'ESTADO' }, { t: 'SITUAÇÃO' }, { t: 'REINC.', r: 1 }], lL, 'da mais antiga para a mais nova · amarelo: +24h · laranja: +48h · vermelho: +72h · vinho: +7 dias · clique numa linha para ver os detalhes')}</div>`;
+  const lL = L.map(x => `<tr onclick="blDetalhe('${esc(x.ba)}')" class="cursor-pointer hover:bg-blue-50 dark:hover:bg-slate-800">${tdc(esc(x.ba), { b: 1, w: 1 })}${tdc(x.cp, { w: 1 })}${tdc(esc(x.setor), { w: 1 })}${tdc(esc(x.estacao || '—'), { w: 1 })}${tdc(esc(x.pon || '—'), { w: 1 })}${tdc(esc(x.cdo || '—'), { w: 1 })}${tdc(fmtEnviada(x.ab), { w: 1 })}${tdc(blIdade(x.h), { r: 1, b: 1, w: 1, st: `style="color:${blCor(x.h)}"` })}${tdc(esc(x.est), { w: 1 })}${tdc(BL_NAF[x.naf], { w: 1 })}${tdc(x.rein ? '<b style="color:#d62828">Sim</b>' : '<span class="text-slate-400">—</span>', { r: 1 })}${tdc(x.mass ? '<b style="color:#0e7490">' + esc(x.com) + '</b>' : '<span class="text-slate-400">—</span>', { w: 1 })}</tr>`);
+  h += `<div class="mb-4">${r7Tabela('FILA DO BACKLOG · ' + L.length + ' BAs', '#14284b', [{ t: 'BA' }, { t: 'OP.' }, { t: 'SETOR' }, { t: 'ESTAÇÃO' }, { t: 'FACILIDADE' }, { t: 'CDOE/I' }, { t: 'ABERTA EM' }, { t: 'IDADE', r: 1 }, { t: 'ESTADO' }, { t: 'SITUAÇÃO' }, { t: 'REINC.', r: 1 }, { t: 'MASSIVO' }], lL, 'da mais antiga para a mais nova · amarelo: +24h · laranja: +48h · vermelho: +72h · vinho: +7 dias · clique numa linha para ver os detalhes')}</div>`;
   el.innerHTML = h;
 }
 
