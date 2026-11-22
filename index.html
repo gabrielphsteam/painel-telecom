@@ -1227,7 +1227,7 @@ function renderPainel() {
   if (R.mc && c.massivo) {
     const cm = new Map(); for (const r of S.filteredNoNaf) { if (!isMassivo(r)) continue; const k = r[R.mc]; const o = cm.get(k) || { b: r[R.mb] || '', NIO: 0, TIM: 0, st: new Map() }; const cp = R.cp ? r[R.cp] : ''; if (cp === 'NIO' || cp === 'TIM') o[cp]++; o.st.set(r[R.setor], (o.st.get(r[R.setor]) || 0) + 1); cm.set(k, o); }
     const lm = [...cm.entries()].sort((a, b) => (b[1].NIO + b[1].TIM) - (a[1].NIO + a[1].TIM)).map(([k, o]) => `<tr onclick="setNaf('massivo')" class="cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-800">${tdc(esc(k), { b: 1, w: 1 })}${tdc(esc(o.b), { w: 1 })}${tdc(o.NIO || '', { r: 1 })}${tdc(o.TIM || '', { r: 1 })}${tdc(o.NIO + o.TIM, { r: 1, b: 1 })}${tdc(esc([...o.st.entries()].sort((a, b) => b[1] - a[1]).map(([s, n]) => s + ' (' + n + ')').join(' · ')))}</tr>`);
-    h += `<div class="mb-4">${r7Tabela('MASSIVO (MANUTENÇÃO) · BAs ABERTAS EM COMUNICADO DE INTERRUPÇÃO', '#0e7490', [{ t: 'COMUNICADO' }, { t: 'BA MASSIVO' }, { t: 'NIO', r: 1 }, { t: 'TIM', r: 1 }, { t: 'TOTAL', r: 1 }, { t: 'SETORES' }], lm, 'acesso GPON da BA consta na planilha ANL_BAS_MANUT_COMUNICADO (pasta Manutencao) · quem resolve é a manutenção · clique para filtrar')}</div>`;
+    h += `<div class="mb-4">${r7Tabela('MASSIVO (MANUTENÇÃO) · BAs ABERTAS EM COMUNICADO DE INTERRUPÇÃO', '#0e7490', [{ t: 'COMUNICADO' }, { t: 'BA MASSIVO' }, { t: 'NIO', r: 1 }, { t: 'TIM', r: 1 }, { t: 'TOTAL', r: 1 }, { t: 'SETORES' }], lm, '')}</div>`;
   }
   // top 10
   h += `<div class="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-4">`;
