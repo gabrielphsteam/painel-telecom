@@ -141,6 +141,7 @@
     <div id="v-controle" class="hidden"></div>
     <div id="v-risco" class="hidden"></div>
     <div id="v-dashboard"></div>
+    <div id="v-pos" class="hidden"></div>
     <div id="v-tabela" class="hidden"></div>
     <div id="v-comparativo" class="hidden"></div>
     <div id="v-entrantes" class="hidden"></div>
@@ -331,8 +332,8 @@ const S = {
   cp: { measure: '__count', agg: 'sum', win: 7, dim: '' }
 };
 const GEN_TABS = [['dashboard', 'Dashboard'], ['tabela', 'Dados'], ['comparativo', 'Comparativo']];
-const TEL_TABS = [['painel', '📡 Painel operacional'], ['ofensores', 'Ofensores'], ['reinc', 'Reincidência'], ['backlog', '⏳ Backlog'], ['controle', 'Controle por hora'], ['risco', 'Área de risco'], ['entrantes', '📈 Entrantes'], ['jumper', '🔌 Jumper']];
-const ALL_IDS = ['painel', 'ofensores', 'reinc', 'backlog', 'controle', 'risco', 'entrantes', 'jumper', 'dashboard', 'tabela', 'comparativo'];
+const TEL_TABS = [['painel', '📡 Painel operacional'], ['ofensores', 'Ofensores'], ['reinc', 'Reincidência'], ['backlog', '⏳ Backlog'], ['controle', 'Controle por hora'], ['risco', 'Área de risco'], ['entrantes', '📈 Entrantes'], ['jumper', '🔌 Jumper'], ['pos', '🚦 Pós-fechamento']];
+const ALL_IDS = ['painel', 'ofensores', 'reinc', 'backlog', 'controle', 'risco', 'entrantes', 'jumper', 'pos', 'dashboard', 'tabela', 'comparativo'];
 const telOn = () => !!(S.tel && S.tel.on);
 const tabsList = () => telOn() ? TEL_TABS.concat(GEN_TABS.filter(t => t[0] !== 'comparativo' && t[0] !== 'dashboard')) : GEN_TABS; // no modo telecom, Entrantes substitui o Comparativo
 const OPLBL = { key: '=', in: 'em', eq: '=', neq: '≠', contains: 'contém', gt: '>', gte: '≥', lt: '<', lte: '≤', empty: 'vazio', notempty: 'preenchido' };
@@ -610,8 +611,8 @@ function renderActive() {
   if (!tabsList().some(t => t[0] === S.tab)) { S.tab = telOn() ? 'painel' : 'dashboard'; buildTabs(); }
   ALL_IDS.forEach(id => $('#v-' + id).classList.toggle('hidden', id !== S.tab));
   const F = S.filtered;
-  if (!F.length && !['controle', 'entrantes', 'jumper', 'backlog'].includes(S.tab)) { $('#v-' + S.tab).innerHTML = `<div class="card p-10 text-center text-slate-500">Nenhum registro encontrado com os filtros atuais. <button class="btn mt-3" onclick="clearAll()">Limpar filtros</button></div>`; return; }
-  ({ dashboard: renderDashboard, tabela: renderTable, comparativo: renderComp, painel: renderPainel, ofensores: renderOfensores, reinc: renderReinc, controle: renderControle, risco: renderRisco, entrantes: renderEntrantes, jumper: renderJumper, backlog: renderBacklog })[S.tab]();
+  if (!F.length && !['controle', 'entrantes', 'jumper', 'backlog', 'pos'].includes(S.tab)) { $('#v-' + S.tab).innerHTML = `<div class="card p-10 text-center text-slate-500">Nenhum registro encontrado com os filtros atuais. <button class="btn mt-3" onclick="clearAll()">Limpar filtros</button></div>`; return; }
+  ({ dashboard: renderDashboard, tabela: renderTable, comparativo: renderComp, painel: renderPainel, ofensores: renderOfensores, reinc: renderReinc, controle: renderControle, risco: renderRisco, entrantes: renderEntrantes, jumper: renderJumper, backlog: renderBacklog, pos: renderPos })[S.tab]();
 }
 function clearAll() {
   S.filters = []; S.search = ''; S.dateFrom = S.dateTo = null; $('#search').value = ''; $('#dateFrom').value = ''; $('#dateTo').value = ''; S.page = 1; refresh();
@@ -1406,6 +1407,91 @@ function renderJumper() {
 }
 
 /* ============================================================
+   PÓS-FECHAMENTO: sinal hora a hora das BAs fechadas no dia (planilha ANL_BAS_STATUS_NAF_INSTALACAO_REPARO).
+   Fonte: naf_pos.json { ext, l: [[ba, cp, tipo REP|INS, fim, encerramento, 'h0|h1|...|h23']] }
+   Célula: A = alinhado (verde) · T = atenuado (amarelo) · S = sem medição / desalinhado (vermelho) · vazio = sem leitura.
+   Classificação olha só as leituras DEPOIS da hora do fechamento:
+   vermelho = 2+ leituras seguidas sem medição no fim (ou nunca teve sinal) · amarelo = última leitura atenuada ·
+   verde = última leitura alinhada · aguardando = fechada há pouco, ainda sem leitura. Um "sem medição" isolado é ignorado.
+   Sem técnico. Clique na linha leva a BA para a aba Dados.
+   ============================================================ */
+const POS_C = { A: '#16a34a', T: '#eab308', S: '#dc2626', '': '#e2e8f0' };
+const POS_CAT = { verde: ['Alinhado', '#16a34a'], amar: ['Atenuado', '#eab308'], verm: ['Sem medição', '#dc2626'], agu: ['Aguardando leitura', '#94a3b8'] };
+const POS_TIPO = { REP: 'Reparo', INS: 'Instalação' };
+async function loadPosInfo() {
+  try {
+    const r = await fetch('naf_pos.json?t=' + Date.now(), { cache: 'no-store' }); if (!r.ok) return;
+    const txt = await r.text(); if (S.posSig === txt) return; S.posSig = txt; S.pos = JSON.parse(txt);
+    if (S.tel && S.tab === 'pos') renderActive();
+  } catch (e) { }
+}
+function posRows() {
+  const P = S.pos; if (!P || !P.l) return [];
+  return P.l.map(a => {
+    const hs = String(a[5] || '').split('|').map(c => ({ k: c ? c[0] : '', v: c.length > 1 ? c.slice(1) : '' }));
+    const fh = +String(a[3]).slice(11, 13);
+    const post = hs.slice(fh + 1).filter(c => c.k), pre = hs.slice(0, fh + 1).filter(c => c.k);
+    let cat, eff = null, run = 0;
+    for (let i = post.length - 1; i >= 0 && post[i].k === 'S'; i--) run++;
+    if (!post.length) cat = 'agu';
+    else if (run >= 2 || run === post.length) cat = 'verm';
+    else { eff = post.slice(0, post.length - run).pop(); cat = eff.k === 'A' ? 'verde' : eff.k === 'T' ? 'amar' : 'verm'; }
+    const preK = pre.length ? pre[pre.length - 1].k : '';
+    const norm = cat === 'verde' && preK !== 'A' && pre.some(c => c.k !== 'A');
+    // piorou: depois de fechar chegou a ficar alinhado e depois caiu
+    const caiu = (cat === 'verm' || cat === 'amar') && (post.some(c => c.k === 'A') || (hs[fh] && hs[fh].k === 'A'));
+    const ult = eff || post[post.length - 1] || pre[pre.length - 1] || null;
+    return { ba: a[0], cp: a[1], tipo: a[2], fim: a[3], enc: a[4], hs, fh, cat, norm, caiu, ult };
+  });
+}
+function posOk(x, F, skip) {
+  if (skip !== 'op' && F.op && x.cp !== F.op) return false;
+  if (skip !== 'tipo' && F.tipo && x.tipo !== F.tipo) return false;
+  if (skip !== 'cat') { if (F.cat === 'norm') { if (!x.norm) return false; } else if (F.cat) { if (x.cat !== F.cat) return false; } else if (x.cat !== 'verm' && x.cat !== 'amar') return false; }
+  return true;
+}
+function posSet(k, v) { const F = S.posF; F[k] = F[k] === v ? '' : v; renderActive(); }
+function posCard(tipo, cat) { const F = S.posF; if (F.tipo === tipo && F.cat === cat) { F.tipo = ''; F.cat = ''; } else { F.tipo = tipo; F.cat = cat; } renderActive(); }
+function posClear() { S.posF = { op: '', tipo: '', cat: '' }; renderActive(); }
+/* leva a BA para a aba Dados (tira os filtros da barra e o "somente abertas", busca pelo número da BA) */
+function posDados(ba) {
+  S.filters = []; S.dateFrom = S.dateTo = null; if (S.tel) { S.tel.openOnly = false; S.tel.naf = ''; }
+  S.search = String(ba).toLowerCase(); $('#search').value = ba; S.page = 1; S.tab = 'tabela';
+  buildTelBar(); buildTabs(); refresh(); window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+function renderPos() {
+  const el = $('#v-pos'), P = S.pos;
+  S.posF = S.posF || { op: '', tipo: '', cat: '' };
+  const F = S.posF, ext = P && P.ext ? P.ext.slice(8, 10) + '/' + P.ext.slice(5, 7) + ' ' + P.ext.slice(11, 16) : '';
+  let h = bandTitle('PÓS-FECHAMENTO · SINAL DO CLIENTE DEPOIS DA BA FECHADA', (ext ? 'Atualizado ' + ext + ' · ' : '') + 'clique nos cards para filtrar · clique na BA para abrir na aba Dados');
+  if (!P || !P.l) { el.innerHTML = h + `<div class="card p-8 text-center text-slate-500">Os dados aparecem quando o robô publicar a próxima planilha ANL_BAS_STATUS_NAF_INSTALACAO_REPARO.</div>`; return; }
+  const D = posRows();
+  // cards: por tipo, respeitando só o filtro de operadora
+  const Dop = D.filter(x => !F.op || x.cp === F.op);
+  const box = (tipo) => {
+    const T = Dop.filter(x => x.tipo === tipo), n = c => T.filter(x => x.cat === c).length, nn = T.filter(x => x.norm).length;
+    const c = (cat, lbl, cor, v, sub) => `<div onclick="posCard('${tipo}','${cat}')" class="cursor-pointer rounded-lg p-2 text-center hover:bg-slate-100 dark:hover:bg-slate-800 ${F.tipo === tipo && F.cat === cat ? 'ring-2 ring-blue-500' : ''}"><div class="text-3xl font-extrabold tabular-nums" style="color:${cor}">${v}</div><div class="text-[11px] font-semibold text-slate-600 dark:text-slate-300">${lbl}</div>${sub ? `<div class="text-[10px] text-slate-400">${sub}</div>` : ''}</div>`;
+    return `<div class="card p-3"><div class="flex items-baseline justify-between mb-1"><div class="font-extrabold text-sm">${tipo === 'REP' ? 'REPAROS FECHADOS' : 'INSTALAÇÕES FECHADAS'} HOJE</div><div class="text-2xl font-extrabold">${T.length}</div></div>
+      <div class="grid grid-cols-4 gap-1">${c('verde', '🟢 Alinhado', POS_C.A, n('verde'), tipo === 'REP' ? `<span onclick="event.stopPropagation();posCard('REP','norm')" class="underline ${F.cat === 'norm' ? 'font-bold text-blue-600' : ''}">${nn} normalizaram</span>` : '')}${c('amar', '🟡 Atenuado', '#ca8a04', n('amar'))}${c('verm', '🔴 Sem medição', POS_C.S, n('verm'))}${c('agu', '⚪ Aguardando', POS_CAT.agu[1], n('agu'))}</div></div>`;
+  };
+  const ops = ['NIO', 'TIM'].map(o => `<span onclick="posSet('op','${o}')" class="cursor-pointer rounded-full border px-3 py-1 font-semibold ${F.op === o ? 'text-white border-transparent' : 'border-slate-300 dark:border-slate-600'}" style="${F.op === o ? 'background:' + (o === 'NIO' ? '#375623' : '#1f3864') : ''}">${o}</span>`).join('');
+  const ativo = F.op || F.tipo || F.cat;
+  h += `<div class="flex flex-wrap items-center gap-2 mb-3 text-xs text-slate-500">${ops}${ativo ? `<span onclick="posClear()" class="cursor-pointer underline font-semibold" style="color:#2563eb">limpar filtros</span>` : ''}</div>`;
+  h += `<div class="grid grid-cols-1 lg:grid-cols-2 gap-3 mb-4">${box('REP')}${box('INS')}</div>`;
+  // lista
+  const L = D.filter(x => posOk(x, F)).sort((a, b) => ({ verm: 0, amar: 1, agu: 2, verde: 3 })[a.cat] - ({ verm: 0, amar: 1, agu: 2, verde: 3 })[b.cat] || (b.caiu - a.caiu) || a.fim.localeCompare(b.fim));
+  const hmax = Math.max(...D.map(x => { let i = 23; while (i > 0 && !x.hs[i].k) i--; return i; }));
+  const strip = x => `<div class="flex items-center" style="gap:2px">${x.hs.slice(0, hmax + 1).map((c, i) => `<span title="${i}h · ${c.k ? { A: 'Alinhado', T: 'Atenuado', S: 'Sem medição' }[c.k] || c.k : 'sem leitura'}${c.v ? ' (' + c.v + ' dBm)' : ''}${i === x.fh ? ' · FECHADA NESTA HORA' : ''}" style="display:inline-block;width:11px;height:14px;border-radius:2px;background:${POS_C[c.k] || '#94a3b8'};${i === x.fh ? 'outline:2px solid #0f172a;outline-offset:1px' : ''}"></span>`).join('')}</div>`;
+  const agora = x => { const u = x.ult, cor = POS_CAT[x.cat][1]; return `<span class="px-2 py-0.5 rounded-full text-[11px] font-semibold text-white" style="background:${cor}">${POS_CAT[x.cat][0]}${u && u.v ? ' ' + u.v : ''}</span>${x.caiu ? ' <span class="text-[11px] font-bold" style="color:#dc2626" title="Alinhou depois de fechar e depois caiu">↘ caiu</span>' : ''}${x.norm ? ' <span class="text-[11px] text-slate-500">normalizou</span>' : ''}`; };
+  const lL = L.map(x => `<tr onclick="posDados('${esc(x.ba)}')" title="Abrir na aba Dados" class="cursor-pointer hover:bg-blue-50 dark:hover:bg-slate-800">${tdc(esc(x.ba), { b: 1, w: 1 })}${tdc(x.cp, { w: 1 })}${tdc(POS_TIPO[x.tipo] || x.tipo, { w: 1 })}${tdc(x.fim.slice(11, 16), { r: 1, w: 1 })}${tdc(agora(x), { w: 1 })}${tdc(strip(x), { w: 1 })}</tr>`);
+  const tit = F.cat === 'norm' ? 'REPAROS QUE NORMALIZARAM' : F.cat ? POS_CAT[F.cat][0].toUpperCase() : 'ALARMES (SEM MEDIÇÃO E ATENUADO)';
+  const corT = F.cat === 'norm' || F.cat === 'verde' ? '#16a34a' : F.cat === 'amar' ? '#a16207' : F.cat === 'agu' ? '#64748b' : '#b91c1c';
+  h += r7Tabela(tit + (F.tipo ? ' · ' + (F.tipo === 'REP' ? 'REPAROS' : 'INSTALAÇÕES') : '') + ' · ' + L.length, corT, [{ t: 'BA' }, { t: 'OP.' }, { t: 'TIPO' }, { t: 'FECHADA', r: 1 }, { t: 'AGORA' }, { t: 'SINAL HORA A HORA (0h → ' + hmax + 'h · contorno = hora do fechamento)' }], lL, 'clique na BA para ver a nota completa na aba Dados');
+  h += `<div class="flex flex-wrap gap-4 text-[11px] text-slate-500 mt-2">${[['A', 'Alinhado'], ['T', 'Atenuado'], ['S', 'Sem medição (desalinhado)'], ['', 'Sem leitura']].map(([k, t]) => `<span><i style="display:inline-block;width:10px;height:10px;border-radius:2px;margin-right:4px;background:${POS_C[k]}"></i>${t}</span>`).join('')}<span>Vermelho só conta com 2 horas seguidas sem medição depois de fechar.</span></div>`;
+  el.innerHTML = h;
+}
+
+/* ============================================================
    BACKLOG: reparos abertos antigos (+24h · +48h · +72h · +7 dias), tudo clicável.
    Fonte: a própria extração carregada (BAs de reparo abertas TIM/NIO); idade = extração − abertura da BA.
    Independe dos filtros da barra de cima. Sem técnico, documento ou dados de cliente.
@@ -1960,7 +2046,7 @@ async function loadRiscoInfo() {
 }
 async function syncSnaps(first) {
   if (location.protocol === 'file:') return false;
-  loadRiscoInfo(); loadUltima(); loadReincInfo(); loadEntInfo(); loadJmpInfo();
+  loadRiscoInfo(); loadUltima(); loadReincInfo(); loadEntInfo(); loadJmpInfo(); loadPosInfo();
   const ch = await loadSnaps(); if (!ch) return false;
   if (S.tel) {
     const st = snapStore();
