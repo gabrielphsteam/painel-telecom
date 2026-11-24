@@ -467,6 +467,8 @@ function loadData(aoa, name, quiet) {
   S.visible = S.cols.filter(c => c.kind !== 'empty').slice(0, 12).map(c => c.name);
   const pr = PRIO_COLS.filter(n => S.cols.some(c => c.name === n && c.kind !== 'empty'));
   if (pr.length >= 3) S.visible = [...new Set([...pr, ...S.visible])];
+  S.visible = S.visible.filter(n => n !== 'ds_sistema_abertura');
+  if (S.cols.some(c => c.name === 'flag_reparo' && c.kind !== 'empty')) S.visible = [...new Set([...S.visible, 'flag_reparo'])];
   $('#fileName').textContent = name + ' · ' + S.rows.length.toLocaleString('pt-BR') + ' linhas · ' + S.cols.length + ' colunas' + (S.src ? ' · atualizado em ' + (S.src.lm || new Date()).toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' }) : '');
   $('#empty').classList.add('hidden'); $('#app').classList.remove('hidden');
   document.querySelectorAll('.hidden-until-data').forEach(b => b.classList.remove('hidden'));
@@ -792,7 +794,7 @@ function sortedRows() {
 function sortBy(c) { S.sort = { col: c, dir: S.sort.col === c ? -S.sort.dir : 1 }; renderTable(); }
 function toggleCol(c, on) { S.visible = S.cols.map(x => x.name).filter(n => n === c ? on : S.visible.includes(n)); renderTable(); }
 function goPage(p) { S.page = p; renderTable(); $('#v-tabela').scrollIntoView({ behavior: 'smooth', block: 'start' }); }
-const PRIO_COLS = ['cd_nrba', 'ds_macro_atividade', 'cd_documento_associado', 'cd_gpon', 'cd_setor', 'cd_estacao', 'cp', 'cdo', 'area_risco', 'area_risco_motivo', 'dh_abertura_ba', 'ds_logradouro', 'ds_numero', 'ds_complemento_tipo', 'ds_complemento_desc', 'ds_bairro'];
+const PRIO_COLS = ['cd_nrba', 'ds_macro_atividade', 'cd_documento_associado', 'cd_gpon', 'cd_setor', 'cd_estacao', 'cp', 'flag_reparo', 'cdo', 'area_risco', 'area_risco_motivo', 'dh_abertura_ba', 'ds_logradouro', 'ds_numero', 'ds_complemento_tipo', 'ds_complemento_desc', 'ds_bairro'];
 function visCols() {
   const vc = S.cols.filter(c => S.visible.includes(c.name)), ix = n => { const i = PRIO_COLS.indexOf(n); return i < 0 ? 99 : i; };
   return vc.map((c, i) => [c, i]).sort((a, b) => ix(a[0].name) - ix(b[0].name) || a[1] - b[1]).map(x => x[0]);
