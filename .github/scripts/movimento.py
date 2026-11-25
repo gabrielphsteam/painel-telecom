@@ -34,8 +34,10 @@ def conjuntos(rows):
         if r.get('massivo_comunicado'):
             mass[ba] = dict(info, com=r.get('massivo_comunicado'))
         v = r.get('area_risco') or ''
-        if v and not RISCO_LIVRE.match(v):
-            risco[ba] = dict(info, mot=r.get('area_risco_motivo') or v)
+        mot = r.get('area_risco_motivo') or ''
+        # só conta área de risco com OBRA DESCARTADA (status IMPEDIMENTO); o INDETERMINADO fica de fora
+        if v and not RISCO_LIVRE.match(v) and re.search(r'obra descartada', mot, re.I):
+            risco[ba] = dict(info, mot=mot)
     return ext, abertas, mass, risco, todas
 
 
