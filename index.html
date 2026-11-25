@@ -1181,7 +1181,7 @@ function renderRisco() {
   const el = $('#v-risco'), R = TR(), F = S.filtered, I = S.risco;
   const dt = iso => { if (!iso) return ''; const [d, h] = String(iso).split('T'); return isoBr(d.slice(0, 10)) + (h ? ' ' + h.slice(0, 5) : ''); };
   const sub = I ? 'Base: ' + I.arquivo + ' · arquivo de ' + dt(I.atualizado) + (I.base_vtal ? ' · status V.tal de ' + isoBr(String(I.base_vtal).slice(0, 10)) : '') : '';
-  let h = bandTitle('ÁREA DE RISCO: CDOs COM BLOQUEIO', sub || 'Cruzamento das BAs com a planilha de área de risco', TCOL.purple);
+  let h = bandTitle('ÁREA DE RISCO: CDOs COM BLOQUEIO', sub || 'Cruzamento das BAs com a planilha de área de risco', TCOL.purple) + movCard('risco');
   if (!R.ar) {
     el.innerHTML = h + noCols('As BAs ainda não foram cruzadas com a base de área de risco.<br>Coloque a planilha de área de risco na pasta <b>Area_de_Risco</b> do Drive: a partir da próxima planilha de hora em hora, o cruzamento aparece aqui.');
     return;
@@ -1227,6 +1227,7 @@ function renderPainel() {
   const pc = v => pct(v, c.total).toFixed(1).replace('.', ',') + '%';
   let h = bandTitle('PAINEL OPERACIONAL DE MONITORAMENTO DE REPAROS', (ms ? 'Atualizado: ' + fmtEnviada(ms) + '  ·  ' : '') + F.length.toLocaleString('pt-BR') + ' BAs no recorte atual' + (S.tel.openOnly ? ' (somente abertas)' : ''));
   h += `<div class="grid grid-cols-2 md:grid-cols-6 gap-3 mb-4">${tile('', 'TOTAL DE BAs', fmt(c.total), TCOL.navy, 'sem leitura NAF: ' + c.nd, true)}${tile('com', 'COM POTÊNCIA', fmt(c.com), '#00a651', pc(c.com))}${tile('sem', 'SEM POTÊNCIA', fmt(c.sem), '#d62828', pc(c.sem))}${tile('degr', 'DEGRADAÇÃO', fmt(c.degr), '#c08400', pc(c.degr) + ' · ONT &lt; ' + S.tel.thr + ' dBm')}${tile('risco', 'ÁREA DE RISCO', fmt(c.risco), TCOL.purple, arSub())}${tile('massivo', 'MASSIVO (MANUT.)', fmt(c.massivo), '#0e7490', R.ma ? 'acesso em comunicado · base ' + esc(massArq().slice(8, 10) + '/' + massArq().slice(5, 7) + ' ' + massArq().slice(11, 16)) : 'aguardando o robô')}</div>`;
+  h += movCard('massivo');
   if (R.mc && c.massivo) {
     const cm = new Map(); for (const r of S.filteredNoNaf) { if (!isMassivo(r)) continue; const k = r[R.mc]; const o = cm.get(k) || { b: r[R.mb] || '', NIO: 0, TIM: 0, st: new Map() }; const cp = R.cp ? r[R.cp] : ''; if (cp === 'NIO' || cp === 'TIM') o[cp]++; o.st.set(r[R.setor], (o.st.get(r[R.setor]) || 0) + 1); cm.set(k, o); }
     const lm = [...cm.entries()].sort((a, b) => (b[1].NIO + b[1].TIM) - (a[1].NIO + a[1].TIM)).map(([k, o]) => `<tr onclick="setNaf('massivo')" class="cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-800">${tdc(esc(k), { b: 1, w: 1 })}${tdc(esc(o.b), { w: 1 })}${tdc(o.NIO || '', { r: 1 })}${tdc(o.TIM || '', { r: 1 })}${tdc(o.NIO + o.TIM, { r: 1, b: 1 })}${tdc(esc([...o.st.entries()].sort((a, b) => b[1] - a[1]).map(([s, n]) => s + ' (' + n + ')').join(' · ')))}</tr>`);
@@ -1420,6 +1421,34 @@ function renderJumper() {
 const POS_C = { A: '#16a34a', T: '#eab308', S: '#dc2626', '': '#e2e8f0' };
 const POS_CAT = { verde: ['Alinhado', '#16a34a'], amar: ['Atenuado', '#eab308'], verm: ['Sem medição', '#dc2626'], agu: ['Aguardando leitura', '#94a3b8'] };
 const POS_TIPO = { REP: 'Reparo', INS: 'Instalação' };
+/* ---------- MOVIMENTO DO DIA: BAs que saíram (tramitadas) de massivo e de área de risco ---------- */
+async function loadMovInfo() {
+  try {
+    const r = await fetch('movimento.json?t=' + Date.now(), { cache: 'no-store' }); if (!r.ok) return;
+    const txt = await r.text(); if (S.movSig === txt) return; S.movSig = txt; S.mov = JSON.parse(txt);
+    if (S.tel && (S.tab === 'painel' || S.tab === 'risco')) renderActive();
+  } catch (e) { }
+}
+function movToggle(k) { S.movOpen = S.movOpen || {}; S.movOpen[k] = !S.movOpen[k]; renderActive(); }
+function movCard(k) {
+  const M = S.mov; if (!M || !M[k]) return '';
+  const g = Object.entries(M[k]), sai = g.filter(([, x]) => x.sai).sort((a, b) => (b[1].sai || '').localeCompare(a[1].sai || '')), dentro = g.length - sai.length;
+  const ent = g.filter(([, x]) => !x.b).length, fech = sai.filter(([, x]) => x.mot_sai === 'fechada').length;
+  const cor = k === 'massivo' ? '#0e7490' : '#6b2d9b', nome = k === 'massivo' ? 'MASSIVO (MANUTENÇÃO)' : 'ÁREA DE RISCO';
+  const fim = k === 'massivo' ? 'saiu do comunicado' : 'CDO liberada';
+  const dia = M.dia ? M.dia.slice(8, 10) + '/' + M.dia.slice(5, 7) : '', at = M.ext ? M.ext.slice(11, 16) : '';
+  const aberto = S.movOpen && S.movOpen[k];
+  let h = `<div class="card mb-4 overflow-hidden"><div onclick="movToggle('${k}')" class="flex flex-wrap items-center gap-x-6 gap-y-1 px-4 py-3 cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-800/60" title="Clique para ver as BAs que saíram"><div class="text-xs font-bold tracking-wide text-white px-2 py-1 rounded" style="background:${cor}">${nome} · HOJE ${dia}</div>
+    <div class="text-sm"><span class="text-2xl font-extrabold" style="color:${cor}">${fmt(sai.length)}</span> <span class="text-slate-600 dark:text-slate-300">tramitadas</span> <span class="text-[11px] text-slate-500">(${fmt(fech)} concluídas · ${fmt(sai.length - fech)} seguem abertas)</span></div>
+    <div class="text-sm text-slate-600 dark:text-slate-300"><b>${fmt(dentro)}</b> ainda na lista</div><div class="text-sm text-slate-600 dark:text-slate-300"><b>${fmt(ent)}</b> entraram durante o dia</div>
+    <div class="ml-auto text-[11px] text-slate-400">até ${at} · ${aberto ? 'ocultar ▲' : 'ver BAs ▼'}</div></div>`;
+  if (aberto) {
+    h += `<div class="overflow-auto max-h-[22rem] border-t border-slate-200 dark:border-slate-700"><table class="w-full text-sm"><thead><tr class="text-left text-[11px] uppercase text-slate-500 bg-slate-50 dark:bg-slate-800"><th class="px-3 py-1.5">BA</th><th class="px-3 py-1.5">Oper.</th><th class="px-3 py-1.5">Setor</th><th class="px-3 py-1.5">Entrou</th><th class="px-3 py-1.5">Saiu</th><th class="px-3 py-1.5">Situação</th></tr></thead><tbody>`
+      + (sai.length ? sai.map(([ba, x]) => `<tr onclick="posDados('${esc(ba)}')" title="Abrir na aba Dados" class="border-t border-slate-100 dark:border-slate-800 cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-800/60"><td class="px-3 py-1.5 font-semibold tabular-nums">${esc(ba)}</td><td class="px-3 py-1.5">${esc(x.cp)}</td><td class="px-3 py-1.5">${esc(x.setor)}</td><td class="px-3 py-1.5 tabular-nums">${x.b ? 'já estava' : esc(x.ent)}</td><td class="px-3 py-1.5 tabular-nums">${esc(x.sai)}</td><td class="px-3 py-1.5 ${x.mot_sai === 'fechada' ? 'text-green-700 dark:text-green-400' : 'text-amber-700 dark:text-amber-400'}">${x.mot_sai === 'fechada' ? 'BA concluída' : fim + ' · BA segue aberta'}</td></tr>`).join('') : `<tr><td colspan="6" class="px-3 py-4 text-center text-slate-500">Nenhuma BA saiu da lista hoje.</td></tr>`)
+      + `</tbody></table></div>`;
+  }
+  return h + `</div>`;
+}
 async function loadPosInfo() {
   try {
     const r = await fetch('naf_pos.json?t=' + Date.now(), { cache: 'no-store' }); if (!r.ok) return;
@@ -2049,7 +2078,7 @@ async function loadRiscoInfo() {
 }
 async function syncSnaps(first) {
   if (location.protocol === 'file:') return false;
-  loadRiscoInfo(); loadUltima(); loadReincInfo(); loadEntInfo(); loadJmpInfo(); loadPosInfo();
+  loadRiscoInfo(); loadUltima(); loadReincInfo(); loadEntInfo(); loadJmpInfo(); loadPosInfo(); loadMovInfo();
   const ch = await loadSnaps(); if (!ch) return false;
   if (S.tel) {
     const st = snapStore();
