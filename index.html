@@ -1323,7 +1323,7 @@ const jmpIdade = h => h >= 24 ? Math.floor(h / 24) + 'd ' + String(Math.floor(h 
 const jmpCor = h => h >= 72 ? '#dc2626' : h >= 48 ? '#ea580c' : '#6b7280';
 async function loadJmpInfo() {
   try {
-    const r = await fetch('jumper.json?t=' + Date.now(), { cache: 'no-store' }); if (!r.ok) return;
+    const r = await gFetch('jumper.json'); if (!r.ok) return;
     const txt = await r.text(); if (S.jmpSig === txt) return; S.jmpSig = txt; S.jmp = JSON.parse(txt);
     if (S.tel && S.tab === 'jumper') renderActive();
   } catch (e) { }
@@ -1427,7 +1427,7 @@ const POS_TIPO = { REP: 'Reparo', INS: 'Instalação' };
 /* ---------- MOVIMENTO DO DIA: BAs que saíram (tramitadas) de massivo e de área de risco ---------- */
 async function loadMovInfo() {
   try {
-    const r = await fetch('movimento.json?t=' + Date.now(), { cache: 'no-store' }); if (!r.ok) return;
+    const r = await gFetch('movimento.json'); if (!r.ok) return;
     const txt = await r.text(); if (S.movSig === txt) return; S.movSig = txt; S.mov = JSON.parse(txt);
     if (S.tel && (S.tab === 'painel' || S.tab === 'risco')) renderActive();
   } catch (e) { }
@@ -1454,7 +1454,7 @@ function movCard(k) {
 }
 async function loadPosInfo() {
   try {
-    const r = await fetch('naf_pos.json?t=' + Date.now(), { cache: 'no-store' }); if (!r.ok) return;
+    const r = await gFetch('naf_pos.json'); if (!r.ok) return;
     const txt = await r.text(); if (S.posSig === txt) return; S.posSig = txt; S.pos = JSON.parse(txt);
     if (S.tel && S.tab === 'pos') renderActive();
   } catch (e) { }
@@ -1648,7 +1648,7 @@ const mLbl = m => ENT_MES[+m.slice(5, 7) - 1] + '/' + m.slice(2, 4);
 
 async function loadEntInfo() {
   try {
-    const r = await fetch('entrantes.json?t=' + Date.now(), { cache: 'no-store' }); if (!r.ok) return;
+    const r = await gFetch('entrantes.json'); if (!r.ok) return;
     const txt = await r.text(); if (S.entSig === txt) return; S.entSig = txt; S.ent = JSON.parse(txt);
     if (S.tel && S.tab === 'entrantes') renderActive();
   } catch (e) { }
@@ -2033,24 +2033,44 @@ function stateRestore(k) {
   if (S.tel && k.tel) { Object.assign(S.tel, k.tel); updateModeBtn(); buildTelBar(); }
   S.tab = k.tab; buildTabs(); refresh();
 }
+/* Economia de dados: antes de baixar de novo um arquivo grande, pergunta ao site só o "carimbo" dele (pedido HEAD, sem conteúdo).
+   Se o carimbo for igual ao do arquivo que o painel já tem, não baixa. Se o site não mandar carimbo, se a pergunta falhar
+   ou se já foram 2 checagens seguidas sem mudança, baixa normalmente (como era antes). O botão Atualizar sempre baixa tudo. */
+const GATE = new Set(['atividades.csv', 'snapshots.json', 'reincidencia.json', 'entrantes.json', 'naf_pos.json']);
+const GATE_MAX_SKIPS = 2, GATE_VAL = {};
+const gateTag = r => { const e = r.headers.get('etag'), l = r.headers.get('last-modified'), n = r.headers.get('content-length'); return e ? 'e:' + e.replace(/^W\//, '') : (l && n) ? 'l:' + l + '|' + n : null; };
+const tUrl = f => f + (f.includes('?') ? '&' : '?') + 't=' + Date.now();
+async function gFetch(file, force, manualCommit) {
+  const key = file.split('?')[0], o = GATE_VAL[key], skip = !force && !S.forceAll && GATE.has(key.split('/').pop()) && o && o.skips < GATE_MAX_SKIPS;
+  if (skip) {
+    try { const h = await fetch(tUrl(file), { method: 'HEAD', cache: 'no-store' }); if (h.ok && gateTag(h) === o.v) { o.skips++; return { ok: false, unchanged: true }; } } catch (e) { }
+  }
+  const r = await fetch(tUrl(file), { cache: 'no-store' });
+  r.gateKey = key; r.gateTag = r.ok ? gateTag(r) : null;
+  if (!manualCommit) gateCommit(r);
+  return r;
+}
+function gateCommit(r) { if (r && r.gateKey) { if (r.gateTag) GATE_VAL[r.gateKey] = { v: r.gateTag, skips: 0 }; else delete GATE_VAL[r.gateKey]; } }
 async function loadFromUrl(url, mode) {
   try {
-    const r = await fetch(url + (url.includes('?') ? '&' : '?') + 't=' + Date.now(), { cache: 'no-store' });
+    const r = await gFetch(url, mode !== 'auto', true);
+    if (r.unchanged) return 'same';
     if (!r.ok) throw new Error('HTTP ' + r.status);
     const buf = await r.arrayBuffer(), sig = buf.byteLength + ':' + checksum(buf);
-    if (mode === 'auto' && (!S.src || S.src.sig === sig)) return 'same';
-    if (mode === 'manual' && S.src && S.src.sig === sig) return 'same';
+    if (mode === 'auto' && !S.src) return 'same';
+    if (mode !== 'boot' && S.src && S.src.sig === sig) { gateCommit(r); return 'same'; }
     const keep = (S.src && S.rows.length) ? stateSnapshot() : null, lm = r.headers.get('last-modified');
     S.src = { url, sig, lm: lm ? new Date(lm) : null };
     loadData(bufToAoa(buf, url), url.split('?')[0].split('/').pop(), mode !== 'boot');
     if (keep) stateRestore(keep);
+    gateCommit(r);
     return 'updated';
   } catch (e) { console.warn('Dados publicados indisponíveis:', e.message); return 'err'; }
 }
 /* snapshots do "Controle por hora" publicados (snapshots.json), gerados automaticamente a cada envio de planilha */
 async function loadSnaps() {
   try {
-    const r = await fetch('snapshots.json?t=' + Date.now(), { cache: 'no-store' });
+    const r = await gFetch('snapshots.json');
     if (!r.ok) return false;
     const txt = await r.text(); if (S.snapSig === txt) return false; S.snapSig = txt;
     const o = JSON.parse(txt), st = snapStore();
@@ -2060,21 +2080,21 @@ async function loadSnaps() {
 }
 async function loadUltima() {
   try {
-    const r = await fetch('ultima.json?t=' + Date.now(), { cache: 'no-store' }); if (!r.ok) return;
+    const r = await gFetch('ultima.json'); if (!r.ok) return;
     const txt = await r.text(); if (S.ultimaSig === txt) return; S.ultimaSig = txt; S.ultima = JSON.parse(txt);
     if (S.tel && S.tab === 'painel') renderActive();
   } catch (e) { }
 }
 async function loadReincInfo() {
   try {
-    const r = await fetch('reincidencia.json?t=' + Date.now(), { cache: 'no-store' }); if (!r.ok) return;
+    const r = await gFetch('reincidencia.json'); if (!r.ok) return;
     const txt = await r.text(); if (S.reincSig === txt) return; S.reincSig = txt; S.reincInfo = JSON.parse(txt);
     if (S.tel && S.tab === 'reinc') renderActive();
   } catch (e) { }
 }
 async function loadRiscoInfo() {
   try {
-    const r = await fetch('risco_info.json?t=' + Date.now(), { cache: 'no-store' }); if (!r.ok) return;
+    const r = await gFetch('risco_info.json'); if (!r.ok) return;
     const txt = await r.text(); if (S.riscoSig === txt) return; S.riscoSig = txt; S.risco = JSON.parse(txt);
     if (S.tel && S.tab === 'risco') renderActive();
   } catch (e) { }
@@ -2176,7 +2196,7 @@ function downloadPublic() {
   document.addEventListener('keydown', e => { if (e.key === 'Escape') { closeModal(); closePub(); } });
   $('#pubModal').addEventListener('click', e => { if (e.target.id === 'pubModal') closePub(); });
   $('#btnPub').addEventListener('click', openPublish); $('#pubDl').addEventListener('click', downloadPublic);
-  $('#btnRefresh').addEventListener('click', async () => { const r = await syncAll(S.srcUrl, 'manual'); toast(r === 'same' ? 'Já está com os dados mais recentes.' : r === 'updated' ? 'Dados atualizados!' : 'Não consegui buscar o arquivo publicado.', r === 'err'); });
+  $('#btnRefresh').addEventListener('click', async () => { S.forceAll = true; let r; try { r = await syncAll(S.srcUrl, 'manual'); } finally { S.forceAll = false; } toast(r === 'same' ? 'Já está com os dados mais recentes.' : r === 'updated' ? 'Dados atualizados!' : 'Não consegui buscar o arquivo publicado.', r === 'err'); });
   const dz = $('#dropzone');
   ['dragenter', 'dragover'].forEach(ev => document.addEventListener(ev, e => { e.preventDefault(); dz.classList.add('border-indigo-500', 'bg-indigo-50/50'); }));
   ['dragleave', 'drop'].forEach(ev => document.addEventListener(ev, e => { e.preventDefault(); dz.classList.remove('border-indigo-500', 'bg-indigo-50/50'); }));
