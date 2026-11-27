@@ -26,6 +26,8 @@
   ::-webkit-scrollbar-thumb { background: #94a3b855; border-radius: 8px; }
   @media print { header, #filters, nav { display: none !important; } }
 </style>
+<style>/* celular: filtros recolhidos por padrão para os números aparecerem primeiro */
+@media (max-width:639px){#filters.fcol #telBar,#filters.fcol #advFilters,#filters.fcol #btnToggleFilters,#filters.fcol #btnClear{display:none!important}}</style>
 <style>.adm-only{display:none!important}html.is-admin .adm-only{display:inline-flex!important}html.is-admin .hidden-until-data.adm-only.hidden{display:none!important}</style>
 <script>
 /* modo administrador: Carregar arquivo / Publicar só aparecem para quem abriu o painel com a senha (?admin=SENHA). É só a interface; esses botões nunca mexem no site publicado, só no navegador de quem usa. */
@@ -92,13 +94,14 @@
   <section id="app" class="hidden">
 
     <!-- Filtros -->
-    <div id="filters" class="card p-4 mb-4">
+    <div id="filters" class="card p-4 mb-4 fcol">
       <div class="flex items-center gap-2 flex-wrap">
         <div class="relative flex-1 min-w-[200px]">
           <svg class="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.3-4.3"/></svg>
           <input id="search" class="inp w-full pl-9" placeholder="Busca rápida em todas as colunas...">
         </div>
         <div id="counter" class="text-sm font-medium px-2"></div>
+        <button id="btnMobFilters" class="btn sm:hidden" aria-expanded="false" title="Mostrar ou esconder os filtros">Filtros ▾</button>
         <button id="btnToggleFilters" class="btn">Filtros avançados</button>
         <button id="btnClear" class="btn">Limpar</button>
       </div>
@@ -2154,6 +2157,7 @@ function downloadPublic() {
   $('#btnMode').addEventListener('click', toggleMode);
   $('#btnXlsx').addEventListener('click', exportXLSX); $('#btnPdf').addEventListener('click', exportPDF);
   $('#btnToggleFilters').addEventListener('click', () => $('#advFilters').classList.toggle('hidden'));
+  $('#btnMobFilters').addEventListener('click', e => { const c = $('#filters').classList.toggle('fcol'); e.currentTarget.textContent = c ? 'Filtros ▾' : 'Ocultar filtros ▴'; e.currentTarget.setAttribute('aria-expanded', String(!c)); });
   $('#btnClear').addEventListener('click', clearAll);
   let st; $('#search').addEventListener('input', e => { clearTimeout(st); st = setTimeout(() => { S.search = e.target.value.trim().toLowerCase(); S.page = 1; refresh(true); }, 250); });
   $('#dateCol').addEventListener('change', e => { S.dateCol = e.target.value; refresh(true); });
